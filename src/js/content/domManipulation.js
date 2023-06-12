@@ -555,7 +555,7 @@ function findElementByUuid(doc, uuid) {
  * {@link https://developer.mozilla.org/en-US/docs/Web/API/HTMLImageElement|image}.
  *
  * @param {HTMLImageElement} imgElement
- * @param {string} uuis
+ * @param {string} uuid
  * @param {HTMLCanvasElement} canvas - Canvas to do the filtering.
  *
  * @returns {string} Base64 string encoding the filtered bitmap.
@@ -572,7 +572,7 @@ function filterSkinColor(imgElement, uuid, canvas) {
     canvas.setAttribute('width', width);
     canvas.setAttribute('height', height);
 
-    const context = canvas.getContext('2d');
+    const context = canvas.getContext('2d', {willReadFrequently: true});
     context.drawImage(imgElement, 0, 0);
 
     const imageData = context.getImageData(0, 0, width, height);

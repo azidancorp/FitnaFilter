@@ -1,8 +1,8 @@
 {
-    "name": "OS Image Filter",
-    "short_name": "OSIMAGEFILTER",
+    "name": "Skin Tone Image Filter",
+    "short_name": "SKINTONEIMAGEFILTER",
     "version": "3.3",
-    "manifest_version": 2,
+    "manifest_version": 3,
     "description": "This extension filters images by analyzing their pixels, those within the human skin range are replaced by a grayscale tone",
     "icons":
     {
@@ -10,15 +10,15 @@
         "48": "./images/icon48.png",
         "128": "./images/icon128.png"
     },
-    "browser_action":
+    "action":
     {
         "default_icon": "./images/icon-d.png",
-        "default_title": "Overlay Images",
+        "default_title": "Skin Tone Filter",
         "default_popup": "popup.htm"
     },
     "background":
     {
-        "scripts": ["./js/background.js"]
+        "service_worker": "./js/background.js"
     },
     "options_page": "options.htm",
     "content_scripts": [
@@ -37,14 +37,13 @@
         "all_frames": true
     }],
     "permissions": [
-        "tabs",
+        "activeTab",
         "storage",
-        "webRequest",
-        "webRequestBlocking",
-        "<all_urls>"
+        "declarativeNetRequest",
+        "offscreen"
     ],
     "web_accessible_resources": [
-        "./images/eye.png",
-        "./images/undo.png"
+        {"resources": ["./images/eye.png", "./images/undo.png"],
+        "matches" : ["<all_urls>"]}
     ]
 }

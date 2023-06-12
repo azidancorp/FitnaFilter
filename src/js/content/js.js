@@ -1,5 +1,5 @@
 // Global variables.
-let extensionUrl = chrome.extension.getURL('');
+let extensionUrl = chrome.runtime.getURL('');
 let urlExtensionUrl = 'url("' + extensionUrl;
 let blankImg = 'data:image/gif;base64,R0lGODlhAQABAIAAAP///////yH5BAEKAAEALAAAAAABAAEAAAICTAEAOw==';
 let urlBlankImg = 'url("' + blankImg + '")';

@@ -1,32 +1,46 @@
-var ul = localStorage.urlList,
-    urlList = ul ? JSON.parse(ul) : [],
-    paused = localStorage.isPaused == 1,
-    isNoPattern = localStorage.isNoPattern == 1,
-    isNoEye = localStorage.isNoEye == 1,
-    isBlackList = localStorage.isBlackList == 1,
-    excludeForTabList = [],
-    pauseForTabList = [],
-    domainRegex = /^\w+:\/\/([\w\.:-]+)/,
-    maxSafe = +localStorage.maxSafe || 32;
+excludeForTabList = [];
+pauseForTabList = [];
+domainRegex = /^\w+:\/\/([\w\.:-]+)/;
+
+
+async function getSettings() {
+    var result = await chrome.storage.sync.get({'urlList': null, 'isNoPattern': null, 'isNoEye': null, 'isBlackList': null, 'maxSafe': null});
+        ssettings.urlList = result.urlList ? JSON.parse(result.urlList) : [];
+        ssettings.isNoPattern = result.isNoPattern == 1;
+        ssettings.isNoEye = result.isNoEye == 1;
+        ssettings.isBlacklist = result.isBlackList == 1;
+        ssettings.maxSafe = +result.maxSafe || 32;
+
+    result = await chrome.storage.local.get(['isPaused']);
+        ssettings.paused = result.isPaused == 1;
+    return ssettings;
+}
+
+var ssettings = {};
+getSettings()
+.then(onSuccess => {
+    ssettings = onSuccess;
+    console.log("Startup ssettings: " + JSON.stringify(ssettings));
+});
 
 function getDomain(url) {
     var regex = domainRegex.exec(url);
     return regex ? regex[1].toLowerCase() : null;
 }
 
-function saveUrlList() {
-    localStorage.urlList = JSON.stringify(urlList);
+function saveUrlList(urlList) {
+    chrome.storage.sync.set({"urlList": JSON.stringify(urlList)});
 }
 chrome.runtime.onMessage.addListener(
     function(request, sender, sendResponse) {
         switch (request.r) {
-            case 'getSettings':
+            case 'getSettings':  
                 var settings = {
-                    isPaused: paused,
-                    isNoPattern: isNoPattern,
-                    isNoEye: isNoEye,
-                    isBlackList: isBlackList,
-                    maxSafe: maxSafe
+                    isPaused: ssettings.paused,
+                    isNoPattern: ssettings.isNoPattern,
+                    isNoEye: ssettings.isNoEye,
+                    isBlackList: ssettings.isBlackList,
+                    maxSafe: ssettings.maxSafe
                 };
                 var tab = request.tab || sender.tab;
                 if (tab) {
@@ -40,23 +54,23 @@ chrome.runtime.onMessage.addListener(
                             }
                         }
                         var lowerUrl = tab.url.toLowerCase();
-                        for (var i = 0; i < urlList.length; i++) {
-                            if (lowerUrl.indexOf(urlList[i]) != -1) { settings.isExcluded = true; break; }
+                        for (var i = 0; i < ssettings.urlList.length; i++) {
+                            if (lowerUrl.indexOf(ssettings.urlList[i]) != -1) { settings.isExcluded = true; break; }
                         }
-                        if (isBlackList)
+                        if (settings.isBlackList)
                             settings.isExcluded = !settings.isExcluded;
                     }
                 }
-                sendResponse(settings);
+                sendResponse(settings); 
                 break;
             case 'setColorIcon':
-                chrome.browserAction.setIcon({ path: request.toggle ? 'icon.png' : 'icon-d.png', tabId: sender.tab.id });
+                chrome.action.setIcon({ path: request.toggle ? '../images/icon.png' : '../images/icon-d.png', tabId: sender.tab.id });
                 break;
             case 'urlListAdd':
                 var url = request.domainOnly ? getDomain(request.url) : request.url.toLowerCase();
                 if (url) {
-                    urlList.push(url);
-                    saveUrlList();
+                    ssettings.urlList.push(url);
+                    saveUrlList(ssettings.urlList);
                     chrome.runtime.sendMessage({ r: 'urlListModified' });
                 }
                 sendResponse(true);
@@ -64,23 +78,22 @@ chrome.runtime.onMessage.addListener(
             case 'urlListRemove':
                 if (request.url) {
                     var lowerUrl = request.url.toLowerCase();
-                    for (var i = 0; i < urlList.length; i++) {
-                        if (lowerUrl.indexOf(urlList[i]) != -1) {
-                            urlList.splice(i, 1);
+                    for (var i = 0; i < ssettings.urlList.length; i++) {
+                        if (lowerUrl.indexOf(ssettings.urlList[i]) != -1) {
+                            ssettings.urlList.splice(i, 1);
                             i--;
                         }
                     }
                 } else
-                    urlList.splice(request.index, 1);
-                saveUrlList();
+                    ssettings.urlList.splice(request.index, 1);
+                saveUrlList(ssettings.urlList);
                 chrome.runtime.sendMessage({ r: 'urlListModified' });
                 break;
             case 'getUrlList':
-                sendResponse(urlList);
+                sendResponse(ssettings.urlList);
                 break;
             case 'setUrlList':
-                urlList = request.urlList;
-                saveUrlList();
+                saveUrlList(request.urlList);
                 sendResponse(true);
                 break;
             case 'excludeForTab':
@@ -95,7 +108,7 @@ chrome.runtime.onMessage.addListener(
                 break;
             case 'pause':
                 paused = request.toggle;
-                localStorage.isPaused = paused ? 1 : 0;
+                chrome.storage.local.set({"isPaused": ssettings.paused ? 1 : 0});
                 break;
             case 'pauseForTab':
                 if (request.toggle)
@@ -106,25 +119,25 @@ chrome.runtime.onMessage.addListener(
                 break;
             case 'setNoPattern':
                 isNoPattern = request.toggle;
-                localStorage.isNoPattern = isNoPattern ? 1 : 0;
+                chrome.storage.sync.set({"isNoPattern": ssettings.isNoPattern ? 1 : 0});
                 break;
             case 'setNoEye':
                 isNoEye = request.toggle;
-                localStorage.isNoEye = isNoEye ? 1 : 0;
+                chrome.storage.sync.set({"isNoEye": ssettings.isNoEye ? 1 : 0});
                 break;
             case 'setNoFaceFeatures':
                 isNoFaceFeatures = request.toggle;
-                localStorage.isNoFaceFeatures = isNoFaceFeatures ? 1 : 0;
+                chrome.storage.sync.set({"isNoFaceFeatures": settings.isNoFaceFeatures ? 1 : 0});
                 break;
             case 'setBlackList':
                 isBlackList = request.toggle;
-                localStorage.isBlackList = isBlackList ? 1 : 0;
+                chrome.storage.sync.set({"isBlackList": ssettings.isBlackList ? 1 : 0});
                 break;
             case 'setMaxSafe':
                 var ms = +request.maxSafe;
                 if (!ms || ms < 1 || ms > 1000)
                     ms = 32;
-                localStorage.maxSafe = maxSafe = ms;
+                    chrome.storage.sync.set({"maxSafe": maxSafe = ms});
                 break;
         }
     }
@@ -210,25 +223,25 @@ function reload() {
         exposedHeaders = result.exposedHeaders;
 
         /*Remove Listeners*/
-        chrome.webRequest.onHeadersReceived.removeListener(responseListener);
-        chrome.webRequest.onBeforeSendHeaders.removeListener(requestListener);
+        //chrome.webRequest.onHeadersReceived.removeListener(responseListener);
+        //chrome.webRequest.onBeforeSendHeaders.removeListener(requestListener);
 
         //if(result.active) {
         //chrome.browserAction.setIcon({path: "on.png"});
 
-        if (result.urls.length) {
+//        if (result.urls.length) {
 
             /*Add Listeners*/
-            chrome.webRequest.onHeadersReceived.addListener(responseListener, {
-                urls: result.urls
-            }, ["blocking", "responseHeaders"]);
+  //          chrome.webRequest.onHeadersReceived.addListener(responseListener, {
+    //            urls: result.urls
+      //      }, ["blocking", "responseHeaders"]);
 
-            chrome.webRequest.onBeforeSendHeaders.addListener(requestListener, {
-                urls: result.urls
-            }, ["blocking", "requestHeaders"]);
-        }
+          //  chrome.webRequest.onBeforeSendHeaders.addListener(requestListener, {
+        //        urls: result.urls
+        //    }, ["blocking", "requestHeaders"]);
+       // }
         //} else {
         //chrome.browserAction.setIcon({path: "off.png"});
         //}
-    });
+    }); 
 }

@@ -45,14 +45,14 @@ chrome.tabs.query({ active: true, currentWindow: true }, function (tabs) {
         chrome.tabs.create({ url: "chrome://settings/content#handlers-section" });
     };
     document.getElementById('report').onclick = function () {
-        chrome.tabs.create({ url: "https://chrome.google.com/webstore/detail/os-image-filter/digkbjcglmbbipijiogdeegbfbepgdon?hl=en&gl=IL#bug" });
+        chrome.tabs.create({ url: "https://chrome.google.com/webstore/detail/skin-tone-image-filter/olmgdlhfhakafgkfibdbkofbiakfombk?hl=en&gl=IL#bug" });
     };
     document.getElementById('support').onclick = function () {
         var advice = document.getElementById('collaborate');
         advice.style.display = advice.style.display == 'block' ? 'none' : 'block';
     };
     document.getElementById('donate').onclick = function () {
-        chrome.tabs.create({ url: "https://www.paypal.com/cgi-bin/webscr?cmd=_s-xclick&hosted_button_id=KE9PLAN32JWS2" });
+        chrome.tabs.create({ url: "https://www.paypal.com/paypalme/corpitxyz" });
     };
 });
 document.getElementById('close').onclick = function () { close(); };

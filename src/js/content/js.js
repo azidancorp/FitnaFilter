@@ -278,6 +278,12 @@ function ProcessWin(win, winContentLoaded) {
 
         }
 
+        if (mHeadStyles['body ']) {
+
+            removeHeadStyle(mDoc, mHeadStyles, 'body ');
+
+        }
+
         mEye.attachTo(mDoc.body);
 
         // Create temporary div, to eager load background img light

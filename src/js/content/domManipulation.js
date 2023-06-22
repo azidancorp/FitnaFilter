@@ -633,9 +633,9 @@ function filterSkinColor(imgElement, uuid, canvas) {
         v = percentRoundFn(v * 100)
 
         if (
-            (h >= 0) && (h <= 32) && (s >= 15) && (s <= 170) && (v >= 0) && (v <= 255)
-            &&
-            (cb >= 85) && (cb <= 135) && (cr >= 135) && (cr < 180)
+            (h >= 0) && (h <= 32) && 
+            (s >= 15) && (s <= 170) && 
+            (cb >= 85) && (cb <= 128) && (cr >= 142) && (cr < 180)
         ) {
             rgbaArray[rIndex] = 127;
             rgbaArray[gIndex] = 127;

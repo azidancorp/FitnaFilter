@@ -1,7 +1,7 @@
 {
     "name": "Skin Tone Image Filter",
     "short_name": "SKINTONEIMAGEFILTER",
-    "version": "3.3.1",
+    "version": "3.3.2",
     "manifest_version": 3,
     "description": "This extension filters images by analyzing their pixels, those within the human skin range are replaced by a grayscale tone",
     "icons":

@@ -38,9 +38,7 @@
     }],
     "permissions": [
         "activeTab",
-        "storage",
-        "declarativeNetRequest",
-        "offscreen"
+        "storage"
     ],
     "web_accessible_resources": [
         {"resources": ["./images/eye.png", "./images/undo.png"],

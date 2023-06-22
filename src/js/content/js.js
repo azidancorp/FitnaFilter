@@ -3,8 +3,8 @@ let extensionUrl = chrome.runtime.getURL('');
 let urlExtensionUrl = 'url("' + extensionUrl;
 let blankImg = 'data:image/gif;base64,R0lGODlhAQABAIAAAP///////yH5BAEKAAEALAAAAAABAAEAAAICTAEAOw==';
 let urlBlankImg = 'url("' + blankImg + '")';
-let eyeCSSUrl = 'url(' + extensionUrl + "eye.png" + ')';
-let undoCSSUrl = 'url(' + extensionUrl + "undo.png" + ')';
+let eyeCSSUrl = 'url(' + extensionUrl + "images/eye.png" + ')';
+let undoCSSUrl = 'url(' + extensionUrl + "images/undo.png" + ')';
 // This is the list of elements that can actually hold images.
 // These are the ones that have to be checked.
 let tagList = ['IMG', 'DIV', 'SPAN',

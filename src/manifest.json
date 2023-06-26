@@ -40,6 +40,9 @@
         "activeTab",
         "storage"
     ],
+    "host_permissions": [
+        "<all_urls>"
+    ],
     "web_accessible_resources": [
         {"resources": ["images/eye.png", "images/undo.png"],
         "matches" : ["<all_urls>"]}

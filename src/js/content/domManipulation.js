@@ -387,6 +387,7 @@ function processDomImage(domElement, canvas) {
     try {
         filterImageElement(domElement, uuid, canvas);
     } catch (err) {
+        //console.log(fetchAndReadImage(domElement.src));
         fetchAndReadImage(domElement.src).then(image => {
             filterImageElement(image, uuid, canvas);
         });
@@ -415,6 +416,7 @@ function processDomImage(domElement, canvas) {
 function processBackgroundImage(domElement, url, canvas) {
     const uuid = domElement.getAttribute(ATTR_UUID);
 
+    //console.log(fetchAndReadImage(url));
     fetchAndReadImage(url).then(image => {
         filterImageElementAsBackground(image, uuid, canvas);
     });
@@ -433,29 +435,15 @@ function processBackgroundImage(domElement, url, canvas) {
  * });
  */
 function fetchAndReadImage(url) {
-    const xhr = new XMLHttpRequest();
-    xhr.open("GET", url);
-    xhr.responseType = "blob";
-    xhr.send();
+      return chrome.runtime.sendMessage({ r: 'fetchAndReadImage', url: url }).then(response => {
+            const image = new Image();
+            image.crossOrigin = 'anonymous';
+            image.src = response;
 
-    return new Promise((resolve, reject) => {
-        xhr.onload = resolve;
-    }).then(() => {
-        const reader = new FileReader();
-        reader.readAsDataURL(xhr.response);
-
-        return new Promise((resolve, reject) => {
-            reader.onloadend = () => resolve(reader);
+            return new Promise((resolve, reject) => {
+                image.onload = () => resolve(image);
+            })
         });
-    }).then(reader => {
-        const image = new Image();
-        image.crossOrigin = 'anonymous';
-        image.src = reader.result;
-
-        return new Promise((resolve, reject) => {
-            image.onload = () => resolve(image);
-        })
-    });
 }
 /**
  * Filter the bitmap in an

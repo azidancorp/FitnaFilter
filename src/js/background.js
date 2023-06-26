@@ -139,7 +139,25 @@ chrome.runtime.onMessage.addListener(
                     ms = 32;
                     chrome.storage.sync.set({"maxSafe": maxSafe = ms});
                 break;
+            case 'fetchAndReadImage':
+                fetch(request.url)
+                .then((response) => {
+                    console.log(response);
+                    return response.blob()})
+                .then(rblob => {
+                    const reader = new FileReader();
+                    reader.readAsDataURL(rblob);
+            
+                    return new Promise((resolve, reject) => {
+                        reader.onloadend = () => resolve(reader);
+                    });
+                }).then(reader => {
+                    console.log(reader.result);
+                    sendResponse(reader.result);
+                });
+                break;
         }
+        return true;
     }
 );
 
@@ -223,25 +241,27 @@ function reload() {
         exposedHeaders = result.exposedHeaders;
 
         /*Remove Listeners*/
-        //chrome.webRequest.onHeadersReceived.removeListener(responseListener);
-        //chrome.webRequest.onBeforeSendHeaders.removeListener(requestListener);
+//        chrome.declarativeNetRequest.onHeadersReceived.removeListener(responseListener);
+//        chrome.declarativeNetRequest.onBeforeSendHeaders.removeListener(requestListener);
 
-        //if(result.active) {
+//        if(result.active) {
         //chrome.browserAction.setIcon({path: "on.png"});
 
 //        if (result.urls.length) {
 
             /*Add Listeners*/
-  //          chrome.webRequest.onHeadersReceived.addListener(responseListener, {
-    //            urls: result.urls
-      //      }, ["blocking", "responseHeaders"]);
+//            chrome.declarativeNetRequest.onHeadersReceived.addListener(responseListener, {
+//                urls: result.urls
+//            }, //["blocking", "responseHeaders"]
+//            );
 
-          //  chrome.webRequest.onBeforeSendHeaders.addListener(requestListener, {
-        //        urls: result.urls
-        //    }, ["blocking", "requestHeaders"]);
-       // }
-        //} else {
+//            chrome.declarativeNetRequest.onBeforeSendHeaders.addListener(requestListener, {
+//               urls: result.urls
+//            }, //["blocking", "requestHeaders"]
+//            );
+//        }
+//        } else {
         //chrome.browserAction.setIcon({path: "off.png"});
-        //}
+//        }
     }); 
 }

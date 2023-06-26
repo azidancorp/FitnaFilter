@@ -3,6 +3,15 @@
 Chrome extension to filter human skin in websites' images. It has been developed based on the chrome extension
 [Wizimage](https://chrome.google.com/webstore/detail/wizmage-image-hider/ifoggbfaoakkojipahnplnbfnhhhnmlp?hl=en).
 
+This repository is a fork of the original project:
+https://github.com/sosegon/OS-Image-Filter
+
+This fork was created to migrate this project to manifest v3, as well as fix the outstanding bugs that
+were either never fixed in the original, or that became an issue due to changes in the Chromium project
+that broke existing functionality.
+
+We also updated the algorithm used to detect skin pixels to avoid a significant amount of false positives while
+introducing only a small addition in false negatives.
 
 The extension filters images by analyzing their pixels, those within the human skin range are replaced by a grayscale tone.
 
@@ -14,7 +23,8 @@ In some cases, it is not possible to get the data of the image using a canvas el
 that happens when the images are fetched from domains different to the web page's. In those cases the
 extension makes xml http requests to get the data of the image. 
 
-To avoid CORS errors when fetching data using a xml http requests, the header of the response is modified so the data can be used with no problems.
+To avoid CORS errors when fetching data using a xml http requests, the request to fetch images is moved to the
+service worker to avoid the issue.
 
 Once an image has been filtered, it is encoded in base64 format, so this value can be 
 set in the SRC attribute of a IMG node.

@@ -573,7 +573,7 @@ function filterSkinColor(imgElement, uuid, canvas) {
     canvas.setAttribute('height', height);
 
     const context = canvas.getContext('2d', {willReadFrequently: true});
-    context.drawImage(imgElement, 0, 0);
+    context.drawImage(imgElement, 0, 0, imgElement.width, imgElement.height);
 
     const imageData = context.getImageData(0, 0, width, height);
     const rgbaArray = imageData.data;

@@ -142,7 +142,6 @@ chrome.runtime.onMessage.addListener(
             case 'fetchAndReadImage':
                 fetch(request.url)
                 .then((response) => {
-                    console.log(response);
                     return response.blob()})
                 .then(rblob => {
                     const reader = new FileReader();
@@ -152,7 +151,6 @@ chrome.runtime.onMessage.addListener(
                         reader.onloadend = () => resolve(reader);
                     });
                 }).then(reader => {
-                    console.log(reader.result);
                     sendResponse(reader.result);
                 });
                 break;

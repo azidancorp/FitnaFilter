@@ -381,11 +381,11 @@ function handleLoadEventListener(domElement, callback, toggle) {
  * const canvas = document.getElementById('canvas-to-do-processing');
  * processDomImage(image, canvas);
  */
-function processDomImage(domElement, canvas) {
+async function processDomImage(domElement, canvas) {
     const uuid = domElement.getAttribute(ATTR_UUID);
 
     try {
-        filterImageElement(domElement, uuid, canvas);
+        await filterImageElement(domElement, uuid, canvas);
     } catch (err) {
         //console.log(fetchAndReadImage(domElement.src));
         fetchAndReadImage(domElement.src).then(image => {
@@ -434,7 +434,7 @@ function processBackgroundImage(domElement, url, canvas) {
  *      // do something
  * });
  */
-function fetchAndReadImage(url) {
+async function fetchAndReadImage(url) {
       return chrome.runtime.sendMessage({ r: 'fetchAndReadImage', url: url }).then(response => {
             const image = new Image();
             image.crossOrigin = 'anonymous';
@@ -464,8 +464,8 @@ function fetchAndReadImage(url) {
  *
  * filterImageElementAsBackground(element, uuid, canvas);
  */
-function filterImageElementAsBackground(imgElement, uuid, canvas) {
-    const base64Img = filterSkinColor(imgElement, uuid, canvas);
+async function filterImageElementAsBackground(imgElement, uuid, canvas) {
+    const base64Img = await filterSkinColor(imgElement, uuid, canvas);
     const newBackgroundImgUrl = "url('" + base64Img + "')";
     const actualElement = findElementByUuid(document, uuid);
 
@@ -493,8 +493,8 @@ function filterImageElementAsBackground(imgElement, uuid, canvas) {
  *
  * filterImageElement(element, uuid, canvas);
  */
-function filterImageElement(imgElement, uuid, canvas) {
-    const urlData = filterSkinColor(imgElement, uuid, canvas)
+async function filterImageElement(imgElement, uuid, canvas) {
+    const urlData = await filterSkinColor(imgElement, uuid, canvas)
     const actualElement = findElementByUuid(document, uuid);
 
     if (actualElement) {
@@ -546,7 +546,7 @@ function findElementByUuid(doc, uuid) {
  * @param {string} uuid
  * @param {HTMLCanvasElement} canvas - Canvas to do the filtering.
  *
- * @returns {string} Base64 string encoding the filtered bitmap.
+ * @returns {Promise} Base64 string encoding the filtered bitmap.
  *
  * @example
  * const element = document.getElementById('id');
@@ -555,7 +555,7 @@ function findElementByUuid(doc, uuid) {
  *
  * const base64Image = filterSkinColor(element, uuid, canvas);
  */
-function filterSkinColor(imgElement, uuid, canvas) {
+async function filterSkinColor(imgElement, uuid, canvas) {
     const { width, height } = imgElement;
     canvas.setAttribute('width', width);
     canvas.setAttribute('height', height);
@@ -637,9 +637,22 @@ function filterSkinColor(imgElement, uuid, canvas) {
 
     imageData.data.set(rgbaArray);
     context.putImageData(imageData, 0, 0);
-    const base64Img = canvas.toDataURL("image/png");
-
+    base64Img = await canvasBlobify(canvas);
     return base64Img;
+}
+
+function canvasBlobify(canvas) {
+    return new Promise ((resolve, reject) => {
+        try {
+            canvas.toBlob(function(blob){
+                base64Img = URL.createObjectURL(blob);
+                resolve(base64Img);
+            },'image/png');
+        } catch (error) {
+            reject(error)
+        }
+        
+    })
 }
 /**
  * Add a random uuid to an

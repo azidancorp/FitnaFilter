@@ -495,6 +495,14 @@ function ProcessWin(win, winContentLoaded) {
 
             }
 
+            if (typeof this.src !== 'undefined' && this.src.startsWith('blob')) {
+                //For some reason, blob URL's dont fire a load event.
+                //Just process it now and be done with it
+                processDomImage(this, document.getElementById(CANVAS_GLOBAL_ID));
+                toggleMouseEventListeners(this, true);
+                return;
+            } 
+
             // Attach load event need for the following:
             //
             // 1) As we need to catch it after, it is switched for the

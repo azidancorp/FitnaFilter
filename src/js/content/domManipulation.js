@@ -383,6 +383,10 @@ function handleLoadEventListener(domElement, callback, toggle) {
  */
 async function processDomImage(domElement, canvas) {
     const uuid = domElement.getAttribute(ATTR_UUID);
+    if (domElement.oldsrc !== '') {
+        //This was not done yet due to lazy loading
+        handleSourceOfImage(domElement, true);
+    }
 
     try {
         await filterImageElement(domElement, uuid, canvas);

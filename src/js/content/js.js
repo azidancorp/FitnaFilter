@@ -497,9 +497,11 @@ function ProcessWin(win, winContentLoaded) {
 
             if (typeof this.src !== 'undefined' && this.src.startsWith('blob')) {
                 //For some reason, blob URL's dont fire a load event.
+                //And it relies on src and srcset, so handleSourceOfImage will break
+                //the display.  TODO fix this and all lazy loading
                 //Just process it now and be done with it
+                //handleSourceOfImage(this, true);  <--Don't enable this
                 processDomImage(this, document.getElementById(CANVAS_GLOBAL_ID));
-                toggleMouseEventListeners(this, true);
                 return;
             } 
 
@@ -560,7 +562,10 @@ function ProcessWin(win, winContentLoaded) {
                 }
 
                 hideElement(this, true);
-                handleSourceOfImage(this, true);
+                if (this.src !== '') {
+                    //If no src then lazy loaded, do this later
+                    handleSourceOfImage(this, true);
+                }
 
                 if (this.parentElement && this.parentElement.tagName == 'PICTURE') {
 

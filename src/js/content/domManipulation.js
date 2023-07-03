@@ -408,6 +408,8 @@ async function processDomImage(domElement, canvas) {
  * @param {Element} domElement
  * @param {string} url - Url obtained from the background-image css
  * attribute in the style of the element.
+ * @param {string} suffix - Remainder of URL not used in fetch like
+ * gradient and size
  * @param {HTMLCanvasElement} canvas - Canvas to do the processing.
  *
  * @example
@@ -417,12 +419,11 @@ async function processDomImage(domElement, canvas) {
  *
  * processBackgroundImage(element, url, canvas);
  */
-function processBackgroundImage(domElement, url, canvas) {
+function processBackgroundImage(domElement, url, suffix, canvas) {
     const uuid = domElement.getAttribute(ATTR_UUID);
 
-    //console.log(fetchAndReadImage(url));
     fetchAndReadImage(url).then(image => {
-        filterImageElementAsBackground(image, uuid, canvas);
+        filterImageElementAsBackground(image, uuid, canvas, suffix);
     });
 }
 /**
@@ -460,6 +461,7 @@ async function fetchAndReadImage(url) {
  * @param {string} uuid - Unique identifier of the element which
  * background-image style attribute will be updated.
  * @param {HTMLCanvasElement} canvas - Canvas to do the filtering.
+ * @param {string} suffix - Remainder of background-image not used in fetch
  *
  * @example
  * const element = document.getElementById('id');
@@ -468,13 +470,16 @@ async function fetchAndReadImage(url) {
  *
  * filterImageElementAsBackground(element, uuid, canvas);
  */
-async function filterImageElementAsBackground(imgElement, uuid, canvas) {
+async function filterImageElementAsBackground(imgElement, uuid, canvas, suffix) {
     const base64Img = await filterSkinColor(imgElement, uuid, canvas);
     const newBackgroundImgUrl = "url('" + base64Img + "')";
     const actualElement = findElementByUuid(document, uuid);
 
     if (actualElement) {
         actualElement.style.backgroundImage = newBackgroundImgUrl;
+        if (suffix) {
+            actualElement.style.backgroundImage += ", " + suffix;
+        }
         actualElement[IS_PROCESSED] = true;
     }
 }

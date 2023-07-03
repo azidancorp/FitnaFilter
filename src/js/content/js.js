@@ -611,14 +611,21 @@ function ProcessWin(win, winContentLoaded) {
                 !this[IS_PROCESSED]
             ) {
                 // Used to fetch image with xhr.
-                const bgImgUrl = bgImg.slice(5, -2);
+                const bgImgUrl = bgImg.split(', ').filter(function(item){
+                    return item.indexOf('url(') == 0;
+                })[0].slice(5, -2);
+                //Preserve the suffix of the background-image element
+                bgImgSuffix = null;
+                if (bgImg.indexOf(', ') != -1) {
+                    bgImgSuffix = bgImg.substring(bgImg.indexOf(", ") + 1).slice(0,-1);
+                }
                 // Avoids quick display of original image
                 this.style.backgroundImage = "url('')";
                 // Reference for the element once the image is
                 // processed.
                 addRandomWizUuid(this);
                 const canvas = document.getElementById(CANVAS_GLOBAL_ID);
-                processBackgroundImage(this, bgImgUrl, canvas);
+                processBackgroundImage(this, bgImgUrl, bgImgSuffix, canvas);
 
                 mSuspects.addSuspect(this);
                 handleBackgroundForElement(this, true);

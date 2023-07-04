@@ -388,10 +388,16 @@ async function processDomImage(domElement, canvas) {
         handleSourceOfImage(domElement, true);
     }
 
+    
     try {
+        if (domElement.src.indexOf("=eyJ") != -1 ) {
+            //Some images are protected by JWT tokens (like OWA attachments)
+            //They need to be fetched first
+            throw new Error("Fetch with token");
+        }
         await filterImageElement(domElement, uuid, canvas);
     } catch (err) {
-        //console.log(fetchAndReadImage(domElement.src));
+        //console.log(domElement.src);
         fetchAndReadImage(domElement.src).then(image => {
             filterImageElement(image, uuid, canvas);
         });

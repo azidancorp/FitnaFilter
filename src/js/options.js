@@ -1,9 +1,12 @@
 $(function () {
     var $addName = $('#addName').focus(), $noFaceFeatures = $('#noFaceFeatures'), $noEye = $('#noEye'), $list = $('#list'),
-        $form = $('form'), isFreeText = false, $freeText = $('#free-text'), $maxSafe = $('#max-safe');
+        $form = $('form'), isFreeText = false, $freeText = $('#free-text'), $maxSafe = $('#max-safe'),
+        $autoUnpause = $('#autoUnpause'), $autoUnpauseTimeout = $('#autoUnpauseTimeout');
     chrome.runtime.sendMessage({ r: 'getSettings' }, function (settings) {
         $noEye[0].checked = settings.isNoEye;
         $noFaceFeatures[0].checked = settings.isNoFaceFeatures;
+        $autoUnpause[0].checked = settings.autoUnpause;
+        $autoUnpauseTimeout.val(settings.autoUnpauseTimeout);
         $maxSafe.val(settings.maxSafe);
     });
     chrome.runtime.onMessage.addListener(function (request) {
@@ -15,6 +18,12 @@ $(function () {
     });
     $noFaceFeatures.click(function () {
         chrome.runtime.sendMessage({ r: 'setNoFaceFeatures', toggle: this.checked });
+    });
+    $autoUnpause.click(function () {
+        chrome.runtime.sendMessage({ r: 'setAutoUnpause', toggle: this.checked });
+    });
+    $autoUnpauseTimeout.change(function() {
+        chrome.runtime.sendMessage({ r: 'setAutoUnpauseTimeout', autoUnpauseTimeout: $autoUnpauseTimeout.val() });
     });
     $maxSafe.change(function () {
         chrome.runtime.sendMessage({ r: 'setMaxSafe', maxSafe: $maxSafe.val() });
@@ -34,7 +43,6 @@ $(function () {
     });
     function CreateList() {
         chrome.runtime.sendMessage({ r: 'getUrlList' }, function (urlList) {
-            console.log(urlList);
             $list.empty();
             if (isFreeText) {
                 var $textarea = $('<textarea>').css('width', '100%').attr('rows', '15'), text = '';

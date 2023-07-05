@@ -4,10 +4,13 @@ domainRegex = /^\w+:\/\/([\w\.:-]+)/;
 
 
 async function getSettings() {
-    var result = await chrome.storage.sync.get({'urlList': null, 'isNoEye': null, 'isNoFaceFeatures': null, 'maxSafe': null});
+    var result = await chrome.storage.sync.get({'urlList': null, 'isNoEye': null, 'isNoFaceFeatures': null, 'maxSafe': null,
+    'autoUnpause': null, 'autoUnpauseTimeout': null});
         ssettings.urlList = result.urlList ? JSON.parse(result.urlList) : [];
         ssettings.isNoEye = result.isNoEye == 1;
         ssettings.maxSafe = +result.maxSafe || 32;
+        ssettings.autoUnpause = result.autoUnpause == 1;
+        ssettings.autoUnpauseTimeout = +result.autoUnpauseTimeout || 15;
         ssettings.isNoFaceFeatures = result.isNoFaceFeatures == 1;
 
     result = await chrome.storage.local.get({'isPaused' : null, "pausedTime" : null});
@@ -39,6 +42,8 @@ chrome.runtime.onMessage.addListener(
                 var settings = {
                     isPaused: ssettings.isPaused,
                     pausedTime: ssettings.pausedTime,
+                    autoUnpause: ssettings.autoUnpause,
+                    autoUnpauseTimeout: ssettings.autoUnpauseTimeout,
                     isNoEye: ssettings.isNoEye,
                     isNoFaceFeatures: ssettings.isNoFaceFeatures,
                     maxSafe: ssettings.maxSafe
@@ -62,8 +67,9 @@ chrome.runtime.onMessage.addListener(
                             settings.isExcluded = !settings.isExcluded;
                     }
                 }
-                if (typeof settings.pausedTime == "number" && (settings.pausedTime + 900 < (Date.now() / 1000))){
-                    //15 minutes have passed, turn off pause
+                if (typeof settings.pausedTime == "number" && settings.autoUnpause &&
+                (settings.pausedTime + (settings.autoUnpauseTimeout * 60) < (Date.now() / 1000))){
+                    //Timeout reached, turn off pause
                     chrome.storage.local.set({"isPaused": 0});
                     chrome.storage.local.set({"pausedTime": null});
                 }
@@ -135,6 +141,16 @@ chrome.runtime.onMessage.addListener(
             case 'setNoFaceFeatures':
                 isNoFaceFeatures = request.toggle;
                 chrome.storage.sync.set({"isNoFaceFeatures": isNoFaceFeatures});
+                break;
+            case 'setAutoUnpause':
+                autoUnpause = request.toggle;
+                chrome.storage.sync.set({"autoUnpause": autoUnpause});
+                break;
+            case 'setAutoUnpauseTimeout':
+                var autoUnpauseTimeout = +request.autoUnpauseTimeout;
+                if (!autoUnpauseTimeout || autoUnpauseTimeout < 1 || autoUnpauseTimeout > 1000)
+                    autoUnpauseTimeout = 15;
+                    chrome.storage.sync.set({"autoUnpauseTimeout": autoUnpauseTimeout});
                 break;
             case 'setMaxSafe':
                 var ms = +request.maxSafe;

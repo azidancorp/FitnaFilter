@@ -33,6 +33,16 @@
             <span id="noFaceFeaturesInfo" class="info-icon" title="By default, the extension only filters the skin color; some face features can still be noticeable. This option allows to remove those face features whenever it is possible.">?</span>
         </div>
         <div>
+            <input type="checkbox" id="autoUnpause" />
+            <label for="autoUnpause">Automatically unpause after set timeout</label>
+            <span id="autoUnpauseInfo" class="info-icon" title="After pausing, automatically remove pause from the filter after a set timeout.">?</span>
+        </div>
+        <div>
+            <label for="autoUnpauseTimeout">Automatic Unpause Timeout (in minutes)</label>
+            <input type="number" id="autoUnpauseTimeout" />
+            <span id="autoUnpauseTimeoutInfo" class="info-icon" title="If auto unpause is enabled, after how many minutes to reenable the filter.">?</span>
+        </div>
+        <div>
             <label>Maximum Safe pixels</label>
             <input type="text" id="max-safe" />
             <span class="info-icon" title="The maximum size of images that you always want shown. Must be 1-1000.">?</span>

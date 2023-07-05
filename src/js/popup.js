@@ -45,7 +45,7 @@ chrome.tabs.query({ active: true, currentWindow: true }, function (tabs) {
         chrome.tabs.create({ url: "chrome://settings/content#handlers-section" });
     };
     document.getElementById('report').onclick = function () {
-        chrome.tabs.create({ url: "https://chrome.google.com/webstore/detail/skin-tone-image-filter/olmgdlhfhakafgkfibdbkofbiakfombk?hl=en&gl=IL#bug" });
+        chrome.tabs.create({ url: "https://github.com/yois615/OS-Image-Filter/issues" });
     };
     document.getElementById('support').onclick = function () {
         var advice = document.getElementById('collaborate');

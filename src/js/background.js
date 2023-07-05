@@ -11,8 +11,9 @@ async function getSettings() {
         ssettings.isBlacklist = result.isBlackList == 1;
         ssettings.maxSafe = +result.maxSafe || 32;
 
-    result = await chrome.storage.local.get(['isPaused']);
-        ssettings.paused = result.isPaused == 1;
+    result = await chrome.storage.local.get({'isPaused' : null, "pausedTime" : null});
+        ssettings.isPaused = result.isPaused;
+        ssettings.pausedTime = result.pausedTime;
     return ssettings;
 }
 
@@ -35,8 +36,10 @@ chrome.runtime.onMessage.addListener(
     function(request, sender, sendResponse) {
         switch (request.r) {
             case 'getSettings':  
+                getSettings();
                 var settings = {
-                    isPaused: ssettings.paused,
+                    isPaused: ssettings.isPaused,
+                    pausedTime: ssettings.pausedTime,
                     isNoPattern: ssettings.isNoPattern,
                     isNoEye: ssettings.isNoEye,
                     isBlackList: ssettings.isBlackList,
@@ -60,6 +63,11 @@ chrome.runtime.onMessage.addListener(
                         if (settings.isBlackList)
                             settings.isExcluded = !settings.isExcluded;
                     }
+                }
+                if (typeof settings.pausedTime == "number" && (settings.pausedTime + 900 < (Date.now() / 1000))){
+                    //15 minutes have passed, turn off pause
+                    chrome.storage.local.set({"isPaused": 0});
+                    chrome.storage.local.set({"pausedTime": null});
                 }
                 sendResponse(settings); 
                 break;
@@ -87,7 +95,7 @@ chrome.runtime.onMessage.addListener(
                 } else
                     ssettings.urlList.splice(request.index, 1);
                 saveUrlList(ssettings.urlList);
-                chrome.runtime.sendMessage({ r: 'urlListModified' });
+                //chrome.runtime.sendMessage({ r: 'urlListModified' });
                 break;
             case 'getUrlList':
                 sendResponse(ssettings.urlList);
@@ -107,8 +115,13 @@ chrome.runtime.onMessage.addListener(
                 }
                 break;
             case 'pause':
-                paused = request.toggle;
-                chrome.storage.local.set({"isPaused": ssettings.paused ? 1 : 0});
+                pause = request.toggle;
+                if (pause == 1) {
+                    chrome.storage.local.set({"pausedTime": (Date.now() / 1000)});
+                } else {
+                    chrome.storage.local.set({"pausedTime": null});
+                }
+                chrome.storage.local.set({"isPaused": pause ? 1 : 0});
                 break;
             case 'pauseForTab':
                 if (request.toggle)

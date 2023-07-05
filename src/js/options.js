@@ -1,35 +1,25 @@
 $(function () {
-    var $addName = $('#addName').focus(), $noPattern = $('#noPattern'), $noEye = $('#noEye'), $list = $('#list'), $whiteList = $('#white-list'), $blackList = $('#black-list'),
+    var $addName = $('#addName').focus(), $noFaceFeatures = $('#noFaceFeatures'), $noEye = $('#noEye'), $list = $('#list'),
         $form = $('form'), isFreeText = false, $freeText = $('#free-text'), $maxSafe = $('#max-safe');
     chrome.runtime.sendMessage({ r: 'getSettings' }, function (settings) {
-        $noPattern[0].checked = settings.isNoPattern;
         $noEye[0].checked = settings.isNoEye;
-        (settings.isBlackList ? $blackList : $whiteList)[0].checked = true;
+        $noFaceFeatures[0].checked = settings.isNoFaceFeatures;
         $maxSafe.val(settings.maxSafe);
     });
     chrome.runtime.onMessage.addListener(function (request) {
         if (request.r == 'urlListModified')
             CreateList();
     });
-    $noPattern.click(function () {
-        chrome.runtime.sendMessage({ r: 'setNoPattern', toggle: this.checked });
-    });
     $noEye.click(function () {
         chrome.runtime.sendMessage({ r: 'setNoEye', toggle: this.checked });
     });
-    $noEye.click(function () {
+    $noFaceFeatures.click(function () {
         chrome.runtime.sendMessage({ r: 'setNoFaceFeatures', toggle: this.checked });
-    });
-    $whiteList.click(function () {
-        chrome.runtime.sendMessage({ r: 'setBlackList', toggle: false });
-    });
-    $blackList.click(function () {
-        chrome.runtime.sendMessage({ r: 'setBlackList', toggle: true });
     });
     $maxSafe.change(function () {
         chrome.runtime.sendMessage({ r: 'setMaxSafe', maxSafe: $maxSafe.val() });
     });
-    $(window).unload(function () { $maxSafe.blur(); });
+    $(window).on('unload', function () { $maxSafe.blur(); });
     $form.submit(function () {
         var url = $.trim($addName.val()).toLowerCase();
         if (!url.length) return;
@@ -39,10 +29,12 @@ $(function () {
     });
     $list.on('click', '.delete', function () {
         var $parent = $(this).parent();
-        chrome.runtime.sendMessage({ r: 'urlListRemove', index: $parent.index() }, CreateList);
+        chrome.runtime.sendMessage({ r: 'urlListRemove', index: $parent.index() });
+        CreateList();
     });
     function CreateList() {
         chrome.runtime.sendMessage({ r: 'getUrlList' }, function (urlList) {
+            console.log(urlList);
             $list.empty();
             if (isFreeText) {
                 var $textarea = $('<textarea>').css('width', '100%').attr('rows', '15'), text = '';

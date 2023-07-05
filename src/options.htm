@@ -23,11 +23,6 @@
     <div id='cont'>
         <h3>Settings</h3>
         <div>
-            <input type="checkbox" id="noPattern" />
-            <label for="noPattern">Don't show pattern for hidden images</label>
-            <span id="noPatternInfo" class="info-icon" title="Note that the pattern was carefully designed to be partly transparent, so you can see what is behind it, yet opaque enough to be able to read white text on it, which without the pattern will be completely invisible. The pattern is also useful as you can see where image-buttons are (often though, Wizmage will detect that these are buttons (or icons) and show them automatically), and  if you're buying a product, you can locate the image of the product to reveal with ALT-a.">?</span>
-        </div>
-        <div>
             <input type="checkbox" id="noEye" />
             <label for="noEye">Don't show the Eye in hidden images</label>
             <span id="noEyeInfo" class="info-icon" title="By default, an eye is shown when hovering the mouse over a hidden image. Clicking on it will show that image.">?</span>
@@ -42,18 +37,12 @@
             <input type="text" id="max-safe" />
             <span class="info-icon" title="The maximum size of images that you always want shown. Must be 1-1000.">?</span>
         </div>
-        <h3>
-            <input type="radio" id="white-list" name="list-type" />
-            <label for="white-list">White List</label>
-            <input type="radio" id="black-list" name="list-type" />
-            <label for="black-list">Black List</label>
-            <span class="info-icon" title="With a White List, Wizmage runs on all sites, besides for those in the list below. With a Black List, Wizmage only runs on the sites in the list below.">?</span>
-        </h3>
         <form>
             <input type='text' id='addName'>
             <input type='submit' value='Add Exception' id='addBut'>
         </form>
-        <div><i>a URL containing any of the following lines will be matched</i></div>
+        <br>
+        <div><i>A URL containing any of the following lines will be excluded from filtering:</i></div>
         <div id='list'></div>
         <div>
             <input type="checkbox" id="free-text" />

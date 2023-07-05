@@ -638,7 +638,7 @@ async function filterSkinColor(imgElement, uuid, canvas) {
         if (
             (h >= 0) && (h <= 32) && (s >= 15) && //(s <= 85) && 
             (cb >= 85) && (cb <= 128) && (cr >= 142) && (cr < 180) &&
-            (r > 95 && g > 40 && b > 20)
+            (settings.isNoFaceFeatures || (r > 85 && g > 40 && b > 20))
             //&&
             //(Math.max(r, g, b) - Math.min(r, g, b) > 15) &&
             //(Math.abs(r - g) > 15 && r > g && r > b)

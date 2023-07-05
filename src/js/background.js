@@ -4,12 +4,11 @@ domainRegex = /^\w+:\/\/([\w\.:-]+)/;
 
 
 async function getSettings() {
-    var result = await chrome.storage.sync.get({'urlList': null, 'isNoPattern': null, 'isNoEye': null, 'isBlackList': null, 'maxSafe': null});
+    var result = await chrome.storage.sync.get({'urlList': null, 'isNoEye': null, 'isNoFaceFeatures': null, 'maxSafe': null});
         ssettings.urlList = result.urlList ? JSON.parse(result.urlList) : [];
-        ssettings.isNoPattern = result.isNoPattern == 1;
         ssettings.isNoEye = result.isNoEye == 1;
-        ssettings.isBlacklist = result.isBlackList == 1;
         ssettings.maxSafe = +result.maxSafe || 32;
+        ssettings.isNoFaceFeatures = result.isNoFaceFeatures == 1;
 
     result = await chrome.storage.local.get({'isPaused' : null, "pausedTime" : null});
         ssettings.isPaused = result.isPaused;
@@ -40,9 +39,8 @@ chrome.runtime.onMessage.addListener(
                 var settings = {
                     isPaused: ssettings.isPaused,
                     pausedTime: ssettings.pausedTime,
-                    isNoPattern: ssettings.isNoPattern,
                     isNoEye: ssettings.isNoEye,
-                    isBlackList: ssettings.isBlackList,
+                    isNoFaceFeatures: ssettings.isNoFaceFeatures,
                     maxSafe: ssettings.maxSafe
                 };
                 var tab = request.tab || sender.tab;
@@ -130,21 +128,13 @@ chrome.runtime.onMessage.addListener(
                     for (var i = 0; i < pauseForTabList.length; i++)
                         if (pauseForTabList[i] == request.tabId) { pauseForTabList.splice(i, 1); break; }
                 break;
-            case 'setNoPattern':
-                isNoPattern = request.toggle;
-                chrome.storage.sync.set({"isNoPattern": ssettings.isNoPattern ? 1 : 0});
-                break;
             case 'setNoEye':
                 isNoEye = request.toggle;
-                chrome.storage.sync.set({"isNoEye": ssettings.isNoEye ? 1 : 0});
+                chrome.storage.sync.set({"isNoEye": isNoEye});
                 break;
             case 'setNoFaceFeatures':
                 isNoFaceFeatures = request.toggle;
-                chrome.storage.sync.set({"isNoFaceFeatures": settings.isNoFaceFeatures ? 1 : 0});
-                break;
-            case 'setBlackList':
-                isBlackList = request.toggle;
-                chrome.storage.sync.set({"isBlackList": ssettings.isBlackList ? 1 : 0});
+                chrome.storage.sync.set({"isNoFaceFeatures": isNoFaceFeatures});
                 break;
             case 'setMaxSafe':
                 var ms = +request.maxSafe;

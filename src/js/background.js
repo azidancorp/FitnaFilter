@@ -72,6 +72,7 @@ chrome.runtime.onMessage.addListener(
                     //Timeout reached, turn off pause
                     chrome.storage.local.set({"isPaused": 0});
                     chrome.storage.local.set({"pausedTime": null});
+                    settings.isPaused = false;
                 }
                 sendResponse(settings); 
                 break;

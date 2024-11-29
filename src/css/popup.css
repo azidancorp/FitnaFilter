@@ -1,0 +1,105 @@
+/* General Reset */
+* {
+    margin: 0;
+    padding: 0;
+    box-sizing: border-box;
+}
+
+/* Body Styling */
+body {
+    font-family: 'Trebuchet MS', sans-serif;
+    font-size: 14px;
+    background-color: #1e1e1e;
+    color: #d4d4d4;
+    width: 200px;
+    margin: 0;
+}
+
+/* Container Styling */
+.container {
+    background-color: #2e2e2e;
+    padding: 10px;
+}
+
+.item {
+    margin-bottom: 12px;
+}
+
+.item:last-child {
+    margin-bottom: 0;
+}
+
+/* Buttons Styling */
+button, a {
+    display: inline-block;
+    background-color: #3a3a3a;
+    color: #00ff00;
+    text-decoration: none;
+    font-size: 14px;
+    padding: 10px 15px;
+    border: 2px solid #00ff00;
+    border-radius: 0;
+    text-align: center;
+    cursor: pointer;
+    transition: all 0.3s ease;
+}
+
+button:hover, a:hover {
+    background-color: #00ff00;
+    color: #1e1e1e;
+}
+
+/* Close Button Styling */
+#close {
+    float: right;
+    border: 1px solid #00ff00;
+    border-radius: 0;
+    font-weight: bold;
+    font-size: 12px;
+    color: #00ff00;
+    cursor: pointer;
+    padding: 2px 5px;
+    transition: all 0.3s ease;
+}
+
+#close:hover {
+    background-color: #00ff00;
+    color: #1e1e1e;
+}
+
+/* Checkbox Styling */
+label {
+    cursor: pointer;
+    display: inline-block;
+    margin-left: 10px;
+    transition: color 0.3s ease;
+}
+
+input[type="checkbox"] {
+    cursor: pointer;
+}
+
+input[type="checkbox"]:checked + label {
+    color: #00ff00;
+}
+
+label:hover {
+    color: #00ff00;
+}
+
+/* Exclude Tab Wrap */
+#exclude-tab-wrap {
+    display: none;
+}
+
+/* Underlined Link Styling */
+#options {
+    color: #00ff00;
+    text-decoration: underline;
+    transition: all 0.3s ease;
+}
+
+#options:hover {
+    color: #1e1e1e;
+    background-color: #00ff00;
+}

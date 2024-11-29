@@ -1,63 +1,210 @@
 <!DOCTYPE html>
 <html>
 <head>
-    <title>Skin Tone Filter Options</title>
-    <script src='./js/jquery.min.js'></script>
-    <script src='./js/options.js'></script>
+    <title>Fitna Filter Options</title>
+    <script src="./js/jquery.min.js"></script>
+    <script src="./js/options.js"></script>
     <style>
-        body { background: #004; font-family: arial; }
-        #cont { width: 525px; background: #B1F0B1; margin: auto; margin-top: 50px; padding: 20px; border-radius: 20px; }
-        #list { border-radius: 10px; width: 500px; border: 2px solid #AA1212; padding: 10px; margin: 10px 0px; }
-        h3 { margin-bottom: 10px; }
-            h3 > * { vertical-align: middle; margin: 0; }
-            h3 > label { margin-right: 10px; }
-        .delete { cursor: pointer; color: red; border: 2px solid #BD17F1; padding: 0px 4px; border-radius: 12px; }
-        .item:first-child { margin-top: 0; }
-        .item { margin-top: 10px; }
-        #addName { width: 400px; border: 1px solid green; border-radius: 5px; padding: 0px 5px; }
-        .info-icon { background: black; color: white; border-radius: 10px; padding: 0 4px; cursor: default; }
-        input[type=checkbox] { vertical-align: middle; }
+        /* General Reset */
+        * {
+            margin: 0;
+            padding: 0;
+            box-sizing: border-box; 
+        }
+
+        body {
+            font-family: 'Trebuchet MS', sans-serif;
+            background-color: #1e1e1e;
+            color: #d4d4d4;
+            display: flex;
+            justify-content: center;
+            align-items: center;
+            min-height: 100vh;
+            padding: 20px;
+        }
+
+        #cont {
+            width: 800px;
+            background-color: #2e2e2e;
+            padding: 20px;
+            box-shadow: 0 4px 20px rgba(0, 0, 0, 0.5);
+            border: 1px solid #00ff00;
+        }
+
+        .settings-group {
+            margin: 20px;
+            padding: 20px;
+            border: 1px solid #1a472a;
+            background: #2a2a2a;
+        }
+
+        .settings-group h3 {
+            color: #00ff00;
+            margin-bottom: 20px;
+            padding-bottom: 10px;
+            border-bottom: 1px solid #00ff00;
+            font-size: 1.1em;
+        }
+
+        .checkbox-group, .input-group {
+            display: flex;
+            align-items: center;
+            margin-bottom: 15px;
+            gap: 10px;
+        }
+
+        input[type="checkbox"] {
+            cursor: pointer;
+            accent-color: #00ff00;
+            width: 16px;
+            height: 16px;
+        }
+
+        input[type="text"],
+        input[type="number"] {
+            background: #3a3a3a;
+            border: 1px solid #00ff00;
+            padding: 8px 12px;
+            color: #d4d4d4;
+            width: 200px;
+        }
+
+        input[type="text"].free-text-enabled,
+        input[type="number"].free-text-enabled {
+            background: #2e2e2e;
+            color: #ffffff;
+            border-color: #00ff00;
+        }
+
+        label {
+            cursor: pointer;
+            margin-left: 10px;
+            color: #d4d4d4;
+            transition: color 0.3s ease;
+        }
+
+        .info-icon {
+            background: #1e1e1e;
+            color: #00ff00;
+            padding: 2px 8px;
+            cursor: help;
+            font-size: 12px;
+            border: 1px solid #00ff00;
+        }
+
+        #list {
+            background: #1e1e1e;
+            border: 1px solid #00ff00;
+            padding: 15px;
+            margin: 15px 0;
+            min-height: 100px;
+        }
+
+        form {
+            display: flex;
+            gap: 10px;
+            margin-bottom: 15px;
+        }
+
+        input[type="submit"] {
+            background: #1a472a;
+            color: #00ff00;
+            padding: 8px 16px;
+            border: 1px solid #00ff00;
+            cursor: pointer;
+            transition: all 0.3s ease;
+        }
+
+        input[type="submit"]:hover {
+            background: #00ff00;
+            color: #1e1e1e;
+        }
+
+        .checkbox-group label,
+        .input-group label,
+        .settings-group p,
+        button {
+            transition: color 0.3s ease;
+        }
+
+        textarea.free-text-enabled {
+            background: #2e2e2e;
+            color: #ffffff;
+            border: 1px solid #00ff00;
+            padding: 8px 12px;
+            resize: vertical;
+        }
+        
+
+        .checkbox-group label:hover,
+        .input-group label:hover,
+        .settings-group p:hover,
+        button:hover {
+            color: #00ff00;
+        }
+
+        @media (max-width: 768px) {
+            #cont {
+                width: 95%;
+            }
+
+            .checkbox-group,
+            .input-group {
+                flex-direction: column;
+                align-items: flex-start;
+            }
+
+            #addName {
+                width: 100%;
+            }
+        }
     </style>
 </head>
 <body>
-    <div id='cont'>
-        <h3>Settings</h3>
-        <div>
-            <input type="checkbox" id="noEye" />
-            <label for="noEye">Don't show the Eye in hidden images</label>
-            <span id="noEyeInfo" class="info-icon" title="By default, an eye is shown when hovering the mouse over a hidden image. Clicking on it will show that image.">?</span>
+    <div id="cont">
+        <div class="settings-group">
+            <h3>Display and Timing Settings</h3>
+            <div class="checkbox-group">
+                <input type="checkbox" id="noEye" />
+                <label for="noEye">Don't show the Eye in hidden images</label>
+                <span id="noEyeInfo" class="info-icon" title="By default, an eye is shown when hovering the mouse over a hidden image. Clicking on it will show that image.">?</span>
+            </div>
+            <div class="checkbox-group">
+                <input type="checkbox" id="noFaceFeatures" />
+                <label for="noFaceFeatures">Remove face features</label>
+                <span id="noFaceFeaturesInfo" class="info-icon" title="By default, the extension only filters the skin color; some face features can still be noticeable. This option allows to remove those face features whenever it is possible.">?</span>
+            </div>
+            <div class="input-group">
+                <label>Maximum Safe pixels</label>
+                <input type="text" id="max-safe" />
+                <span class="info-icon" title="The maximum size of images that you always want shown. Must be 1-1000.">?</span>
+            </div>
+            <div class="checkbox-group">
+                <input type="checkbox" id="autoUnpause" />
+                <label for="autoUnpause">Automatically unpause after set timeout</label>
+                <span id="autoUnpauseInfo" class="info-icon" title="After pausing, automatically remove pause from the filter after a set timeout.">?</span>
+            </div>
+            <div class="input-group">
+                <label for="autoUnpauseTimeout">Automatic Unpause Timeout (in minutes)</label>
+                <input type="number" id="autoUnpauseTimeout" />
+                <span id="autoUnpauseTimeoutInfo" class="info-icon" title="If auto unpause is enabled, after how many minutes to reenable the filter.">?</span>
+            </div>
         </div>
-        <div>
-            <input type="checkbox" id="noFaceFeatures" />
-            <label for="noFaceFeatures">Remove face features</label>
-            <span id="noFaceFeaturesInfo" class="info-icon" title="By default, the extension only filters the skin color; some face features can still be noticeable. This option allows to remove those face features whenever it is possible.">?</span>
+
+        <div class="settings-group">
+            <h3>Exception Rules</h3>
+            <form style="display: flex; gap: 8px;">
+                <input type="text" id="addName" placeholder="Enter URL to exclude" style="flex: 1;">
+                <input type="submit" value="Add Exception" id="addBut">
+            </form>
+            <div><i>A URL containing any of the following lines will be excluded from filtering:</i></div>
+            <div id="list"></div>
+            <div class="checkbox-group">
+                <input type="checkbox" id="free-text" />
+                <label for="free-text">Free Text</label>
+            </div>
         </div>
-        <div>
-            <input type="checkbox" id="autoUnpause" />
-            <label for="autoUnpause">Automatically unpause after set timeout</label>
-            <span id="autoUnpauseInfo" class="info-icon" title="After pausing, automatically remove pause from the filter after a set timeout.">?</span>
-        </div>
-        <div>
-            <label for="autoUnpauseTimeout">Automatic Unpause Timeout (in minutes)</label>
-            <input type="number" id="autoUnpauseTimeout" />
-            <span id="autoUnpauseTimeoutInfo" class="info-icon" title="If auto unpause is enabled, after how many minutes to reenable the filter.">?</span>
-        </div>
-        <div>
-            <label>Maximum Safe pixels</label>
-            <input type="text" id="max-safe" />
-            <span class="info-icon" title="The maximum size of images that you always want shown. Must be 1-1000.">?</span>
-        </div>
-        <form>
-            <input type='text' id='addName'>
-            <input type='submit' value='Add Exception' id='addBut'>
-        </form>
-        <br>
-        <div><i>A URL containing any of the following lines will be excluded from filtering:</i></div>
-        <div id='list'></div>
-        <div>
-            <input type="checkbox" id="free-text" />
-            <label for="free-text">Free Text</label>
-        </div>
+        
     </div>
 </body>
 </html>

@@ -45,7 +45,7 @@ $(function () {
         chrome.runtime.sendMessage({ r: 'getUrlList' }, function (urlList) {
             $list.empty();
             if (isFreeText) {
-                var $textarea = $('<textarea>').css('width', '100%').attr('rows', '15'), text = '';
+                var $textarea = $('<textarea>').css('width', '100%').attr('rows', '15').addClass('free-text-enabled'), text = '';
                 for (var i = 0; i < urlList.length; i++) {
                     text += urlList[i] + '\n';
                 }

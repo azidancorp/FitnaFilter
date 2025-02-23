@@ -7,7 +7,8 @@ const elements = {
     pauseForTab: document.getElementById('pauseForTab'),
     excludeDomainLabel: document.getElementById('exclude-domain-label'),
     excludeTabWrap: document.getElementById('exclude-tab-wrap'),
-    close: document.getElementById('close')
+    close: document.getElementById('close'),
+    reloadTab: document.getElementById('reloadTab')
 };
 
 /**
@@ -53,6 +54,11 @@ chrome.tabs.query({ active: true, currentWindow: true }, function (tabs) {
 
     // Setup event listeners
     elements.showImages.addEventListener('click', () => showImages(activeTab.id));
+
+    elements.reloadTab.addEventListener('click', () => {
+        chrome.tabs.reload(activeTab.id);
+        window.close();
+    });
 
     elements.excludeDomain.addEventListener('click', function() {
         if (this.checked) {

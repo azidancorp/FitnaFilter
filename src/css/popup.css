@@ -103,3 +103,16 @@ label:hover {
     color: #1e1e1e;
     background-color: #00ff00;
 }
+
+/* GitHub Link Styling */
+#github {
+    color: #00ff00;
+    text-decoration: none;
+    margin-left: 10px;
+    transition: all 0.3s ease;
+}
+
+#github:hover {
+    color: #1e1e1e;
+    background-color: #00ff00;
+}

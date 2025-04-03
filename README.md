@@ -1,17 +1,15 @@
-# OS Image Filter
+# FitnaFilter
 
-Chrome extension to filter human skin in websites' images. It has been developed based on the chrome extension
-[Wizimage](https://chrome.google.com/webstore/detail/wizmage-image-hider/ifoggbfaoakkojipahnplnbfnhhhnmlp?hl=en).
+Chrome extension to purify your browsing experience.
 
-This repository is a fork of the original project:
-https://github.com/sosegon/OS-Image-Filter
+Features:
+- Filter human skin tones in websites' images.
+- Block and redirect away from websites that you know are not safe. (WIP)
+- Configure the extension to exclude and pause on websites that you know are safe.
 
-This fork was created to migrate this project to manifest v3, as well as fix the outstanding bugs that
-were either never fixed in the original, or that became an issue due to changes in the Chromium project
-that broke existing functionality.
 
-We also updated the algorithm used to detect skin pixels to avoid a significant amount of false positives while
-introducing only a small addition in false negatives.
+
+This fork was created to improve the interface and user experience, and add features to the original extensions, to create a comprehensive pure browsing experience.
 
 The extension filters images by analyzing their pixels, those within the human skin range are replaced by a grayscale tone.
 
@@ -35,16 +33,8 @@ an IMG element.
 
 <img src="filtered_website.jpg" height="500"/>
 
-<!-- <div>
-	<div style="text-align: center">
-		Please support further development of this extension. 100% of your donation will be used for development.
-	</div>
-	<br/>
-	<form action="https://www.paypal.com/cgi-bin/webscr" method="post" target="_top" style="margin: 0 auto; width: 0>
-		<input type="hidden" name="cmd" value="_s-xclick">
-		<input type="hidden" name="hosted_button_id" value="KE9PLAN32JWS2">
-		<input type="image" src="https://www.paypalobjects.com/en_US/i/btn/btn_donateCC_LG.gif" border="0" name="submit" alt="PayPal - The safer, easier way to pay online!">
-		<img alt="" border="0" src=
-		"https://www.paypalobjects.com/en_US/i/scr/pixel.gif" width="1" height="1">
-	</form>
-</div> -->
+
+This repository is a fork of https://github.com/yois615/OS-Image-Filter
+which is a fork of https://github.com/sosegon/OS-Image-Filter
+which is developed based on the chrome extension
+[Wizimage](https://chrome.google.com/webstore/detail/wizmage-image-hider/ifoggbfaoakkojipahnplnbfnhhhnmlp?hl=en).

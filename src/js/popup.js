@@ -8,7 +8,10 @@ const elements = {
     excludeDomainLabel: document.getElementById('exclude-domain-label'),
     excludeTabWrap: document.getElementById('exclude-tab-wrap'),
     close: document.getElementById('close'),
-    reloadTab: document.getElementById('reloadTab')
+    reloadTab: document.getElementById('reloadTab'),
+    whiteFilter: document.getElementById('whiteFilter'),
+    blackFilter: document.getElementById('blackFilter'),
+    greyFilter: document.getElementById('greyFilter')
 };
 
 /**
@@ -21,6 +24,40 @@ function showImages(tabId) {
 }
 
 /**
+ * Sets the filter color and updates UI
+ * @param {string} color - The color to set ('white', 'black', or 'grey')
+ * @param {number} tabId - The ID of the active tab
+ */
+function setFilterColor(color, tabId) {
+    // Remove active class from all buttons
+    elements.whiteFilter.classList.remove('active');
+    elements.blackFilter.classList.remove('active');
+    elements.greyFilter.classList.remove('active');
+
+    // Add active class to selected button
+    switch (color) {
+        case 'white':
+            elements.whiteFilter.classList.add('active');
+            break;
+        case 'black':
+            elements.blackFilter.classList.add('active');
+            break;
+        case 'grey':
+            elements.greyFilter.classList.add('active');
+            break;
+    }
+
+    // Send message to background script to update the filter color
+    chrome.runtime.sendMessage({ r: 'setFilterColor', color: color })
+        .then(() => {
+            // Refresh the current tab to apply the new filter color
+            chrome.tabs.sendMessage(tabId, { r: 'updateFilterColor', color: color })
+                .catch(err => console.error('Failed to update filter color:', err));
+        })
+        .catch(err => console.error('Error setting filter color:', err));
+}
+
+/**
  * Initialize popup with current settings
  * @param {chrome.tabs.Tab} activeTab - The currently active tab
  */
@@ -30,13 +67,16 @@ function initializePopup(activeTab) {
             console.error('Error getting settings:', chrome.runtime.lastError);
             return;
         }
-
         elements.pauseChk.checked = settings.isPaused;
         elements.pauseForTab.checked = settings.isPausedForTab;
         elements.excludeDomain.checked = settings.isBlackList ? !settings.isExcluded : settings.isExcluded;
         elements.excludeForTab.checked = settings.isExcludedForTab;
         elements.excludeDomainLabel.innerText = (settings.isBlackList ? 'Add' : 'Exclude') + ' Website';
         elements.excludeTabWrap.style.display = settings.isBlackList ? 'none' : 'block';
+        
+        // Set active filter color button
+        const filterColor = settings.filterColor || 'grey'; // Default to grey if not set
+        setFilterColor(filterColor, activeTab.id);
     });
 }
 
@@ -46,20 +86,16 @@ chrome.tabs.query({ active: true, currentWindow: true }, function (tabs) {
         console.error('Error querying tabs:', chrome.runtime.lastError);
         return;
     }
-
     const activeTab = tabs[0];
-
     // Initialize popup with current settings
     initializePopup(activeTab);
 
     // Setup event listeners
     elements.showImages.addEventListener('click', () => showImages(activeTab.id));
-
     elements.reloadTab.addEventListener('click', () => {
         chrome.tabs.reload(activeTab.id);
         window.close();
     });
-
     elements.excludeDomain.addEventListener('click', function() {
         if (this.checked) {
             chrome.runtime.sendMessage({ r: 'urlListAdd', url: activeTab.url, domainOnly: true })
@@ -70,7 +106,6 @@ chrome.tabs.query({ active: true, currentWindow: true }, function (tabs) {
                 .catch(err => console.error('Error removing URL from list:', err));
         }
     });
-
     elements.excludeForTab.addEventListener('click', function() {
         const isChecked = this.checked;
         chrome.runtime.sendMessage({ r: 'excludeForTab', toggle: isChecked, tab: activeTab })
@@ -79,18 +114,21 @@ chrome.tabs.query({ active: true, currentWindow: true }, function (tabs) {
             })
             .catch(err => console.error('Error setting tab exclusion:', err));
     });
-
     elements.pauseChk.addEventListener('click', function() {
         chrome.runtime.sendMessage({ r: 'pause', toggle: this.checked })
             .then(() => showImages(activeTab.id))
             .catch(err => console.error('Error toggling pause:', err));
     });
-
     elements.pauseForTab.addEventListener('click', function() {
         chrome.runtime.sendMessage({ r: 'pauseForTab', tabId: activeTab.id, toggle: this.checked })
             .then(() => showImages(activeTab.id))
             .catch(err => console.error('Error toggling tab pause:', err));
     });
+
+    // Filter color button event listeners
+    elements.whiteFilter.addEventListener('click', () => setFilterColor('white', activeTab.id));
+    elements.blackFilter.addEventListener('click', () => setFilterColor('black', activeTab.id));
+    elements.greyFilter.addEventListener('click', () => setFilterColor('grey', activeTab.id));
 });
 
 // Close button handler

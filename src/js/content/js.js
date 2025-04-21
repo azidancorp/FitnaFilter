@@ -156,7 +156,6 @@ function ProcessWin(win, winContentLoaded) {
                 addHeadStyle(mDoc, mHeadStyles, 'body ', '{background-image: none !important;}');
                 addHeadStyle(mDoc, mHeadStyles, '.' + CSS_CLASS_HIDE, '{opacity: 0 !important;}');
                 addHeadStyle(mDoc, mHeadStyles, '.' + CSS_CLASS_BACKGROUND_PATTERN, '{ background-repeat: repeat !important;text-indent:0 !important;}'); //text-indent to show alt text
-                addHeadStyle(mDoc, mHeadStyles, '.' + CSS_CLASS_PAYPAL_DONATION, '{left: 0px; bottom: 0px; width: 100%; z-index: 9000; background: #d09327}');
 
                 for (let i = 0; i < 8; i++) {
 

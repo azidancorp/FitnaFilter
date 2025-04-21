@@ -84,11 +84,6 @@ const CSS_CLASS_HIDE = 'skf-hide';
 const CSS_CLASS_SHADE = 'skf-shade';
 
 /**
- * CSS class name for the PayPal donation section.
- */
-const CSS_CLASS_PAYPAL_DONATION = 'skf-paypal-donation';
-
-/**
  * CSS class name for background image pattern on Elements.
  */
 const CSS_CLASS_BACKGROUND_PATTERN = 'skf-background-pattern-image';

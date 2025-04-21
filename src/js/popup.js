@@ -6,13 +6,17 @@ const elements = {
     pauseChk: document.getElementById('pauseChk'),
     pauseForTab: document.getElementById('pauseForTab'),
     excludeDomainLabel: document.getElementById('exclude-domain-label'),
-    excludeTabWrap: document.getElementById('exclude-tab-wrap'),
-    close: document.getElementById('close'),
     reloadTab: document.getElementById('reloadTab'),
     whiteFilter: document.getElementById('whiteFilter'),
     blackFilter: document.getElementById('blackFilter'),
-    greyFilter: document.getElementById('greyFilter')
+    greyFilter: document.getElementById('greyFilter'),
+    customUrlInput: document.getElementById('customUrlInput'),
+    addUrlBtn: document.getElementById('addUrlBtn'),
+    grabUrlBtn: document.getElementById('grabUrlBtn')
 };
+
+
+
 
 /**
  * Shows images on the specified tab
@@ -72,11 +76,25 @@ function initializePopup(activeTab) {
         elements.excludeDomain.checked = settings.isBlackList ? !settings.isExcluded : settings.isExcluded;
         elements.excludeForTab.checked = settings.isExcludedForTab;
         elements.excludeDomainLabel.innerText = (settings.isBlackList ? 'Add' : 'Exclude') + ' Website';
-        elements.excludeTabWrap.style.display = settings.isBlackList ? 'none' : 'block';
         
         // Set active filter color button
         const filterColor = settings.filterColor || 'grey'; // Default to grey if not set
         setFilterColor(filterColor, activeTab.id);
+    });
+}
+
+// Add event listener for 'Grab URL' button
+if (elements.grabUrlBtn) {
+    elements.grabUrlBtn.addEventListener('click', function () {
+        chrome.tabs.query({ active: true, currentWindow: true }, function (tabs) {
+            if (chrome.runtime.lastError) {
+                console.error('Error querying tabs:', chrome.runtime.lastError);
+                return;
+            }
+            if (tabs && tabs[0] && tabs[0].url) {
+                elements.customUrlInput.value = tabs[0].url;
+            }
+        });
     });
 }
 
@@ -129,7 +147,22 @@ chrome.tabs.query({ active: true, currentWindow: true }, function (tabs) {
     elements.whiteFilter.addEventListener('click', () => setFilterColor('white', activeTab.id));
     elements.blackFilter.addEventListener('click', () => setFilterColor('black', activeTab.id));
     elements.greyFilter.addEventListener('click', () => setFilterColor('grey', activeTab.id));
-});
 
-// Close button handler
-elements.close.addEventListener('click', () => window.close());
+    // Add URL button event listener (custom input)
+    if (elements.addUrlBtn && elements.customUrlInput) {
+        elements.addUrlBtn.addEventListener('click', function () {
+            const url = elements.customUrlInput.value.trim().toLowerCase();
+            if (!url) {
+                elements.customUrlInput.value = '';
+                return console.log('No URL entered.');
+            }
+            chrome.runtime
+                .sendMessage({ r: 'urlListAdd', url })
+                .then(() => {
+                    showImages(activeTab.id);
+                    elements.customUrlInput.value = '';
+                })
+                .catch(err => console.error('Error adding custom URL:', err));
+        });
+    }
+});

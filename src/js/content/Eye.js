@@ -1,21 +1,17 @@
 /**
- * Factory function to create the
- * {@link https://developer.mozilla.org/en-US/docs/Web/API/Element|eye}
+ * Factory function to create the eye
  * that allows to display the original filtered images.
  *
  * @param {Document} doc
  */
 function Eye(doc) {
-
     let mDomElement = createEye(doc);
+
     /**
-     * Create the
-     * {@link https://developer.mozilla.org/en-US/docs/Web/API/Element|eye}
-     * that is positioned accordingly in elements with filtered images
+     * Create the eye that is positioned accordingly in elements with filtered images
      * to show the original unfiltered images.
      *
      * @param {Document} doc
-     *
      * @returns {Element}
      */
     function createEye(doc) {
@@ -32,21 +28,18 @@ function Eye(doc) {
 
         return eye;
     }
+
     /**
-     * Get the
-     * {@link https://developer.mozilla.org/en-US/docs/Web/API/Element|eye}
-     * to show to original unfiltered images.
+     * Get the eye to show to original unfiltered images.
      *
      * @returns {Element}
      */
     function getDomElement() {
         return mDomElement;
     }
+
     /**
-     * Position the
-     * {@link https://developer.mozilla.org/en-US/docs/Web/API/Element|eye}
-     * in the top right corner of an
-     * {@link https://developer.mozilla.org/en-US/docs/Web/API/Element|element}.
+     * Position the eye in the top right corner of an element.
      *
      * @param {Element} domElement
      * @param {object} coords
@@ -60,24 +53,23 @@ function Eye(doc) {
         }
         mDomElement.style.left = (left - 16) + 'px';
     }
+
     /**
-     * Hide the
-     * {@link https://developer.mozilla.org/en-US/docs/Web/API/Element|eye}.
+     * Hide the eye.
      */
     function hide() {
         mDomElement.style.display = 'none';
     }
+
     /**
-     * Show the
-     * {@link https://developer.mozilla.org/en-US/docs/Web/API/Element|eye}.
+     * Show the eye.
      */
     function show() {
         mDomElement.style.display = 'block';
     }
+
     /**
-     * Set the
-     * {@link https://developer.mozilla.org/en-US/docs/Web/API/Element|element}.
-     * which original unfiltered image might be show.
+     * Set the element which original unfiltered image might be shown.
      *
      * @param {Element} domElement
      * @param {Function} domElementCallback
@@ -102,23 +94,18 @@ function Eye(doc) {
             // }
         };
     }
+
     /**
-     * Attach the
-     * {@link https://developer.mozilla.org/en-US/docs/Web/API/Element|eye}
-     * to an
-     * {@link https://developer.mozilla.org/en-US/docs/Web/API/Element|element}.
+     * Attach the eye to an element.
      *
      * @param {Element} domElement
      */
     function attachTo(domElement) {
         domElement.appendChild(mDomElement);
     }
+
     /**
-     * Detach the
-     * {@link https://developer.mozilla.org/en-US/docs/Web/API/Element|eye}
-     * from the current
-     * {@link https://developer.mozilla.org/en-US/docs/Web/API/Element|element}
-     * it is currently attached to.
+     * Detach the eye from the current element it is currently attached to.
      */
     function detach() {
         if (mDomElement && mDomElement.parentNode) {

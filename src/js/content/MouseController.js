@@ -7,7 +7,7 @@ function MouseController() {
     let mElement = null;
     /**
      * Watch the movement of the mouse in a
-     * {@link https://developer.mozilla.org/en-US/docs/Web/API/Document|document}.
+     * Document.
      *
      * @param {Document} doc
      */
@@ -16,7 +16,7 @@ function MouseController() {
     }
     /**
      * Unwatch the movement of the mouse in a
-     * {@link https://developer.mozilla.org/en-US/docs/Web/API/Document|document}.
+     * Document.
      *
      * @param {Document} doc
      */
@@ -32,7 +32,7 @@ function MouseController() {
     }
     /**
      * Determine if the local
-     * {@link https://developer.mozilla.org/en-US/docs/Web/API/Element|element}
+     * Element
      * has been set.
      *
      * @returns {boolean}
@@ -42,14 +42,14 @@ function MouseController() {
     }
     /**
      * Reset the local
-     * {@link https://developer.mozilla.org/en-US/docs/Web/API/Element|element}.
+     * Element.
      */
     function clearElement() {
         mElement = null;
     }
     /**
      * Set the local
-     * {@link https://developer.mozilla.org/en-US/docs/Web/API/Element|element}.
+     * Element.
      *
      * @param {Element} domElement
      */
@@ -58,7 +58,7 @@ function MouseController() {
     }
     /**
      * Get the local
-     * {@link https://developer.mozilla.org/en-US/docs/Web/API/Element|element}.
+     * Element.
      *
      * @returns {Element}
      */
@@ -67,7 +67,7 @@ function MouseController() {
     }
     /**
      * Set an attribute in the local
-     * {@link https://developer.mozilla.org/en-US/docs/Web/API/Element|element}.
+     * Element.
      *
      * @param {string} name
      * @param {string} value
@@ -77,7 +77,7 @@ function MouseController() {
     }
     /**
      * Get an attribute's value in the local
-     * {@link https://developer.mozilla.org/en-US/docs/Web/API/Element|element}.
+     * Element.
      *
      * @param {string} name
      *
@@ -88,7 +88,7 @@ function MouseController() {
     }
     /**
      * Determine if the local
-     * {@link https://developer.mozilla.org/en-US/docs/Web/API/Element|element}
+     * Element
      * is the same passed in the argument
      *
      * @returns {boolean}
@@ -118,7 +118,7 @@ function MouseController() {
     }
     /**
      * Determine if the local
-     * {@link https://developer.mozilla.org/en-US/docs/Web/API/MouseEvent|mouse event}
+     * MouseEvent
      * is set.
      */
     function hasEvent() {
@@ -126,7 +126,7 @@ function MouseController() {
     }
     /**
      * Get the local
-     * {@link https://developer.mozilla.org/en-US/docs/Web/API/MouseEvent|mouse event}
+     * MouseEvent
      *
      * @returns {MouseEvent}
      */

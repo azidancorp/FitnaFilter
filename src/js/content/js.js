@@ -216,7 +216,7 @@ function ProcessWin(win, winContentLoaded) {
     /**
      * Listener for the {@link https://developer.mozilla.org/en-US/docs/Web/API/KeyboardEvent|keydown}
      * event for the local
-     * {@link https://developer.mozilla.org/en-US/docs/Web/API/Document|document}.
+     * Document.
      * Controls logic to pause the extension and show original
      * unfiltered images.
      */
@@ -313,30 +313,27 @@ function ProcessWin(win, winContentLoaded) {
                     if (m.attributeName == 'class') {
 
                         const oldHasLazy = m.oldValue != null && m.oldValue.indexOf('lazy') > -1;
-                        const newHasLazy = m.target.className != null && m.target.className.indexOf('lazy') > -1;
+                        let className = m.target.className;
+                        if (typeof className === 'object' && className.baseVal !== undefined) {
+                            className = className.baseVal;
+                        }
+                        const newHasLazy = className != null && className.indexOf('lazy') > -1;
 
                         if (oldHasLazy != newHasLazy) {
-
                             doElements(m.target, true);
-
                         }
 
                     } else if (m.attributeName == 'style' && m.target.style.backgroundImage.indexOf('url(') > -1) {
 
                         let oldBgImg, oldBgImgMatch;
                         if (m.oldValue == null || !(oldBgImgMatch = /background(?:-image)?:[^;]*url\(['"]?(.+?)['"]?\)/.exec(m.oldValue))) {
-
                             oldBgImg = '';
-
                         } else {
-
                             oldBgImg = oldBgImgMatch[1];
-
                         }
+
                         if (oldBgImg != /url\(['"]?(.+?)['"]?\)/.exec(m.target.style.backgroundImage)[1]) {
-
                             doElement.call(m.target);
-
                         }
                     }
                 }
@@ -346,13 +343,11 @@ function ProcessWin(win, winContentLoaded) {
                     m.addedNodes.forEach(domElement => {
 
                         if (domElement.tagName && domElement.tagName === 'IFRAME') {
-
                             doIframe(domElement);
 
                         } else if (domElement.tagName && domElement.tagName !== 'CANVAS') {
 
                             doElements(domElement, true);
-
                         }
                     });
                 }
@@ -394,10 +389,8 @@ function ProcessWin(win, winContentLoaded) {
         mHasStarted = true;
     }
     /**
-     * Do the process to filter images in an
-     * {@link https://developer.mozilla.org/en-US/docs/Web/API/Element|element}
-     * and its children.
-     *
+     * Do the process to filter images in an Element and its children.
+
      * @param {Element} domElement
      * @param {boolean} includeChildren
      */
@@ -414,8 +407,7 @@ function ProcessWin(win, winContentLoaded) {
         });
     }
     /**
-     * Do the process to filter the skin in an
-     * {@link https://developer.mozilla.org/en-US/docs/Web/API/HTMLIFrameElement|iframe}.
+     * Do the process to filter the skin in an HTMLIFrameElement.
      *
      * @param {HTMLIFrameElement} iframe
      */
@@ -455,8 +447,7 @@ function ProcessWin(win, winContentLoaded) {
         }, 10);
     }
     /**
-     * Listener for the load event of an
-     * {@link https://developer.mozilla.org/en-US/docs/Web/API/Element|element}.
+     * Listener for the load event of an Element.
      */
     function processImage() {
 
@@ -466,9 +457,7 @@ function ProcessWin(win, winContentLoaded) {
 
     }
     /**
-     * Analyse an
-     * {@link https://developer.mozilla.org/en-US/docs/Web/API/Element|element}.
-     * to process the related images.
+     * Analyse an Element to process the related images.
      */
     function doElement() {
         // No need to do anything when all the images are going to be
@@ -525,9 +514,8 @@ function ProcessWin(win, winContentLoaded) {
 
             const { width, height } = this;
 
-            // It was successfully replace.
-            // TODO: Check this because it comes from the original
-            // extension.
+            // It was successfully replaced.
+            // TODO: Check this because it comes from the original extension.
             if (this.src == blankImg) {
 
                 hideElement(this, false);
@@ -587,8 +575,7 @@ function ProcessWin(win, winContentLoaded) {
                 hideElement(this, false);
 
             }
-            // TODO: Uncomment this when the logic for video is
-            // implemented.
+            // TODO: Uncomment this when the logic for video is implemented.
             // else if (this.tagName == 'VIDEO') {
             //     addAsSuspect(this);
             //     displayer.hideElement(this, true);
@@ -660,8 +647,7 @@ function ProcessWin(win, winContentLoaded) {
         }
     }
     /**
-     * Check the position of the mouse to display the {@link Eye|eye}
-     * element.
+     * Check the position of the mouse to display the Eye element.
      */
     function checkMousePosition() {
         if (!mMouseController.hasMoved() ||
@@ -716,8 +702,7 @@ function ProcessWin(win, winContentLoaded) {
         }
     }
     /**
-     * Show the original unfiltered image of an
-     * {@link https://developer.mozilla.org/en-US/docs/Web/API/Element|element}.
+     * Show the original unfiltered image of an Element.
      *
      * @param {Element} domElement
      */
@@ -756,9 +741,8 @@ function ProcessWin(win, winContentLoaded) {
         }
     }
     /**
-     * Control the visuals when the mouse pointer is over an
-     * {@link https://developer.mozilla.org/en-US/docs/Web/API/Element|element}.
-     *
+     * Control the visuals when the mouse pointer is over an Element.
+
      * @param {Element} domElement
      * @param {boolean} toggle
      * @param {Event} event
@@ -791,8 +775,7 @@ function ProcessWin(win, winContentLoaded) {
         }
     }
     /**
-     * Position and display the eye icon ver the image hovered by the
-     * mouse pointer.
+     * Position and display the eye icon over the image hovered by the mouse pointer.
      *
      * @param {Element} domElement
      * @param {boolean} toggle
@@ -851,7 +834,7 @@ function ProcessWin(win, winContentLoaded) {
         }
     }
     /**
-     * Add|remove {@link https://developer.mozilla.org/en-US/docs/Web/API/MouseEvent|mouse event}
+     * Add|remove MouseEvent
      * listeners, which are {@link mouseEntered} {@link mouseLeft}
      *
      * @param {Element} domElement
@@ -865,8 +848,8 @@ function ProcessWin(win, winContentLoaded) {
     }
     /**
      * Listener for the mouseover event of an
-     * {@link https://developer.mozilla.org/en-US/docs/Web/API/Element|element}.
-     * Used to control the position of the {@link Eye}
+     * element.
+     * Used to control the position of the eye
      *
      * @param {Event} event
      */
@@ -875,9 +858,8 @@ function ProcessWin(win, winContentLoaded) {
         event.stopPropagation();
     }
     /**
-     * Listener for the mouseout event of an
-     * {@link https://developer.mozilla.org/en-US/docs/Web/API/Element|element}.
-     * Used to control the position of the {@link Eye}
+     * Listener for the mouseout event of an Element.
+     * Used to control the position of the eye
      *
      * @param {Event} event
      */

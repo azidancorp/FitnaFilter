@@ -1,14 +1,11 @@
 /**
- * Factory function to handle a list of potential
- * {@link https://developer.mozilla.org/en-US/docs/Web/API/Element|elements}.
+ * Factory function to handle a list of potential elements.
  */
 function Suspects() {
-
     let mList = [];
+
     /**
-     * Apply a callback to the list of
-     * {@link https://developer.mozilla.org/en-US/docs/Web/API/Element|elements}.
-     *
+     * Apply a callback to the list of elements.
      * @param {function} callback
      */
     function applyCallback(callback) {
@@ -16,11 +13,9 @@ function Suspects() {
             callback(suspect);
         });
     }
+
     /**
-     * Add an
-     * {@link https://developer.mozilla.org/en-US/docs/Web/API/Element|element}
-     * to the list.
-     *
+     * Add an element to the list.
      * @param {Element} domElement
      */
     function addSuspect(domElement) {
@@ -29,10 +24,9 @@ function Suspects() {
             domElement[ATTR_RECTANGLE] = domElement.getBoundingClientRect();
         }
     }
+
     /**
-     * Update the bounding rectangles of the
-     * {@link https://developer.mozilla.org/en-US/docs/Web/API/Element|elements}
-     * in the list.
+     * Update the bounding rectangles of the elements in the list.
      */
     function updateSuspectsRectangles() {
         mList.map(suspect => {
@@ -40,10 +34,7 @@ function Suspects() {
         });
     }
     /**
-     * Find the
-     * {@link https://developer.mozilla.org/en-US/docs/Web/API/Element|elements}
-     * that are under the mouse pointer.
-     *
+     * Find the elements that are under the mouse pointer.
      * @param {Element} defaultElement
      * @param {MouseEvent} mouseEvent
      */

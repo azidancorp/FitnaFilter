@@ -1,6 +1,5 @@
 /**
- * Add css style to the head of a
- * {@link https://developer.mozilla.org/en-US/docs/Web/API/Document|document}.
+ * Add css style to the head of a Document.
  *
  * @param {Document} doc - Document to hold the style.
  * @param {object} headStyles - Object to keep reference of the style
@@ -23,11 +22,9 @@ function addHeadStyle(doc, headStyles, styleName, style) {
     headStyles[styleName] = styleElement;
 }
 /**
- * Remove css style from the head of a
- * {@link https://developer.mozilla.org/en-US/docs/Web/API/Document|document}.
+ * Remove css style from the head of a Document.
  *
- * @param {Document} doc - Document that holds the style to be
- * removed.
+ * @param {Document} doc - Document that holds the style to be removed.
  * @param {object} headStyles - Object that keeps the reference of the
  * styles.
  * @param {string} styleName - Name of the css style.
@@ -45,8 +42,7 @@ function removeHeadStyle(doc, headStyles, styleName) {
     delete headStyles[styleName];
 }
 /**
- * Add script to the head of a
- * {@link https://developer.mozilla.org/en-US/docs/Web/API/Document|document}.
+ * Add script to the head of a Document.
  *
  * @param {Document} doc - Document to hold the script
  * @param {string} [src] - Path or url to the script.
@@ -82,8 +78,7 @@ function addHeadScript(doc, src, code, onload) {
     doc.head.appendChild(scriptElement);
 }
 /**
- * Add css class to an
- * {@link https://developer.mozilla.org/en-US/docs/Web/API/Element|element}.
+ * Add css class to an Element.
  *
  * @param {Element} domElement
  * @param {string} className
@@ -97,8 +92,7 @@ function addCssClass(domElement, className) {
     domElement.className += ' ' + className;
 }
 /**
- * Remove css class from an
- * {@link https://developer.mozilla.org/en-US/docs/Web/API/Element|element}.
+ * Remove css class from an Element.
  *
  * @param {Element} domElement
  * @param {string} className
@@ -117,8 +111,7 @@ function removeCssClass(domElement, className) {
     }
 }
 /**
- * Add|remove listeners to|from an
- * {@link https://developer.mozilla.org/en-US/docs/Web/API/Element|element}.
+ * Add|remove listeners to|from an Element.
  * for different types of
  * {@link https://developer.mozilla.org/en-US/docs/Web/API/Event|events}.
  *
@@ -161,8 +154,7 @@ function handleListeners(domElement, listeners, add, flag) {
     }
 }
 /**
- * Add|remove css classes to|from an
- * {@link https://developer.mozilla.org/en-US/docs/Web/API/Element|element}.
+ * Add|remove css classes to|from an Element.
  *
  * @param {Element} domElement
  * @param {array} classNames - List of css class names.
@@ -193,8 +185,7 @@ function handleStyleClasses(domElement, classNames, add, flag) {
     }
 }
 /**
- * Add a css class to an
- * {@link https://developer.mozilla.org/en-US/docs/Web/API/Element|element}.
+ * Add a css class to an Element.
  *
  * @param {Element} domElement
  * @param {string} className - Css class name.
@@ -208,8 +199,7 @@ function addClassToStyle(domElement, className) {
     domElement.className += ' ' + className;
 }
 /**
- * Remove a css class from an
- * {@link https://developer.mozilla.org/en-US/docs/Web/API/Element|element}.
+ * Remove a css class from an Element.
  *
  * @param {Element} domElement
  * @param {string} className - Css class name.
@@ -227,8 +217,7 @@ function removeClassFromStyle(domElement, className) {
     }
 }
 /**
- * Create a
- * {@link https://developer.mozilla.org/en-US/docs/Web/API/HTMLCanvasElement|canvas}.
+ * Create a HTMLCanvasElement.
  *
  * @param {string} id - Identifier for the canvas.
  * @returns {Canvas}
@@ -243,8 +232,7 @@ function createCanvas(id) {
     return canvas;
 }
 /**
- * Hide|show an
- * {@link https://developer.mozilla.org/en-US/docs/Web/API/Element|element}.
+ * Hide|show an Element.
  * It works by handling the css style of the element by using the
  * {@link CSS_CLASS_HIDE} css class, the {@link IS_HIDDEN} flag, and
  * the {@link handleStyleClasses} function.
@@ -261,8 +249,7 @@ function hideElement(domElement, toggle) {
     handleStyleClasses(domElement, [CSS_CLASS_HIDE], toggle, IS_HIDDEN);
 }
 /**
- * Swap the original srcset parameter of an
- * {@link https://developer.mozilla.org/en-US/docs/Web/API/HTMLImageElement|image}.
+ * Swap the original srcset parameter of an HTMLImageElement.
  * It uses the {@link IS_TOGGLED} flag.
  *
  * @param {HTMLImageElement} domElement
@@ -303,8 +290,7 @@ function handleSourceOfImage(domElement, toggle) {
     }
 }
 /**
- * Sets the {@link HAS_BACKGROUND_IMAGE} flag in an
- * {@link https://developer.mozilla.org/en-US/docs/Web/API/Element|element}
+ * Sets the {@link HAS_BACKGROUND_IMAGE} flag in an Element
  * by setting the {@link handleStyleClasses} function.
  *
  * @param {Element} domElement
@@ -325,7 +311,7 @@ function handleBackgroundForElement(domElement, toggle) {
 }
 /**
  * Add|remove a listener for load event in an
- * {@link https://developer.mozilla.org/en-US/docs/Web/API/HTMLImageElement|image}.
+ * HTMLImageElement.
  * The listener is meant to process the actual bitmap of the image.
  *
  * @param {HTMLImageElement} domElement
@@ -348,7 +334,7 @@ function handleLoadProcessImageListener(domElement, callback, toggle) {
 }
 /**
  * Add|remove a listener for load event in an
- * {@link https://developer.mozilla.org/en-US/docs/Web/API/HTMLImageElement|image}.
+ * HTMLImageElement.
  *
  * @param {HTMLImageElement} domElement
  * @param {function} callback
@@ -371,7 +357,7 @@ function handleLoadEventListener(domElement, callback, toggle) {
 }
 /**
  * Process the bitmap in an
- * {@link https://developer.mozilla.org/en-US/docs/Web/API/HTMLImageElement|image}.
+ * HTMLImageElement.
  *
  * @param {HTMLImageElement} domElement
  * @param {HTMLCanvasElement} canvas - Canvas to make the processing.
@@ -405,7 +391,7 @@ async function processDomImage(domElement, canvas) {
 }
 /**
  * Process the bitmap of an
- * {@link https://developer.mozilla.org/en-US/docs/Web/API/Element|element}
+ * Element
  * that has been passed as url in the background-image css attribute.
  * The url is used to retrieve the image with an
  * {@link https://developer.mozilla.org/en-US/docs/Web/API/XMLHttpRequest|XHR}
@@ -457,11 +443,8 @@ async function fetchAndReadImage(url) {
         });
 }
 /**
- * Filter the bitmap in an
- * {@link https://developer.mozilla.org/en-US/docs/Web/API/HTMLImageElement|image}.
- * and update the background-image attribute in the style of the
- * {@link https://developer.mozilla.org/en-US/docs/Web/API/Element|element}
- * identified with an uuid.
+ * Filter the bitmap in an HTMLImageElement and update the background-image
+ * attribute in the style of the Element identified with an uuid.
  *
  * @param {HTMLImageElement} imgElement
  * @param {string} uuid - Unique identifier of the element which
@@ -490,11 +473,8 @@ async function filterImageElementAsBackground(imgElement, uuid, canvas, suffix) 
     }
 }
 /**
- * Filter the bitmap in an
- * {@link https://developer.mozilla.org/en-US/docs/Web/API/HTMLImageElement|image}.
- * and update the src attribute in the
- * {@link https://developer.mozilla.org/en-US/docs/Web/API/Element|element}
- * identified with an uuid.
+ * Filter the bitmap in an HTMLImageElement.
+ * and update the src attribute in the Element identified with an uuid.
  *
  * @param {HTMLImageElement} imgElement
  * @param {number} uuid - Unique identifier of the element which
@@ -524,11 +504,7 @@ async function filterImageElement(imgElement, uuid, canvas) {
     }
 }
 /**
- * Find the
- * {@link https://developer.mozilla.org/en-US/docs/Web/API/Element|element}
- * in the corresponding
- * {@link https://developer.mozilla.org/en-US/docs/Web/API/Document|document}
- * by using element's uuid.
+ * Find the Element in the corresponding Document by using element's uuid.
  *
  * @param {Document} doc
  * @param {string} uuid
@@ -554,8 +530,7 @@ function findElementByUuid(doc, uuid) {
     return null;
 }
 /**
- * Filter the pixels with skin color in the bitmap of an
- * {@link https://developer.mozilla.org/en-US/docs/Web/API/HTMLImageElement|image}.
+ * Filter the pixels with skin color in the bitmap of an HTMLImageElement.
  *
  * @param {HTMLImageElement} imgElement
  * @param {string} uuid
@@ -670,8 +645,7 @@ function canvasBlobify(canvas) {
     })
 }
 /**
- * Add a random uuid to an
- * {@link https://developer.mozilla.org/en-US/docs/Web/API/Element|element}.
+ * Add a random uuid to an Element.
  *
  * @param {Element} domElement
  *
@@ -706,9 +680,7 @@ function guid() {
         s4() + '-' + s4() + s4() + s4();
 }
 /**
- * Determine if a
- * {@link https://developer.mozilla.org/en-US/docs/Web/API/MouseEvent|mouse event}
- * ocurred within the boundaries of a rectangle.
+ * Determine if a MouseEvent ocurred within the boundaries of a rectangle.
  *
  * @param {Event} event
  * @param {object} coords - Object defining the coordinates of a

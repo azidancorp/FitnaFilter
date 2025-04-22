@@ -27,6 +27,7 @@
         "js": [
             "./js/content/MouseController.js",
             "./js/content/Suspects.js",
+            "./js/content/ImageProcessing.js",
             "./js/content/Eye.js",
             "./js/content/ImagesDisplayer.js",
             "./js/content/js.js",

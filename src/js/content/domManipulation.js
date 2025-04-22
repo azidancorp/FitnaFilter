@@ -460,7 +460,7 @@ async function fetchAndReadImage(url) {
  * filterImageElementAsBackground(element, uuid, canvas);
  */
 async function filterImageElementAsBackground(imgElement, uuid, canvas, suffix) {
-    const base64Img = await filterSkinColor(imgElement, uuid, canvas);
+    const base64Img = await applyImageFilters(imgElement, uuid, canvas);
     const newBackgroundImgUrl = "url('" + base64Img + "')";
     const actualElement = findElementByUuid(document, uuid);
 
@@ -489,7 +489,7 @@ async function filterImageElementAsBackground(imgElement, uuid, canvas, suffix) 
  * filterImageElement(element, uuid, canvas);
  */
 async function filterImageElement(imgElement, uuid, canvas) {
-    const urlData = await filterSkinColor(imgElement, uuid, canvas)
+    const urlData = await applyImageFilters(imgElement, uuid, canvas)
     const actualElement = findElementByUuid(document, uuid);
 
     if (actualElement) {

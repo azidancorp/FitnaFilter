@@ -6,49 +6,53 @@
 
 
 /**
- * Convert RGB to HSV color space
+ * Convert RGB to HSV color space.
+ * Hue is represented in degrees (0-360), Saturation and Value as percentages (0-100).
  * @param {number} r - Red value (0-255)
  * @param {number} g - Green value (0-255)
  * @param {number} b - Blue value (0-255)
- * @returns {Object} HSV values {h, s, v}
+ * @returns {{h: number, s: number, v: number}} HSV values {h: 0-360, s: 0-100, v: 0-100}
  */
 function rgbToHsv(r, g, b) {
-    let rabs = r / 255;
-    let gabs = g / 255;
-    let babs = b / 255;
-    let v = Math.max(rabs, gabs, babs);
-    let diff = v - Math.min(rabs, gabs, babs);
-    let diffc = c => (v - c) / 6 / diff + 1 / 2;
-    let percentRoundFn = num => Math.round(num * 100) / 100;
+    const redNormalized = r / 255;
+    const greenNormalized = g / 255;
+    const blueNormalized = b / 255;
+    const maxValue = Math.max(redNormalized, greenNormalized, blueNormalized);
+    const minValue = Math.min(redNormalized, greenNormalized, blueNormalized);
+    const difference = maxValue - minValue;
+    const calculateComponent = component => (maxValue - component) / 6 / difference + 1 / 2;
+    const roundToPercent = num => Math.round(num * 100) / 100;
 
-    if (diff === 0) {
-        return { h: 0, s: 0, v: percentRoundFn(v * 100) };
+    if (difference === 0) {
+        // Achromatic (gray) - hue and saturation are 0
+        return { h: 0, s: 0, v: roundToPercent(maxValue * 100) };
     }
 
-    let s = diff / v;
-    let rr = diffc(rabs);
-    let gg = diffc(gabs);
-    let bb = diffc(babs);
+    const saturation = difference / maxValue;
+    const redComponent = calculateComponent(redNormalized);
+    const greenComponent = calculateComponent(greenNormalized);
+    const blueComponent = calculateComponent(blueNormalized);
 
-    let h;
-    if (rabs === v) {
-        h = bb - gg;
-    } else if (gabs === v) {
-        h = (1 / 3) + rr - bb;
-    } else if (babs === v) {
-        h = (2 / 3) + gg - rr;
+    let hue;
+    if (redNormalized === maxValue) {
+        hue = blueComponent - greenComponent;
+    } else if (greenNormalized === maxValue) {
+        hue = (1 / 3) + redComponent - blueComponent;
+    } else if (blueNormalized === maxValue) {
+        hue = (2 / 3) + greenComponent - redComponent;
     }
 
-    if (h < 0) {
-        h += 1;
-    } else if (h > 1) {
-        h -= 1;
+    // Ensure hue is within [0, 1) range before scaling to degrees
+    if (hue < 0) {
+        hue += 1;
+    } else if (hue > 1) {
+        hue -= 1;
     }
 
     return {
-        h: Math.round(h * 360),
-        s: percentRoundFn(s * 100),
-        v: percentRoundFn(v * 100)
+        h: Math.round(hue * 360),
+        s: roundToPercent(saturation * 100),
+        v: roundToPercent(maxValue * 100)
     };
 }
 
@@ -77,45 +81,45 @@ async function filterSkinColor(imgElement, uuid, canvas) {
     context.drawImage(imgElement, 0, 0, imgElement.width, imgElement.height);
 
     const imageData = context.getImageData(0, 0, width, height);
-    const rgbaArray = imageData.data;
+    const pixelData = imageData.data;
 
-    for (let i = 0; i < rgbaArray.length; i += 4) {
-        const rIndex = i;
-        const gIndex = i + 1;
-        const bIndex = i + 2;
-        const aIndex = i + 3;
+    for (let pixelIndex = 0; pixelIndex < pixelData.length; pixelIndex += 4) {
+        const redIndex = pixelIndex;
+        const greenIndex = pixelIndex + 1;
+        const blueIndex = pixelIndex + 2;
+        const alphaIndex = pixelIndex + 3;
 
-        const r = rgbaArray[rIndex];
-        const g = rgbaArray[gIndex];
-        const b = rgbaArray[bIndex];
+        const redValue = pixelData[redIndex];
+        const greenValue = pixelData[greenIndex];
+        const blueValue = pixelData[blueIndex];
 
         //Djamila Dahmani, Mehdi Cheref, Slimane Larabi, Zero-sum game theory model for segmenting skin regions
         //Image and Vision Computing, Volume 99, 2020, 103925,ISSN 0262-8856, https://doi.org/10.1016/j.imavis.2020.103925.
 
         //Convert to YCbCr
-        const y = (0.299 * r) + (0.587 * g) + (0.114 * b);
-        const cb = 128 + (-0.169 * r) + (-0.331 * g) + (0.5 * b);
-        const cr = 128 + (0.5 * r) + (-0.419 * g) + (-0.081 * b);
+        const luminance = (0.299 * redValue) + (0.587 * greenValue) + (0.114 * blueValue);
+        const blueChrominance = 128 + (-0.169 * redValue) + (-0.331 * greenValue) + (0.5 * blueValue);
+        const redChrominance = 128 + (0.5 * redValue) + (-0.419 * greenValue) + (-0.081 * blueValue);
 
         // Convert to HSV
-        const { h, s, v } = rgbToHsv(r, g, b);
+        const { h: hue, s: saturation, v: value } = rgbToHsv(redValue, greenValue, blueValue);
 
         if (
-            (h >= 0) && (h <= 32) && (s >= 15) && 
-            (cb >= 85) && (cb <= 128) && (cr >= 142) && (cr < 180) &&
-            (settings.isNoFaceFeatures || (r > 95 && g > 40 && b > 20))
+            (hue >= 0) && (hue <= 32) && (saturation >= 15) && 
+            (blueChrominance >= 85) && (blueChrominance <= 128) && (redChrominance >= 142) && (redChrominance < 180) &&
+            (settings.isNoFaceFeatures || (redValue > 95 && greenValue > 40 && blueValue > 20))
         ) {
-            rgbaArray[rIndex] = 127;
-            rgbaArray[gIndex] = 127;
-            rgbaArray[bIndex] = 127;
-            rgbaArray[aIndex] = 255;
+            pixelData[redIndex] = 127;
+            pixelData[greenIndex] = 127;
+            pixelData[blueIndex] = 127;
+            pixelData[alphaIndex] = 255;
         }
     }
 
-    imageData.data.set(rgbaArray);
+    imageData.data.set(pixelData);
     context.putImageData(imageData, 0, 0);
-    base64Img = await canvasBlobify(canvas);
-    return base64Img;
+    const base64Image = await canvasBlobify(canvas);
+    return base64Image;
 }
 
 /**

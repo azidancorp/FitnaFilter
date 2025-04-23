@@ -11,6 +11,21 @@ const CB_MIN = 85, CB_MAX = 128;
 const CR_MIN = 142, CR_MAX = 180;
 
 /**
+ * Convert RGB to YCbCr color space.
+ * @param {number} r - Red value (0-255)
+ * @param {number} g - Green value (0-255)
+ * @param {number} b - Blue value (0-255)
+ * @returns {{y: number, cb: number, cr: number}} YCbCr values
+ */
+function rgbToYCbCr(r, g, b) {
+    const y = (0.299 * r) + (0.587 * g) + (0.114 * b);
+    const cb = 128 + (-0.169 * r) + (-0.331 * g) + (0.5 * b);
+    const cr = 128 + (0.5 * r) + (-0.419 * g) + (-0.081 * b);
+    
+    return { y, cb, cr };
+}
+
+/**
  * Convert RGB to HSV color space.
  * Hue is represented in degrees (0-360), Saturation and Value as percentages (0-100).
  * @param {number} r - Red value (0-255)
@@ -120,11 +135,8 @@ async function filterSkinColor(imgElement, uuid, canvas) {
         //Djamila Dahmani, Mehdi Cheref, Slimane Larabi, Zero-sum game theory model for segmenting skin regions
         //Image and Vision Computing, Volume 99, 2020, 103925,ISSN 0262-8856, https://doi.org/10.1016/j.imavis.2020.103925.
 
-        //Convert to YCbCr
-        const luminance = (0.299 * redValue) + (0.587 * greenValue) + (0.114 * blueValue);
-        const blueChrominance = 128 + (-0.169 * redValue) + (-0.331 * greenValue) + (0.5 * blueValue);
-        const redChrominance = 128 + (0.5 * redValue) + (-0.419 * greenValue) + (-0.081 * blueValue);
-
+        // Convert to YCbCr
+        const { y: luminance, cb: blueChrominance, cr: redChrominance } = rgbToYCbCr(redValue, greenValue, blueValue);
         // Convert to HSV
         const { h: hue, s: saturation, v: value } = rgbToHsv(redValue, greenValue, blueValue);
 

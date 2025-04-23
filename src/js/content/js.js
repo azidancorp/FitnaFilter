@@ -31,13 +31,9 @@ let quotesRegex = /['"]/g;
 // e.g. displaying a bar for donations.
 function inIframe() {
     try {
-
         return window.self !== window.top;
-
     } catch (e) {
-
         return true;
-
     }
 }
 
@@ -71,11 +67,8 @@ chrome.runtime.sendMessage({
 
 // Catches 'Show Images' option from browser actions
 chrome.runtime.onMessage.addListener(request => {
-
     if (request.r === 'showImages') {
-
         displayer.showImages();
-
     }
 });
 
@@ -120,15 +113,11 @@ function ProcessWin(win, winContentLoaded) {
         // winContentLoaded has been already triggered. In short, the
         // listener was executed first.
         if (mContentLoaded) {
-
             start();
-
         }
         // The callback was executed first
         else {
-
             mWin.addEventListener('DOMContentLoaded', start);
-
         }
 
         // Set some css as soon as possible. These styles are going to be
@@ -148,9 +137,7 @@ function ProcessWin(win, winContentLoaded) {
                 // If process has not started. Make the webpage
                 // transparent. That way no images are displayed.
                 if (!mHasStarted) {
-
                     addHeadStyle(mDoc, mHeadStyles, 'body', '{opacity: 0 !important; }');
-
                 }
 
                 addHeadStyle(mDoc, mHeadStyles, 'body ', '{background-image: none !important;}');
@@ -182,13 +169,10 @@ function ProcessWin(win, winContentLoaded) {
             mWin.removeEventListener('DOMContentLoaded', start);
 
             for (let s in mHeadStyles) {
-
                 removeHeadStyle(mDoc, mHeadStyles, s);
-
             }
 
             if (mMouseController.hasElement()) {
-
                 toggleHover(mMouseController.getElement(), false);
                 mMouseController.clearElement();
 
@@ -197,9 +181,7 @@ function ProcessWin(win, winContentLoaded) {
             mEye.detach();
 
             if (mObserver) {
-
                 mObserver.disconnect();
-
             }
         }
     }
@@ -272,15 +254,11 @@ function ProcessWin(win, winContentLoaded) {
 
         // Once body has been done, show it.
         if (mHeadStyles['body']) {
-
             removeHeadStyle(mDoc, mHeadStyles, 'body');
-
         }
 
         if (mHeadStyles['body ']) {
-
             removeHeadStyle(mDoc, mHeadStyles, 'body ');
-
         }
 
         mEye.attachTo(mDoc.body);
@@ -345,7 +323,6 @@ function ProcessWin(win, winContentLoaded) {
                             doIframe(domElement);
 
                         } else if (domElement.tagName && domElement.tagName !== 'CANVAS') {
-
                             doElements(domElement, true);
                         }
                     });
@@ -413,9 +390,7 @@ function ProcessWin(win, winContentLoaded) {
     function doIframe(iframe) {
 
         if (iframe.src && iframe.src != "about:blank" && iframe.src.substr(0, 11) != 'javascript:') {
-
             return;
-
         }
 
         displayer.addIFrame(iframe);
@@ -432,16 +407,12 @@ function ProcessWin(win, winContentLoaded) {
         let pollNum = 0;
         const pollID = setInterval(() => {
             if (mDoc.body) {
-
                 clearInterval(pollID);
                 ProcessWin(win, true);
-
             }
 
             if (++pollNum == 500) {
-
                 clearInterval(pollID);
-
             }
         }, 10);
     }
@@ -480,7 +451,6 @@ function ProcessWin(win, winContentLoaded) {
                 addRandomWizUuid(this);
                 addCssClass(this, "wiz-to-process");
                 mSuspects.addSuspect(this);
-
             }
 
             if (typeof this.src !== 'undefined' && this.src.startsWith('blob')) {
@@ -504,11 +474,9 @@ function ProcessWin(win, winContentLoaded) {
 
             // See if not yet loaded
             if (!this.complete) {
-
                 // Hide, to avoid flash until load event is handled.
                 hideElement(this, true);
                 return;
-
             }
 
             const { width, height } = this;
@@ -718,15 +686,10 @@ function ProcessWin(win, winContentLoaded) {
 
             // Do the same for source tags if picture is used
             if (domElement.parentElement && domElement.parentElement.tagName === 'PICTURE') {
-
                 domElement.parentElement.childNodes.forEach(node => {
-
                     if (node.tagName === 'SOURCE') {
-
                         handleSourceOfImage(node, false);
-
                     }
-
                 });
             }
         }
@@ -734,9 +697,7 @@ function ProcessWin(win, winContentLoaded) {
         handleBackgroundForElement(domElement, false);
 
         if (displayer.isShowAll()) {
-
             toggleMouseEventListeners(domElement, false);
-
         }
     }
     /**
@@ -762,14 +723,11 @@ function ProcessWin(win, winContentLoaded) {
             mMouseController.setAttrElement(HAS_HOVER, true);
 
         } else if (!toggle && domElement[HAS_HOVER] && (!event || !isMouseIn(event, coords))) {
-
             toggleHoverVisual(domElement, false, coords);
             domElement[HAS_HOVER] = false;
 
             if (mMouseController.hasThatElement(domElement)) {
-
                 mMouseController.clearElement();
-
             }
         }
     }
@@ -790,9 +748,7 @@ function ProcessWin(win, winContentLoaded) {
                 mEye.setAnchor(domElement, showElement, eyeCSSUrl);
 
             } else {
-
                 addCssClass(domElement, CSS_CLASS_BACKGROUND_LIGHT_PATTERN);
-
             }
 
             toggleHoverVisualClearTimer(domElement, true);
@@ -801,13 +757,9 @@ function ProcessWin(win, winContentLoaded) {
         } else if (!toggle && domElement[HAS_HOVER_VISUAL]) {
 
             if (!settings.isNoEye) {
-
                 mEye.hide();
-
             } else {
-
                 removeCssClass(domElement, CSS_CLASS_BACKGROUND_LIGHT_PATTERN);
-
             }
 
             toggleHoverVisualClearTimer(domElement, false);

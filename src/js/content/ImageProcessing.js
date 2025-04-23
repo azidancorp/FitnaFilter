@@ -3,7 +3,12 @@
  * These functions were moved from domManipulation.js to separate image processing algorithms.
  */
 
+'use strict';
 
+const HUE_MIN = 0, HUE_MAX = 32;
+const SAT_MIN = 15;
+const CB_MIN = 85, CB_MAX = 128;
+const CR_MIN = 142, CR_MAX = 180;
 
 /**
  * Convert RGB to HSV color space.
@@ -57,6 +62,25 @@ function rgbToHsv(r, g, b) {
 }
 
 /**
+ * Determine whether a pixel is skin based on thresholds.
+ * @param {number} r
+ * @param {number} g
+ * @param {number} b
+ * @param {number} hue
+ * @param {number} saturation
+ * @param {number} cb
+ * @param {number} cr
+ * @returns {boolean}
+ */
+function isSkinPixel(r, g, b, hue, saturation, cb, cr) {
+    return hue >= HUE_MIN && hue <= HUE_MAX &&
+           saturation >= SAT_MIN &&
+           cb >= CB_MIN && cb <= CB_MAX &&
+           cr >= CR_MIN && cr < CR_MAX &&
+           (settings.isNoFaceFeatures || (r > 95 && g > 40 && b > 20));
+}
+
+/**
  * Filter the pixels with skin color in the bitmap of an HTMLImageElement.
  *
  * @param {HTMLImageElement} imgElement
@@ -74,8 +98,8 @@ function rgbToHsv(r, g, b) {
  */
 async function filterSkinColor(imgElement, uuid, canvas) {
     const { width, height } = imgElement;
-    canvas.setAttribute('width', width);
-    canvas.setAttribute('height', height);
+    canvas.width = width;
+    canvas.height = height;
 
     const context = canvas.getContext('2d', {willReadFrequently: true});
     context.drawImage(imgElement, 0, 0, imgElement.width, imgElement.height);
@@ -104,11 +128,7 @@ async function filterSkinColor(imgElement, uuid, canvas) {
         // Convert to HSV
         const { h: hue, s: saturation, v: value } = rgbToHsv(redValue, greenValue, blueValue);
 
-        if (
-            (hue >= 0) && (hue <= 32) && (saturation >= 15) && 
-            (blueChrominance >= 85) && (blueChrominance <= 128) && (redChrominance >= 142) && (redChrominance < 180) &&
-            (settings.isNoFaceFeatures || (redValue > 95 && greenValue > 40 && blueValue > 20))
-        ) {
+        if (isSkinPixel(redValue, greenValue, blueValue, hue, saturation, blueChrominance, redChrominance)) {
             pixelData[redIndex] = 127;
             pixelData[greenIndex] = 127;
             pixelData[blueIndex] = 127;
@@ -116,7 +136,6 @@ async function filterSkinColor(imgElement, uuid, canvas) {
         }
     }
 
-    imageData.data.set(pixelData);
     context.putImageData(imageData, 0, 0);
     const base64Image = await canvasBlobify(canvas);
     return base64Image;
@@ -129,16 +148,16 @@ async function filterSkinColor(imgElement, uuid, canvas) {
  * @returns {Promise<string>} - Promise resolving to the blob URL
  */
 function canvasBlobify(canvas) {
-    return new Promise ((resolve, reject) => {
+    return new Promise((resolve, reject) => {
         try {
             canvas.toBlob(function(blob){
-                base64Img = URL.createObjectURL(blob);
-                resolve(base64Img);
-            },'image/png');
+                const blobUrl = URL.createObjectURL(blob);
+                resolve(blobUrl);
+            }, 'image/png');
         } catch (error) {
-            reject(error)
+            reject(error);
         }
-    })
+    });
 }
 
 /**
@@ -161,5 +180,5 @@ function canvasBlobify(canvas) {
 async function applyImageFilters(imgElement, uuid, canvas) {
     // For now, this is just a passthrough to filterSkinColor
     // More processing steps will be added here later
-    return await filterSkinColor(imgElement, uuid, canvas);
+    return filterSkinColor(imgElement, uuid, canvas);
 }

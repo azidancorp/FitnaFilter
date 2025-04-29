@@ -2,28 +2,138 @@ excludeForTabList = [];
 pauseForTabList = [];
 domainRegex = /^\w+:\/\/([\w\.:-]+)/;
 
+// Blocklist feature variables
+let blockedDomains = new Set();
+const REDIRECT_URL = 'https://quran.com/';
+
+// Available blocklists
+const BLOCKLISTS = {
+  abuse: {
+    url: chrome.runtime.getURL('blocklists/abuse.txt'),
+    enabled: true,
+    description: 'Sites promoting abusive behavior',
+    category: 'vice'
+  },
+//   ads: {
+//     url: 'https://raw.githubusercontent.com/blocklistproject/Lists/master/ads.txt',
+//     enabled: false,
+//     description: 'Ad servers and trackers'
+//   },
+//   crypto: {
+//     url: 'https://raw.githubusercontent.com/blocklistproject/Lists/master/crypto.txt',
+//     enabled: false,
+//     description: 'Cryptocurrency mining domains'
+//   },
+  drugs: {
+    url: chrome.runtime.getURL('blocklists/drugs.txt'),
+    enabled: true,
+    description: 'Drug-related sites',
+    category: 'vice'
+  },
+//   facebook: {
+//     url: 'https://raw.githubusercontent.com/blocklistproject/Lists/master/facebook.txt',
+//     enabled: false,
+//     description: 'Facebook-related domains'
+//   },
+  fraud: {
+    url: 'https://raw.githubusercontent.com/blocklistproject/Lists/master/fraud.txt',
+    enabled: false,
+    description: 'Known fraud sites',
+    category: 'hazard'
+  },
+  gambling: {
+    url: chrome.runtime.getURL('blocklists/gambling.txt'),
+    enabled: true,
+    description: 'Gambling sites',
+    category: 'vice'
+  },
+  malware: {
+    url: 'https://raw.githubusercontent.com/blocklistproject/Lists/master/malware.txt',
+    enabled: false,
+    description: 'Known malware domains',
+    category: 'hazard'
+  },
+  phishing: {
+    url: 'https://raw.githubusercontent.com/blocklistproject/Lists/master/phishing.txt',
+    enabled: false,
+    description: 'Phishing sites',
+    category: 'hazard'
+  },
+  piracy: {
+    url: 'https://raw.githubusercontent.com/blocklistproject/Lists/master/piracy.txt',
+    enabled: false,
+    description: 'Piracy sites',
+    category: 'hazard'
+  },
+  porn: {
+    url: chrome.runtime.getURL('blocklists/porn.txt'),
+    enabled: true,
+    description: 'Pornography sites',
+    category: 'vice'
+  },
+  ransomware: {
+    url: 'https://raw.githubusercontent.com/blocklistproject/Lists/master/ransomware.txt',
+    enabled: false,
+    description: 'Ransomware domains',
+    category: 'hazard'
+  },
+//   redirect: {
+//     url: 'https://raw.githubusercontent.com/blocklistproject/Lists/master/redirect.txt',
+//     enabled: false,
+//     description: 'URL shorteners and redirectors'
+//   },
+  scam: {
+    url: 'https://raw.githubusercontent.com/blocklistproject/Lists/master/scam.txt',
+    enabled: false,
+    description: 'Scam sites',
+    category: 'hazard'
+  }//,
+//   tiktok: {
+//     url: 'https://raw.githubusercontent.com/blocklistproject/Lists/master/tiktok.txt',
+//     enabled: false,
+//     description: 'TikTok domains'
+//   }
+};
 
 async function getSettings() {
-    var result = await chrome.storage.sync.get({'urlList': null, 'isNoEye': null, 'isNoFaceFeatures': null, 'maxSafe': null,
-    'autoUnpause': null, 'autoUnpauseTimeout': null});
-        ssettings.urlList = result.urlList ? JSON.parse(result.urlList) : [];
-        ssettings.isNoEye = result.isNoEye == 1;
-        ssettings.maxSafe = +result.maxSafe || 32;
-        ssettings.autoUnpause = result.autoUnpause == 1;
-        ssettings.autoUnpauseTimeout = +result.autoUnpauseTimeout || 15;
-        ssettings.isNoFaceFeatures = result.isNoFaceFeatures == 1;
+    var result = await chrome.storage.sync.get({
+        'urlList': null, 
+        'isNoEye': null, 
+        'isNoFaceFeatures': null, 
+        'maxSafe': null,
+        'autoUnpause': null, 
+        'autoUnpauseTimeout': null,
+        'blocklistSettings': null
+    });
+        storedSettings.urlList = result.urlList ? JSON.parse(result.urlList) : [];
+        storedSettings.isNoEye = result.isNoEye == 1;
+        storedSettings.maxSafe = +result.maxSafe || 32;
+        storedSettings.autoUnpause = result.autoUnpause == 1;
+        storedSettings.autoUnpauseTimeout = +result.autoUnpauseTimeout || 15;
+        storedSettings.isNoFaceFeatures = result.isNoFaceFeatures == 1;
+        
+        // Load blocklist settings
+        if (result.blocklistSettings) {
+            const savedBlocklists = JSON.parse(result.blocklistSettings);
+            // Update enabled status for each blocklist
+            for (const [key, value] of Object.entries(savedBlocklists)) {
+                if (BLOCKLISTS[key]) {
+                    BLOCKLISTS[key].enabled = value;
+                }
+            }
+        }
 
     result = await chrome.storage.local.get({'isPaused' : null, "pausedTime" : null});
-        ssettings.isPaused = result.isPaused;
-        ssettings.pausedTime = result.pausedTime;
-    return ssettings;
+        storedSettings.isPaused = result.isPaused;
+        storedSettings.pausedTime = result.pausedTime;
+    return storedSettings;
 }
 
-var ssettings = {};
+var storedSettings = {};
 getSettings()
 .then(onSuccess => {
-    ssettings = onSuccess;
-    console.log("Startup ssettings: " + JSON.stringify(ssettings));
+    storedSettings = onSuccess;
+    console.log("Startup storedSettings: " + JSON.stringify(storedSettings));
 });
 
 function getDomain(url) {
@@ -40,13 +150,13 @@ chrome.runtime.onMessage.addListener(
             case 'getSettings':  
                 getSettings();
                 var settings = {
-                    isPaused: ssettings.isPaused,
-                    pausedTime: ssettings.pausedTime,
-                    autoUnpause: ssettings.autoUnpause,
-                    autoUnpauseTimeout: ssettings.autoUnpauseTimeout,
-                    isNoEye: ssettings.isNoEye,
-                    isNoFaceFeatures: ssettings.isNoFaceFeatures,
-                    maxSafe: ssettings.maxSafe
+                    isPaused: storedSettings.isPaused,
+                    pausedTime: storedSettings.pausedTime,
+                    autoUnpause: storedSettings.autoUnpause,
+                    autoUnpauseTimeout: storedSettings.autoUnpauseTimeout,
+                    isNoEye: storedSettings.isNoEye,
+                    isNoFaceFeatures: storedSettings.isNoFaceFeatures,
+                    maxSafe: storedSettings.maxSafe
                 };
                 var tab = request.tab || sender.tab;
                 if (tab) {
@@ -60,8 +170,8 @@ chrome.runtime.onMessage.addListener(
                             }
                         }
                         var lowerUrl = tab.url.toLowerCase();
-                        for (var i = 0; i < ssettings.urlList.length; i++) {
-                            if (lowerUrl.indexOf(ssettings.urlList[i]) != -1) { settings.isExcluded = true; break; }
+                        for (var i = 0; i < storedSettings.urlList.length; i++) {
+                            if (lowerUrl.indexOf(storedSettings.urlList[i]) != -1) { settings.isExcluded = true; break; }
                         }
                         if (settings.isBlackList)
                             settings.isExcluded = !settings.isExcluded;
@@ -82,8 +192,8 @@ chrome.runtime.onMessage.addListener(
             case 'urlListAdd':
                 var url = request.domainOnly ? getDomain(request.url) : request.url.toLowerCase();
                 if (url) {
-                    ssettings.urlList.push(url);
-                    saveUrlList(ssettings.urlList);
+                    storedSettings.urlList.push(url);
+                    saveUrlList(storedSettings.urlList);
                     chrome.runtime.sendMessage({ r: 'urlListModified' });
                 }
                 sendResponse(true);
@@ -91,19 +201,19 @@ chrome.runtime.onMessage.addListener(
             case 'urlListRemove':
                 if (request.url) {
                     var lowerUrl = request.url.toLowerCase();
-                    for (var i = 0; i < ssettings.urlList.length; i++) {
-                        if (lowerUrl.indexOf(ssettings.urlList[i]) != -1) {
-                            ssettings.urlList.splice(i, 1);
+                    for (var i = 0; i < storedSettings.urlList.length; i++) {
+                        if (lowerUrl.indexOf(storedSettings.urlList[i]) != -1) {
+                            storedSettings.urlList.splice(i, 1);
                             i--;
                         }
                     }
                 } else
-                    ssettings.urlList.splice(request.index, 1);
-                saveUrlList(ssettings.urlList);
+                    storedSettings.urlList.splice(request.index, 1);
+                saveUrlList(storedSettings.urlList);
                 //chrome.runtime.sendMessage({ r: 'urlListModified' });
                 break;
             case 'getUrlList':
-                sendResponse(ssettings.urlList);
+                sendResponse(storedSettings.urlList);
                 break;
             case 'setUrlList':
                 saveUrlList(request.urlList);
@@ -158,6 +268,28 @@ chrome.runtime.onMessage.addListener(
                 if (!ms || ms < 1 || ms > 1000)
                     ms = 32;
                     chrome.storage.sync.set({"maxSafe": maxSafe = ms});
+                break;
+            case 'getBlocklists':
+                const blocklistInfo = {};
+                for (const [key, blocklist] of Object.entries(BLOCKLISTS)) {
+                    blocklistInfo[key] = {
+                        enabled: blocklist.enabled,
+                        description: blocklist.description,
+                        category: blocklist.category // Include category information
+                    };
+                }
+                sendResponse(blocklistInfo);
+                break;
+            case 'toggleBlocklist':
+                if (request.name && BLOCKLISTS[request.name]) {
+                    BLOCKLISTS[request.name].enabled = request.enabled;
+                    saveBlocklistSettings();
+                    // Refresh the blocklist when settings change
+                    fetchAndProcessBlocklist();
+                    sendResponse(true);
+                } else {
+                    sendResponse(false);
+                }
                 break;
             case 'fetchAndReadImage':
                 fetch(request.url)
@@ -283,3 +415,124 @@ function reload() {
 //        }
     }); 
 }
+
+/**
+ * Save blocklist settings to storage
+ */
+function saveBlocklistSettings() {
+  const settings = {};
+  
+  // Extract just the enabled status for each blocklist
+  for (const [key, blocklist] of Object.entries(BLOCKLISTS)) {
+    settings[key] = blocklist.enabled;
+  }
+  
+  chrome.storage.sync.set({
+    "blocklistSettings": JSON.stringify(settings)
+  });
+}
+
+/**
+ * Process a single blocklist file and add domains to the blockedDomains set
+ * @param {string} url - URL of the blocklist (local file URL or remote URL)
+ * @returns {Promise<number>} - Number of domains added
+ */
+async function processBlocklist(url) {
+  try {
+    console.log("Loading blocklist from: " + url);
+    const response = await fetch(url);
+    
+    if (!response.ok) {
+      throw new Error(`Failed to fetch blocklist: ${response.status}`);
+    }
+    
+    const text = await response.text();
+    const lines = text.split('\n');
+    let addedCount = 0;
+    
+    // Process each line
+    for (const line of lines) {
+      const trimmedLine = line.trim();
+      // Skip comments and empty lines
+      if (!trimmedLine || trimmedLine.startsWith('#')) {
+        continue;
+      }
+      
+      // Handle different formats (0.0.0.0 domain.com or just domain.com)
+      let domain;
+      if (trimmedLine.startsWith('0.0.0.0')) {
+        domain = trimmedLine.split(/\s+/)[1]; // Extract domain after IP
+      } else {
+        domain = trimmedLine;
+      }
+      
+      // Add to our Set if it's a valid domain
+      if (domain && domain.includes('.')) {
+        blockedDomains.add(domain);
+        addedCount++;
+      }
+    }
+    
+    console.log(`Added ${addedCount} domains from blocklist: ${url}`);
+    return addedCount;
+  } catch (error) {
+    console.error(`Error processing blocklist ${url}:`, error);
+    return 0;
+  }
+}
+
+/**
+ * Fetches all enabled blocklists from GitHub and processes them
+ */
+async function fetchAndProcessBlocklist() {
+  try {
+    // Clear existing blocklist
+    blockedDomains.clear();
+    
+    let totalDomains = 0;
+    const enabledLists = [];
+    
+    // Process each enabled blocklist
+    for (const [key, blocklist] of Object.entries(BLOCKLISTS)) {
+      if (blocklist.enabled) {
+        enabledLists.push(key);
+        const addedCount = await processBlocklist(blocklist.url);
+        totalDomains += addedCount;
+      }
+    }
+    
+    console.log(`Loaded ${totalDomains} domains from blocklists: ${enabledLists.join(', ') || 'none'}`);
+  } catch (error) {
+    console.error("Error fetching or processing blocklists:", error);
+  }
+}
+
+// Fetch blocklist when service worker starts
+fetchAndProcessBlocklist();
+
+// Listen for navigation events
+chrome.webNavigation.onBeforeNavigate.addListener(
+  (details) => {
+    // Only intercept main frame navigation (not iframes, etc)
+    if (details.frameId !== 0) return;
+    
+    try {
+      // Get the hostname from the URL
+      const url = new URL(details.url);
+      const hostname = url.hostname;
+      
+      // Check if hostname is in our blocklist
+      if (blockedDomains.has(hostname)) {
+        console.log(`Blocked navigation to: ${hostname}`);
+        
+        // Redirect the tab
+        chrome.tabs.update(details.tabId, { 
+          url: REDIRECT_URL 
+        });
+      }
+    } catch (error) {
+      console.error("Error processing navigation:", error);
+    }
+  },
+  { url: [{ schemes: ['http', 'https'] }] }
+);

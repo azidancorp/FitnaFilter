@@ -1,7 +1,7 @@
 {
     "name": "FitnaFilter",
     "short_name": "FitnaFilter",
-    "version": "1.0.0",
+    "version": "1.1.0",
     "manifest_version": 3,
     "description": "This extension filters images by analyzing their pixels, those within the human skin range are replaced by a grayscale tone",
     "icons":
@@ -39,13 +39,16 @@
     }],
     "permissions": [
         "activeTab",
-        "storage"
+        "storage",
+        "webNavigation"
     ],
     "host_permissions": [
         "<all_urls>"
     ],
     "web_accessible_resources": [
         {"resources": ["images/eye.png", "images/undo.png"],
+        "matches" : ["<all_urls>"]},
+        {"resources": ["blocklists/*.txt"],
         "matches" : ["<all_urls>"]}
     ]
 }

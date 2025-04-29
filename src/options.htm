@@ -30,6 +30,32 @@
             box-shadow: 0 4px 20px rgba(0, 0, 0, 0.5);
             border: 1px solid #00ff00;
         }
+        
+        /* Blocklist styling */
+        .vice-item {
+            background-color: rgba(255, 69, 0, 0.1); /* Semi-transparent orangered */
+            padding: 8px;
+            margin-bottom: 8px;
+            border-left: 4px solid #ff4500;
+            border-radius: 2px;
+        }
+        
+        .hazard-item {
+            background-color: rgba(255, 215, 0, 0.1); /* Semi-transparent gold */
+            padding: 8px;
+            margin-bottom: 8px;
+            border-left: 4px solid #ffd700;
+            border-radius: 2px;
+        }
+        
+        .vice-item label {
+            color: #ff9980; /* Lighter orangered */
+            font-weight: bold;
+        }
+        
+        .hazard-item label {
+            color: #ffeb99; /* Lighter gold */
+        }
 
         .settings-group {
             margin: 20px;
@@ -219,6 +245,24 @@
             <div class="checkbox-group">
                 <input type="checkbox" id="free-text" />
                 <label for="free-text">Free Text</label>
+            </div>
+        </div>
+        
+        <div class="settings-group">
+            <h3>Vice Blocking (Always On)</h3>
+            <p>Navigating to sites in these categories will always redirect to Quran.com</p>
+            <div id="vice-blocklist-container">
+                <!-- Vice blocklist toggles will be added here by JavaScript -->
+                <div class="loading-indicator">Loading blocklists...</div>
+            </div>
+        </div>
+        
+        <div class="settings-group">
+            <h3>Hazards & Distractions Blocking</h3>
+            <p>When enabled, navigating to sites in these categories will redirect to Quran.com</p>
+            <div id="hazard-blocklist-container">
+                <!-- Hazard blocklist toggles will be added here by JavaScript -->
+                <div class="loading-indicator">Loading blocklists...</div>
             </div>
         </div>
         

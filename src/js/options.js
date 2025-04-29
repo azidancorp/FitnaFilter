@@ -1,163 +1,324 @@
-$(function () {
-    var $addName = $('#addName').focus(), $noFaceFeatures = $('#noFaceFeatures'), $noEye = $('#noEye'), $list = $('#list'),
-        $form = $('form'), isFreeText = false, $freeText = $('#free-text'), $maxSafe = $('#max-safe'),
-        $autoUnpause = $('#autoUnpause'), $autoUnpauseTimeout = $('#autoUnpauseTimeout'),
-        $viceBlocklistContainer = $('#vice-blocklist-container'),
-        $hazardBlocklistContainer = $('#hazard-blocklist-container');
-    chrome.runtime.sendMessage({ r: 'getSettings' }, function (settings) {
-        $noEye[0].checked = settings.isNoEye;
-        $noFaceFeatures[0].checked = settings.isNoFaceFeatures;
-        $autoUnpause[0].checked = settings.autoUnpause;
-        $autoUnpauseTimeout.val(settings.autoUnpauseTimeout);
-        $maxSafe.val(settings.maxSafe);
+document.addEventListener("DOMContentLoaded", function () {
+    // Element selectors
+    const addNameInput = document.getElementById("addName");
+    const noFaceFeaturesCheckbox = document.getElementById("noFaceFeatures");
+    const noEyeCheckbox = document.getElementById("noEye");
+    const listElement = document.getElementById("list");
+    const form = document.querySelector("form");
+    const freeTextCheckbox = document.getElementById("free-text");
+    const maxSafeInput = document.getElementById("max-safe");
+    const autoUnpauseCheckbox = document.getElementById("autoUnpause");
+    const autoUnpauseTimeoutInput =
+        document.getElementById("autoUnpauseTimeout");
+    const viceBlocklistContainer = document.getElementById(
+        "vice-blocklist-container"
+    );
+    const hazardBlocklistContainer = document.getElementById(
+        "hazard-blocklist-container"
+    );
+
+    let isFreeText = false;
+
+    // --- Initial Setup ---
+
+    // Focus on the addName input initially
+    addNameInput.focus();
+
+    // Get initial settings from background script
+    chrome.runtime.sendMessage({ r: "getSettings" }, function (settings) {
+        if (chrome.runtime.lastError) {
+            console.error("Error getting settings:", chrome.runtime.lastError);
+            return;
+        }
+        if (settings) {
+            noEyeCheckbox.checked = settings.isNoEye;
+            noFaceFeaturesCheckbox.checked = settings.isNoFaceFeatures;
+            autoUnpauseCheckbox.checked = settings.autoUnpause;
+            autoUnpauseTimeoutInput.value = settings.autoUnpauseTimeout;
+            maxSafeInput.value = settings.maxSafe;
+        } else {
+            console.warn("Received null settings object.");
+        }
     });
-    chrome.runtime.onMessage.addListener(function (request) {
-        if (request.r == 'urlListModified')
-            CreateList();
+
+    // Listen for messages from background script (e.g., if list modified elsewhere)
+    chrome.runtime.onMessage.addListener(function (
+        request,
+        sender,
+        sendResponse
+    ) {
+        if (request.r === "urlListModified") {
+            createList();
+        }
+        // Keep the message channel open for asynchronous response if needed
+        // return true;
     });
-    $noEye.click(function () {
-        chrome.runtime.sendMessage({ r: 'setNoEye', toggle: this.checked });
+
+    // --- Event Listeners ---
+
+    noEyeCheckbox.addEventListener("click", function () {
+        chrome.runtime.sendMessage({ r: "setNoEye", toggle: this.checked });
     });
-    $noFaceFeatures.click(function () {
-        chrome.runtime.sendMessage({ r: 'setNoFaceFeatures', toggle: this.checked });
+
+    noFaceFeaturesCheckbox.addEventListener("click", function () {
+        chrome.runtime.sendMessage({
+            r: "setNoFaceFeatures",
+            toggle: this.checked,
+        });
     });
-    $autoUnpause.click(function () {
-        chrome.runtime.sendMessage({ r: 'setAutoUnpause', toggle: this.checked });
+
+    autoUnpauseCheckbox.addEventListener("click", function () {
+        chrome.runtime.sendMessage({
+            r: "setAutoUnpause",
+            toggle: this.checked,
+        });
     });
-    $autoUnpauseTimeout.change(function() {
-        chrome.runtime.sendMessage({ r: 'setAutoUnpauseTimeout', autoUnpauseTimeout: $autoUnpauseTimeout.val() });
+
+    autoUnpauseTimeoutInput.addEventListener("change", function () {
+        chrome.runtime.sendMessage({
+            r: "setAutoUnpauseTimeout",
+            autoUnpauseTimeout: this.value,
+        });
     });
-    $maxSafe.change(function () {
-        chrome.runtime.sendMessage({ r: 'setMaxSafe', maxSafe: $maxSafe.val() });
+
+    maxSafeInput.addEventListener("change", function () {
+        chrome.runtime.sendMessage({ r: "setMaxSafe", maxSafe: this.value });
     });
-    $(window).on('unload', function () { $maxSafe.blur(); });
-    $form.submit(function () {
-        var url = $.trim($addName.val()).toLowerCase();
+
+    // Ensure maxSafe value is potentially saved if changed just before leaving
+    window.addEventListener("unload", function () {
+        // Triggering blur might cause a change event if the value differs
+        maxSafeInput.blur();
+    });
+
+    form.addEventListener("submit", function (event) {
+        event.preventDefault(); // Prevent default form submission
+        const url = addNameInput.value.trim().toLowerCase();
         if (!url.length) return;
-        chrome.runtime.sendMessage({ r: 'urlListAdd', url: url }, CreateList);
-        $addName.val('');
-        return false;
+        chrome.runtime.sendMessage({ r: "urlListAdd", url: url }, createList); // Use createList as callback
+        addNameInput.value = "";
     });
-    $list.on('click', '.delete', function () {
-        var $parent = $(this).parent();
-        chrome.runtime.sendMessage({ r: 'urlListRemove', index: $parent.index() });
-        CreateList();
+
+    // Event delegation for delete buttons within the list
+    listElement.addEventListener("click", function (event) {
+        if (event.target && event.target.classList.contains("delete")) {
+            const itemElement = event.target.parentElement;
+            // Find the index of the clicked item among its siblings
+            const index = Array.from(
+                itemElement.parentElement.children
+            ).indexOf(itemElement);
+            if (index > -1) {
+                chrome.runtime.sendMessage(
+                    { r: "urlListRemove", index: index },
+                    createList
+                ); // Use createList as callback
+                // createList will rebuild the list, so no need to remove the element directly
+            }
+        }
     });
-    function CreateList() {
-        chrome.runtime.sendMessage({ r: 'getUrlList' }, function (urlList) {
-            $list.empty();
+
+    freeTextCheckbox.addEventListener("click", function () {
+        isFreeText = this.checked;
+        createList(); // Rebuild list based on the new mode
+    });
+
+    // --- List Creation Function ---
+
+    function createList() {
+        chrome.runtime.sendMessage({ r: "getUrlList" }, function (urlList) {
+            if (chrome.runtime.lastError) {
+                console.error(
+                    "Error getting URL list:",
+                    chrome.runtime.lastError
+                );
+                listElement.innerHTML = "<p>Error loading exception list.</p>";
+                return;
+            }
+            if (!urlList) {
+                console.warn("Received null URL list.");
+                urlList = []; // Ensure urlList is an array
+            }
+
+            listElement.innerHTML = ""; // Clear current list
+
             if (isFreeText) {
-                var $textarea = $('<textarea>').css('width', '100%').attr('rows', '15').addClass('free-text-enabled'), text = '';
-                for (var i = 0; i < urlList.length; i++) {
-                    text += urlList[i] + '\n';
-                }
-                $textarea.val(text);
-                $list.append($textarea);
-                $textarea.change(function () {
-                    var text = $textarea.val(), lines = text.split('\n'), urls = [];
-                    for (var i = 0; i < lines.length; i++) {
-                        var url = lines[i].trim();
-                        if (url)
+                const textarea = document.createElement("textarea");
+                textarea.style.width = "100%";
+                textarea.setAttribute("rows", "15");
+                textarea.classList.add("free-text-enabled");
+                textarea.value = urlList.join("\n"); // Join URLs with newline
+
+                textarea.addEventListener("change", function () {
+                    const text = textarea.value;
+                    const lines = text.split("\n");
+                    const urls = [];
+                    for (let i = 0; i < lines.length; i++) {
+                        const url = lines[i].trim();
+                        if (url) {
                             urls.push(url);
+                        }
                     }
-                    chrome.runtime.sendMessage({ r: 'setUrlList', urlList: urls }, CreateList);                        
+                    // Send the updated list back to the background script
+                    chrome.runtime.sendMessage(
+                        { r: "setUrlList", urlList: urls },
+                        createList
+                    ); // Recreate list after setting
                 });
-            }
-            else {
-                for (var i = 0; i < urlList.length; i++)
-                    $list.append("<div class='item'><span class='delete'>X</span> <span class='url'>" + urlList[i] + '</span></div>');
+
+                listElement.appendChild(textarea);
+            } else {
+                // Create list items
+                urlList.forEach((url) => {
+                    const div = document.createElement("div");
+                    div.className = "item";
+                    // Use textContent for security and simplicity
+                    div.innerHTML =
+                        "<span class='delete'>X</span> <span class='url'></span>";
+                    div.querySelector(".url").textContent = url; // Set URL text safely
+                    listElement.appendChild(div);
+                });
             }
         });
     }
-    $freeText.click(function () {
-        isFreeText = $freeText[0].checked;
-        CreateList();
-    });
-    CreateList();
-    
-    // Load and populate blocklists
+
+    // --- Blocklist Loading and Handling ---
+
     function loadBlocklists() {
-        chrome.runtime.sendMessage({ r: 'getBlocklists' }, function(blocklists) {
-            if (!blocklists) return;
-            
-            console.log("Received blocklists:", blocklists);
-            
-            // Clear containers
-            $viceBlocklistContainer.empty();
-            $hazardBlocklistContainer.empty();
-            
-            // Organize blocklists by category
-            const viceBlocklists = [];
-            const hazardBlocklists = [];
-            
-            // Sort and categorize
-            Object.entries(blocklists).forEach(([name, info]) => {
-                console.log(`Processing ${name}: category=${info.category}, enabled=${info.enabled}`);
-                if (info.category === 'vice') {
-                    viceBlocklists.push([name, info]);
-                } else if (info.category === 'hazard') {
-                    hazardBlocklists.push([name, info]);
-                } else {
-                    console.warn(`Blocklist ${name} has unknown category: ${info.category}`);
+        chrome.runtime.sendMessage(
+            { r: "getBlocklists" },
+            function (blocklists) {
+                if (chrome.runtime.lastError) {
+                    console.error(
+                        "Error getting blocklists:",
+                        chrome.runtime.lastError
+                    );
+                    viceBlocklistContainer.innerHTML =
+                        "<p>Error loading blocklists.</p>";
+                    hazardBlocklistContainer.innerHTML =
+                        "<p>Error loading blocklists.</p>";
+                    return;
                 }
-            });
-            
-            // Sort each category alphabetically by description
-            viceBlocklists.sort((a, b) => a[1].description.localeCompare(b[1].description));
-            hazardBlocklists.sort((a, b) => a[1].description.localeCompare(b[1].description));
-            
-            // Create Vice blocklist items
-            viceBlocklists.forEach(([name, info]) => {
-                const $blocklistItem = $('<div>').addClass('checkbox-group blocklist-item vice-item');
-                const $checkbox = $('<input type="checkbox">').attr({
-                    id: 'blocklist-' + name,
-                    'data-blocklist': name
-                }).prop('checked', true) // Always checked
-                  .prop('disabled', true); // Cannot be unchecked
-                
-                const $label = $('<label>').attr('for', 'blocklist-' + name).text(info.description);
-                
-                $blocklistItem.append($checkbox).append($label);
-                $viceBlocklistContainer.append($blocklistItem);
-                
-                // Always ensure vice categories are enabled
-                if (!info.enabled) {
-                    chrome.runtime.sendMessage({
-                        r: 'toggleBlocklist',
-                        name: name,
-                        enabled: true
-                    });
+                if (!blocklists) {
+                    console.warn("Received null blocklists object.");
+                    // Clear loading indicators even if blocklists are empty/null
+                    viceBlocklistContainer.innerHTML = "";
+                    hazardBlocklistContainer.innerHTML = "";
+                    return;
                 }
-            });
-            
-            // Create Hazard blocklist items
-            hazardBlocklists.forEach(([name, info]) => {
-                const $blocklistItem = $('<div>').addClass('checkbox-group blocklist-item hazard-item');
-                const $checkbox = $('<input type="checkbox">').attr({
-                    id: 'blocklist-' + name,
-                    'data-blocklist': name
-                }).prop('checked', info.enabled);
-                
-                const $label = $('<label>').attr('for', 'blocklist-' + name).text(info.description);
-                
-                $blocklistItem.append($checkbox).append($label);
-                $hazardBlocklistContainer.append($blocklistItem);
-                
-                // Set up event handler for toggleable hazard blocklists
-                $checkbox.on('change', function() {
-                    const name = $(this).data('blocklist');
-                    const enabled = this.checked;
-                    
-                    chrome.runtime.sendMessage({
-                        r: 'toggleBlocklist',
-                        name: name,
-                        enabled: enabled
+
+                console.log("Received blocklists:", blocklists);
+
+                // Clear containers (remove loading indicators)
+                viceBlocklistContainer.innerHTML = "";
+                hazardBlocklistContainer.innerHTML = "";
+
+                // Organize blocklists by category
+                const viceBlocklists = [];
+                const hazardBlocklists = [];
+
+                // Sort and categorize
+                Object.entries(blocklists).forEach(([name, info]) => {
+                    console.log(
+                        `Processing ${name}: category=${info.category}, enabled=${info.enabled}`
+                    );
+                    if (info.category === "vice") {
+                        viceBlocklists.push([name, info]);
+                    } else if (info.category === "hazard") {
+                        hazardBlocklists.push([name, info]);
+                    } else {
+                        console.warn(
+                            `Blocklist ${name} has unknown category: ${info.category}`
+                        );
+                    }
+                });
+
+                // Sort each category alphabetically by description
+                const sortFn = (a, b) =>
+                    a[1].description.localeCompare(b[1].description);
+                viceBlocklists.sort(sortFn);
+                hazardBlocklists.sort(sortFn);
+
+                // --- Helper function to create a blocklist item ---
+                function createBlocklistItem(
+                    container,
+                    name,
+                    info,
+                    isEnabled,
+                    isDisabled,
+                    categoryClass
+                ) {
+                    const blocklistItemDiv = document.createElement("div");
+                    blocklistItemDiv.className = `checkbox-group blocklist-item ${categoryClass}`;
+
+                    const checkbox = document.createElement("input");
+                    checkbox.type = "checkbox";
+                    checkbox.id = "blocklist-" + name;
+                    checkbox.dataset.blocklist = name; // Use dataset for custom data attributes
+                    checkbox.checked = isEnabled;
+                    checkbox.disabled = isDisabled;
+
+                    const label = document.createElement("label");
+                    label.setAttribute("for", "blocklist-" + name);
+                    label.textContent = info.description;
+
+                    blocklistItemDiv.appendChild(checkbox);
+                    blocklistItemDiv.appendChild(label);
+                    container.appendChild(blocklistItemDiv);
+
+                    return checkbox; // Return checkbox for attaching event listener if needed
+                }
+
+                // --- Create Vice blocklist items ---
+                viceBlocklists.forEach(([name, info]) => {
+                    // Vice blocklists are always checked and disabled
+                    createBlocklistItem(
+                        viceBlocklistContainer,
+                        name,
+                        info,
+                        true,
+                        true,
+                        "vice-item"
+                    );
+
+                    // Ensure vice categories are enabled in the background
+                    if (!info.enabled) {
+                        chrome.runtime.sendMessage({
+                            r: "toggleBlocklist",
+                            name: name,
+                            enabled: true,
+                        });
+                    }
+                });
+
+                // --- Create Hazard blocklist items ---
+                hazardBlocklists.forEach(([name, info]) => {
+                    // Hazard blocklists are toggleable
+                    const checkbox = createBlocklistItem(
+                        hazardBlocklistContainer,
+                        name,
+                        info,
+                        info.enabled,
+                        false,
+                        "hazard-item"
+                    );
+
+                    // Set up event handler for toggleable hazard blocklists
+                    checkbox.addEventListener("change", function () {
+                        const blocklistName = this.dataset.blocklist; // Access data attribute
+                        const isEnabled = this.checked;
+
+                        chrome.runtime.sendMessage({
+                            r: "toggleBlocklist",
+                            name: blocklistName,
+                            enabled: isEnabled,
+                        });
                     });
                 });
-            });
-        });
+            }
+        );
     }
-    
-    // Load blocklists when the page is ready
-    loadBlocklists();
+
+    // --- Initial Calls ---
+    createList(); // Initial population of the exception list
+    loadBlocklists(); // Initial population of the blocklists
 });

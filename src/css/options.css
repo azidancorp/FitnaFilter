@@ -2,11 +2,11 @@
 * {
     margin: 0;
     padding: 0;
-    box-sizing: border-box; 
+    box-sizing: border-box;
 }
 
 body {
-    font-family: 'Trebuchet MS', sans-serif;
+    font-family: "Trebuchet MS", sans-serif;
     background-color: #1e1e1e;
     color: #d4d4d4;
     display: flex;
@@ -65,7 +65,8 @@ body {
     font-size: 1.1em;
 }
 
-.checkbox-group, .input-group {
+.checkbox-group,
+.input-group {
     display: flex;
     align-items: center;
     margin-bottom: 15px;
@@ -119,9 +120,14 @@ label {
     min-height: 100px;
 }
 
+#addName {
+    /* Added rule for moved inline style */
+    flex: 1;
+}
+
 form {
     display: flex;
-    gap: 10px;
+    gap: 8px; /* Modified from 10px to 8px to match inline style from HTML */
     margin-bottom: 15px;
 }
 
@@ -153,7 +159,6 @@ textarea.free-text-enabled {
     padding: 8px 12px;
     resize: vertical;
 }
-
 
 .checkbox-group label:hover,
 .input-group label:hover,
@@ -188,6 +193,7 @@ button:hover {
     }
 
     #addName {
+        /* This existing rule for #addName under media query remains */
         width: 100%;
     }
 }

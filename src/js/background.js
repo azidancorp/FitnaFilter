@@ -103,7 +103,8 @@ async function getSettings() {
         'maxSafe': null,
         'autoUnpause': null, 
         'autoUnpauseTimeout': null,
-        'blocklistSettings': null
+        'blocklistSettings': null,
+        'filterColor': null
     });
         storedSettings.urlList = result.urlList ? JSON.parse(result.urlList) : [];
         storedSettings.isNoEye = result.isNoEye == 1;
@@ -111,6 +112,7 @@ async function getSettings() {
         storedSettings.autoUnpause = result.autoUnpause == 1;
         storedSettings.autoUnpauseTimeout = +result.autoUnpauseTimeout || 15;
         storedSettings.isNoFaceFeatures = result.isNoFaceFeatures == 1;
+        storedSettings.filterColor = result.filterColor || 'grey';
         
         // Load blocklist settings
         if (result.blocklistSettings) {
@@ -156,7 +158,8 @@ chrome.runtime.onMessage.addListener(
                     autoUnpauseTimeout: storedSettings.autoUnpauseTimeout,
                     isNoEye: storedSettings.isNoEye,
                     isNoFaceFeatures: storedSettings.isNoFaceFeatures,
-                    maxSafe: storedSettings.maxSafe
+                    maxSafe: storedSettings.maxSafe,
+                    filterColor: storedSettings.filterColor
                 };
                 var tab = request.tab || sender.tab;
                 if (tab) {
@@ -268,6 +271,13 @@ chrome.runtime.onMessage.addListener(
                 if (!ms || ms < 1 || ms > 1000)
                     ms = 32;
                     chrome.storage.sync.set({"maxSafe": maxSafe = ms});
+                break;
+            case 'setFilterColor':
+                const validColors = ['white', 'black', 'grey'];
+                const color = request.color && validColors.includes(request.color) ? request.color : 'grey';
+                storedSettings.filterColor = color;
+                chrome.storage.sync.set({"filterColor": color});
+                sendResponse(true);
                 break;
             case 'getBlocklists':
                 const blocklistInfo = {};

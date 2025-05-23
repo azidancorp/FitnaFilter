@@ -65,10 +65,20 @@ chrome.runtime.sendMessage({
     }
 });
 
-// Catches 'Show Images' option from browser actions
+// Catches 'Show Images' option from browser actions and filter color updates
 chrome.runtime.onMessage.addListener(request => {
     if (request.r === 'showImages') {
         displayer.showImages();
+    } else if (request.r === 'updateFilterColor') {
+        // Update the filter color in settings
+        if (settings) {
+            settings.filterColor = request.color || 'grey';
+            // If the extension is active, reprocess the page with the new filter color
+            if (!settings.isExcluded && !settings.isExcludedForTab && !settings.isPaused && !settings.isPausedForTab) {
+                // Refresh the page processing to apply the new filter color
+                ProcessWin(window, contentLoaded);
+            }
+        }
     }
 });
 
@@ -185,9 +195,8 @@ function ProcessWin(win, winContentLoaded) {
             }
         }
     }
-    /** Listener for {@link https://developer.mozilla.org/en-US/docs/Web/API/MouseScrollEvent|scroll}
-     * event for the local
-     * {@link https://developer.mozilla.org/en-US/docs/Web/API/Window|window}.
+    /** 
+     * Listener for MouseScrollEvent for the local Window.
      */
     function windowScroll() {
         mMouseController.move();
@@ -195,9 +204,7 @@ function ProcessWin(win, winContentLoaded) {
         checkMousePosition();
     }
     /**
-     * Listener for the {@link https://developer.mozilla.org/en-US/docs/Web/API/KeyboardEvent|keydown}
-     * event for the local
-     * Document.
+     * Listener for the Keydown event for the local Document.
      * Controls logic to pause the extension and show original
      * unfiltered images.
      */
@@ -225,8 +232,7 @@ function ProcessWin(win, winContentLoaded) {
     }
     /**
      * Start the process to filter images. Observes the changes in the
-     * DOM tree to filter images in new
-     * {@link https://developer.mozilla.org/en-US/docs/Web/API/Element|elements}.
+     * DOM tree to filter images in new Elements.
      */
     function start() {
         // With iFrames it happens.
@@ -278,13 +284,11 @@ function ProcessWin(win, winContentLoaded) {
 
         }
 
-        // Mutation observer checks when a change in the DOM tree has
-        // occured.
+        // Mutation observer checks when a change in the DOM tree has occured.
         mObserver = new WebKitMutationObserver((mutations, observer) => {
 
             mutations.map(m => {
-                // This is for changes in the nodes already in the DOM
-                // tree.
+                // This is for changes in the nodes already in the DOM tree.
                 if (m.type == 'attributes') {
 
                     if (m.attributeName == 'class') {
@@ -340,11 +344,9 @@ function ProcessWin(win, winContentLoaded) {
             mSuspects.updateSuspectsRectangles()
         }, 3000);
 
-        // This is likely to be set based on an average time for a web
-        // page to be loaded.
+        // This is likely to be set based on an average time for a web page to be loaded.
         // TODO: Improve this
         for (let i = 1; i < 7; i++) {
-
             if ((i % 2) > 0) {
 
                 setTimeout(() => {
@@ -397,9 +399,7 @@ function ProcessWin(win, winContentLoaded) {
 
         const win = iframe.contentWindow;
         if (!win) {
-
             return; //with iFrames it happens.
-
         }
 
         // Similar to the main page. The logic is set to be executed
@@ -430,8 +430,7 @@ function ProcessWin(win, winContentLoaded) {
      * Analyse an Element to process the related images.
      */
     function doElement() {
-        // No need to do anything when all the images are going to be
-        // displayed.
+        // No need to do anything when all the images are going to be displayed.
         if (displayer.isShowAll()) {
 
             return;
@@ -785,8 +784,7 @@ function ProcessWin(win, winContentLoaded) {
         }
     }
     /**
-     * Add|remove MouseEvent
-     * listeners, which are {@link mouseEntered} {@link mouseLeft}
+     * Add|remove MouseEvent listeners, which are {@link mouseEntered} {@link mouseLeft}
      *
      * @param {Element} domElement
      * @param {boolean} toggle
@@ -798,9 +796,8 @@ function ProcessWin(win, winContentLoaded) {
         }, toggle, HAS_MOUSE_LISTENERS);
     }
     /**
-     * Listener for the mouseover event of an
-     * element.
-     * Used to control the position of the eye
+     * Listener for the mouseover event of an Element.
+     * Used to control the position of the eye.
      *
      * @param {Event} event
      */

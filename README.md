@@ -1,11 +1,11 @@
 // README.md
-# FitnaFilter
+# FitnaFilter (v1.1.0)
 
 A Chrome extension designed to help purify your browsing experience by filtering visual content and blocking access to potentially harmful websites.
 
 ## Features
 
-*   **Skin Tone Filtering:** Automatically detects and filters human skin tones in images on websites, replacing them with a neutral greyscale color.
+*   **Skin Tone Filtering:** Automatically detects and filters human skin tones in images on websites, replacing them with a neutral greyscale color (default) or other selectable filter colors.
 *   **Website Blocking:** Blocks access to websites based on curated blocklists and redirects you to a safe page (`https://quran.com/`).
     *   **Vice Categories (Always On):** Blocks sites related to abuse, drugs, gambling, and pornography. This is non-configurable.
     *   **Hazard & Distraction Categories (Configurable):** Allows enabling/disabling blocking for categories like fraud, malware, phishing, piracy, ransomware, and scams via the Options page.
@@ -35,11 +35,14 @@ To install FitnaFilter:
 
 *   **Filtering:** Image filtering happens automatically on page load for websites not on your exclusion list.
 *   **Popup Menu:** Click the FitnaFilter icon in your Chrome toolbar for quick actions:
+    *   `Options`: Opens the Options page in a new tab.
+    *   `GitHub`: Opens the project's GitHub repository in a new tab.
     *   `Show Images`: Temporarily reveals all filtered images on the current tab.
     *   `Reload Tab`: Refreshes the current tab.
+    *   `Filter Color`: Choose between white, black, or grey filter colors for skin tone replacement.
     *   `Exclude Domain`/`Exclude for this Tab`: Add the current site/tab to the exclusion list.
     *   `Pause`/`Pause for this Tab`: Temporarily disable filtering globally or just for the current tab.
-    *   Add URLs to the exclusion list.
+    *   Add URLs to the exclusion list using the custom URL input and `Add URL` or `Grab URL` buttons.
 *   **Options Page:** Access via the Popup link or your Chrome Extensions page (`chrome://extensions`). Here you can:
     *   Manage the website exclusion list.
     *   Toggle Hazard & Distraction blocklist categories.
@@ -59,11 +62,15 @@ To install FitnaFilter:
 3.  **Pixel Processing:**
     *   For each detected image (above the configured size threshold), it obtains the pixel data using the HTML5 `Canvas API`.
     *   It analyzes each pixel, converting RGB values to YCbCr and HSV color spaces.
-    *   Pixels falling within predefined ranges associated with human skin tones are identified.
-    *   The identified skin pixels are replaced with a greyscale color (`#7F7F7F`).
+    *   Pixels falling within predefined ranges associated with human skin tones are identified using a multi-color space approach:
+        * YCbCr: Cb (85-128) and Cr (142-180) ranges for skin chrominance values
+        * HSV: Hue (0-32) and Saturation (>15%) ranges for skin tone detection
+        * RGB: Additional verification for face features when enabled
+    *   The identified skin pixels are replaced with a configurable filter color (default: greyscale `#7F7F7F`).
 4.  **Image Replacement:** The modified image data is converted into a `Blob` URL (`URL.createObjectURL`). This URL is then used to replace the `src` attribute of `<img>` tags or update the `background-image` style of other elements.
 5.  **Cross-Origin Handling:** To handle images hosted on different domains (which can cause CORS security errors when accessed directly by content scripts via Canvas), the extension requests the image data via the background service worker (`background.js`), which can perform the fetch without typical CORS restrictions.
 6.  **Website Blocking:** The background service worker listens for navigation events (`chrome.webNavigation.onBeforeNavigate`). If the target URL's domain is found in any of the enabled blocklists, the navigation is cancelled, and the tab is redirected to `https://quran.com/`.
+    *   **Blocklist Sources:** The extension uses blocklists from [The Block List Project](https://github.com/blocklistproject/Lists)
 7.  **Settings Management:** User preferences (exclusions, pause states, blocklist toggles, display options) are stored using `chrome.storage.sync` (syncs across devices) and `chrome.storage.local` (local to the device).
 
 

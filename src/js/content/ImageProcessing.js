@@ -141,9 +141,28 @@ async function filterSkinColor(imgElement, uuid, canvas) {
         const { h: hue, s: saturation, v: value } = rgbToHsv(redValue, greenValue, blueValue);
 
         if (isSkinPixel(redValue, greenValue, blueValue, hue, saturation, blueChrominance, redChrominance)) {
-            pixelData[redIndex] = 127;
-            pixelData[greenIndex] = 127;
-            pixelData[blueIndex] = 127;
+            // Apply the selected filter color based on settings
+            const filterColor = settings.filterColor || 'grey';
+            
+            switch (filterColor) {
+                case 'white':
+                    pixelData[redIndex] = 255;
+                    pixelData[greenIndex] = 255;
+                    pixelData[blueIndex] = 255;
+                    break;
+                case 'black':
+                    pixelData[redIndex] = 0;
+                    pixelData[greenIndex] = 0;
+                    pixelData[blueIndex] = 0;
+                    break;
+                case 'grey':
+                default:
+                    pixelData[redIndex] = 127;
+                    pixelData[greenIndex] = 127;
+                    pixelData[blueIndex] = 127;
+                    break;
+            }
+            
             pixelData[alphaIndex] = 255;
         }
     }

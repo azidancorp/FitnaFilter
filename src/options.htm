@@ -14,109 +14,132 @@
                     >Visit our GitHub Repo</a
                 >
             </div>
-            <div class="settings-group">
-                <h3>Display and Timing Settings</h3>
-                <div class="checkbox-group">
-                    <input type="checkbox" id="noEye" />
-                    <label for="noEye"
-                        >Don't show the Eye in hidden images</label
-                    >
-                    <span
-                        id="noEyeInfo"
-                        class="info-icon"
-                        title="By default, an eye is shown when hovering the mouse over a hidden image. Clicking on it will show that image."
-                        >?</span
-                    >
-                </div>
-                <div class="checkbox-group">
-                    <input type="checkbox" id="noFaceFeatures" />
-                    <label for="noFaceFeatures">Remove face features</label>
-                    <span
-                        id="noFaceFeaturesInfo"
-                        class="info-icon"
-                        title="By default, the extension only filters the skin color; some face features can still be noticeable. This option allows to remove those face features whenever it is possible."
-                        >?</span
-                    >
-                </div>
-                <div class="input-group">
-                    <label>Maximum Safe pixels</label>
-                    <input type="text" id="max-safe" />
-                    <span
-                        class="info-icon"
-                        title="The maximum size of images that you always want shown. Must be 1-1000."
-                        >?</span
-                    >
-                </div>
-                <div class="checkbox-group">
-                    <input type="checkbox" id="autoUnpause" />
-                    <label for="autoUnpause"
-                        >Automatically unpause after set timeout</label
-                    >
-                    <span
-                        id="autoUnpauseInfo"
-                        class="info-icon"
-                        title="After pausing, automatically remove pause from the filter after a set timeout."
-                        >?</span
-                    >
-                </div>
-                <div class="input-group">
-                    <label for="autoUnpauseTimeout"
-                        >Automatic Unpause Timeout (in minutes)</label
-                    >
-                    <input type="number" id="autoUnpauseTimeout" />
-                    <span
-                        id="autoUnpauseTimeoutInfo"
-                        class="info-icon"
-                        title="If auto unpause is enabled, after how many minutes to reenable the filter."
-                        >?</span
-                    >
-                </div>
-            </div>
+            
+            <div class="two-column-layout">
+                <!-- Left Column - Image Blocking Options -->
+                <div class="column left-column">
+                    <div class="column-title">Image Filtering</div>
+                    <div class="settings-group">
+                        <h3>Display and Timing Settings</h3>
+                        <div class="checkbox-group">
+                            <input type="checkbox" id="noEye" />
+                            <label for="noEye"
+                                >Don't show the Eye in hidden images</label
+                            >
+                            <span
+                                id="noEyeInfo"
+                                class="info-icon"
+                                title="By default, an eye is shown when hovering the mouse over a hidden image. Clicking on it will show that image."
+                                >?</span
+                            >
+                        </div>
+                        <div class="checkbox-group">
+                            <input type="checkbox" id="noFaceFeatures" />
+                            <label for="noFaceFeatures">Remove face features</label>
+                            <span
+                                id="noFaceFeaturesInfo"
+                                class="info-icon"
+                                title="By default, the extension only filters the skin color; some face features can still be noticeable. This option allows to remove those face features whenever it is possible."
+                                >?</span
+                            >
+                        </div>
+                        <div class="input-group">
+                            <label>Maximum Safe pixels</label>
+                            <input type="text" id="max-safe" />
+                            <span
+                                class="info-icon"
+                                title="The maximum size of images that you always want shown. Must be 1-1000."
+                                >?</span
+                            >
+                        </div>
+                        <div class="checkbox-group">
+                            <input type="checkbox" id="autoUnpause" checked />
+                            <label for="autoUnpause"
+                                >Automatically unpause after set timeout</label
+                            >
+                            <span
+                                id="autoUnpauseInfo"
+                                class="info-icon"
+                                title="After pausing, automatically remove pause from the filter after a set timeout."
+                                >?</span
+                            >
+                        </div>
+                        <div class="input-group">
+                            <label for="autoUnpauseTimeout"
+                                >Automatic Unpause Timeout (in minutes)</label
+                            >
+                            <input type="number" id="autoUnpauseTimeout" />
+                            <span
+                                id="autoUnpauseTimeoutInfo"
+                                class="info-icon"
+                                title="If auto unpause is enabled, after how many minutes to reenable the filter."
+                                >?</span
+                            >
+                        </div>
+                    </div>
 
-            <div class="settings-group">
-                <h3>Exception Rules</h3>
-                <form>
-                    <input
-                        type="text"
-                        id="addName"
-                        placeholder="Enter URL to exclude"
-                    />
-                    <input type="submit" value="Add Exception" id="addBut" />
-                </form>
-                <div>
-                    <i
-                        >A URL containing any of the following lines will be
-                        excluded from filtering:</i
-                    >
+                    <div class="settings-group">
+                        <h3>Image Filtering Exclusions</h3>
+                        <form>
+                            <input
+                                type="text"
+                                id="addName"
+                                placeholder="Enter URL to exclude"
+                            />
+                            <input type="submit" value="Add Exception" id="addBut" />
+                        </form>
+                        <div>
+                            <i
+                                >A URL containing any of the following lines will be
+                                excluded from filtering:</i
+                            >
+                        </div>
+                        <div id="list"></div>
+                        <div class="checkbox-group">
+                            <input type="checkbox" id="free-text" />
+                            <label for="free-text">Free Text</label>
+                        </div>
+                    </div>
                 </div>
-                <div id="list"></div>
-                <div class="checkbox-group">
-                    <input type="checkbox" id="free-text" />
-                    <label for="free-text">Free Text</label>
-                </div>
-            </div>
+                
+                <!-- Right Column - Website Blocking Options -->
+                <div class="column right-column">
+                    <div class="column-title">Website Blocking</div>
+                    <div class="settings-group vice-group">
+                        <h3>Vice Blocking (Always On)</h3>
+                        <p>
+                            Navigating to sites in these categories will always redirect
+                            to Quran.com
+                        </p>
+                        <div id="vice-blocklist-container">
+                            <!-- Vice blocklist toggles will be added here by JavaScript -->
+                            <div class="loading-indicator">Loading blocklists...</div>
+                        </div>
+                    </div>
 
-            <div class="settings-group">
-                <h3>Vice Blocking (Always On)</h3>
-                <p>
-                    Navigating to sites in these categories will always redirect
-                    to Quran.com
-                </p>
-                <div id="vice-blocklist-container">
-                    <!-- Vice blocklist toggles will be added here by JavaScript -->
-                    <div class="loading-indicator">Loading blocklists...</div>
-                </div>
-            </div>
+                    <div class="settings-group hazard-group">
+                        <h3>Hazards Blocking</h3>
+                        <p>
+                            When enabled, navigating to sites in these categories will
+                            redirect to Quran.com
+                        </p>
+                        <div id="hazard-blocklist-container">
+                            <!-- Hazard blocklist toggles will be added here by JavaScript -->
+                            <div class="loading-indicator">Loading blocklists...</div>
+                        </div>
+                    </div>
 
-            <div class="settings-group">
-                <h3>Hazards & Distractions Blocking</h3>
-                <p>
-                    When enabled, navigating to sites in these categories will
-                    redirect to Quran.com
-                </p>
-                <div id="hazard-blocklist-container">
-                    <!-- Hazard blocklist toggles will be added here by JavaScript -->
-                    <div class="loading-indicator">Loading blocklists...</div>
+                    <div class="settings-group distraction-group">
+                        <h3>Distractions Blocking</h3>
+                        <p>
+                            When enabled, navigating to sites in these categories will
+                            redirect to Quran.com
+                        </p>
+                        <div id="distraction-blocklist-container">
+                            <!-- Distraction blocklist toggles will be added here by JavaScript -->
+                            <div class="loading-indicator">Loading blocklists...</div>
+                        </div>
+                    </div>
                 </div>
             </div>
         </div>

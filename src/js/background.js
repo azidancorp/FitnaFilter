@@ -8,38 +8,18 @@ const REDIRECT_URL = 'https://quran.com/';
 
 // Available blocklists
 const BLOCKLISTS = {
+  // Vice category (red) - always enabled
   abuse: {
     url: chrome.runtime.getURL('blocklists/abuse.txt'),
     enabled: true,
     description: 'Sites promoting abusive behavior',
     category: 'vice'
   },
-//   ads: {
-//     url: 'https://raw.githubusercontent.com/blocklistproject/Lists/master/ads.txt',
-//     enabled: false,
-//     description: 'Ad servers and trackers'
-//   },
-//   crypto: {
-//     url: 'https://raw.githubusercontent.com/blocklistproject/Lists/master/crypto.txt',
-//     enabled: false,
-//     description: 'Cryptocurrency mining domains'
-//   },
   drugs: {
     url: chrome.runtime.getURL('blocklists/drugs.txt'),
     enabled: true,
     description: 'Drug-related sites',
     category: 'vice'
-  },
-//   facebook: {
-//     url: 'https://raw.githubusercontent.com/blocklistproject/Lists/master/facebook.txt',
-//     enabled: false,
-//     description: 'Facebook-related domains'
-//   },
-  fraud: {
-    url: 'https://raw.githubusercontent.com/blocklistproject/Lists/master/fraud.txt',
-    enabled: false,
-    description: 'Known fraud sites',
-    category: 'hazard'
   },
   gambling: {
     url: chrome.runtime.getURL('blocklists/gambling.txt'),
@@ -47,52 +27,130 @@ const BLOCKLISTS = {
     description: 'Gambling sites',
     category: 'vice'
   },
-  malware: {
-    url: 'https://raw.githubusercontent.com/blocklistproject/Lists/master/malware.txt',
-    enabled: false,
-    description: 'Known malware domains',
-    category: 'hazard'
-  },
-  phishing: {
-    url: 'https://raw.githubusercontent.com/blocklistproject/Lists/master/phishing.txt',
-    enabled: false,
-    description: 'Phishing sites',
-    category: 'hazard'
-  },
-  piracy: {
-    url: 'https://raw.githubusercontent.com/blocklistproject/Lists/master/piracy.txt',
-    enabled: false,
-    description: 'Piracy sites',
-    category: 'hazard'
-  },
   porn: {
     url: chrome.runtime.getURL('blocklists/porn.txt'),
     enabled: true,
     description: 'Pornography sites',
     category: 'vice'
   },
+  vaping: {
+    url: chrome.runtime.getURL('blocklists/vaping.txt'),
+    enabled: true,
+    description: 'Vaping and e-cigarette sites',
+    category: 'vice'
+  },
+  
+  // Hazards category (orange) - toggleable
+  fraud: {
+    url: chrome.runtime.getURL('blocklists/fraud.txt'),
+    enabled: false,
+    description: 'Known fraud sites',
+    category: 'hazard'
+  },
+  malware: {
+    url: chrome.runtime.getURL('blocklists/malware.txt'),
+    enabled: false,
+    description: 'Known malware domains',
+    category: 'hazard'
+  },
+  phishing: {
+    url: chrome.runtime.getURL('blocklists/phishing.txt'),
+    enabled: false,
+    description: 'Phishing sites',
+    category: 'hazard'
+  },
   ransomware: {
-    url: 'https://raw.githubusercontent.com/blocklistproject/Lists/master/ransomware.txt',
+    url: chrome.runtime.getURL('blocklists/ransomware.txt'),
     enabled: false,
     description: 'Ransomware domains',
     category: 'hazard'
   },
-//   redirect: {
-//     url: 'https://raw.githubusercontent.com/blocklistproject/Lists/master/redirect.txt',
-//     enabled: false,
-//     description: 'URL shorteners and redirectors'
-//   },
+  redirect: {
+    url: chrome.runtime.getURL('blocklists/redirect.txt'),
+    enabled: false,
+    description: 'URL shorteners and redirectors',
+    category: 'hazard'
+  },
   scam: {
-    url: 'https://raw.githubusercontent.com/blocklistproject/Lists/master/scam.txt',
+    url: chrome.runtime.getURL('blocklists/scam.txt'),
     enabled: false,
     description: 'Scam sites',
     category: 'hazard'
-  }//,
-//   tiktok: {
-//     url: 'https://raw.githubusercontent.com/blocklistproject/Lists/master/tiktok.txt',
-//     enabled: false,
-//     description: 'TikTok domains'
-//   }
+  },
+  
+  // Distractions category (yellow) - toggleable
+  ads: {
+    url: chrome.runtime.getURL('blocklists/ads.txt'),
+    enabled: false,
+    description: 'Ad servers and trackers',
+    category: 'distraction'
+  },
+  crypto: {
+    url: chrome.runtime.getURL('blocklists/crypto.txt'),
+    enabled: false,
+    description: 'Cryptocurrency mining domains',
+    category: 'distraction'
+  },
+  facebook: {
+    url: chrome.runtime.getURL('blocklists/facebook.txt'),
+    enabled: false,
+    description: 'Facebook-related domains',
+    category: 'distraction'
+  },
+  fortnite: {
+    url: chrome.runtime.getURL('blocklists/fortnite.txt'),
+    enabled: false,
+    description: 'Fortnite gaming domains',
+    category: 'distraction'
+  },
+  piracy: {
+    url: chrome.runtime.getURL('blocklists/piracy.txt'),
+    enabled: false,
+    description: 'Piracy sites',
+    category: 'distraction'
+  },
+  smarttv: {
+    url: chrome.runtime.getURL('blocklists/smart-tv.txt'),
+    enabled: false,
+    description: 'Smart TV related domains',
+    category: 'distraction'
+  },
+  tiktok: {
+    url: chrome.runtime.getURL('blocklists/tiktok.txt'),
+    enabled: false,
+    description: 'TikTok domains',
+    category: 'distraction'
+  },
+  torrent: {
+    url: chrome.runtime.getURL('blocklists/torrent.txt'),
+    enabled: false,
+    description: 'Torrent sites',
+    category: 'distraction'
+  },
+  tracking: {
+    url: chrome.runtime.getURL('blocklists/tracking.txt'),
+    enabled: false,
+    description: 'Tracking domains',
+    category: 'distraction'
+  },
+  twitter: {
+    url: chrome.runtime.getURL('blocklists/twitter.txt'),
+    enabled: false,
+    description: 'Twitter domains',
+    category: 'distraction'
+  },
+  whatsapp: {
+    url: chrome.runtime.getURL('blocklists/whatsapp.txt'),
+    enabled: false,
+    description: 'WhatsApp domains',
+    category: 'distraction'
+  },
+  youtube: {
+    url: chrome.runtime.getURL('blocklists/youtube.txt'),
+    enabled: false,
+    description: 'YouTube domains',
+    category: 'distraction'
+  }
 };
 
 async function getSettings() {
@@ -109,7 +167,7 @@ async function getSettings() {
         storedSettings.urlList = result.urlList ? JSON.parse(result.urlList) : [];
         storedSettings.isNoEye = result.isNoEye == 1;
         storedSettings.maxSafe = +result.maxSafe || 32;
-        storedSettings.autoUnpause = result.autoUnpause == 1;
+        storedSettings.autoUnpause = result.autoUnpause !== null ? result.autoUnpause == 1 : true; // Default to true if not set
         storedSettings.autoUnpauseTimeout = +result.autoUnpauseTimeout || 15;
         storedSettings.isNoFaceFeatures = result.isNoFaceFeatures == 1;
         storedSettings.filterColor = result.filterColor || 'grey';

@@ -16,6 +16,9 @@ document.addEventListener("DOMContentLoaded", function () {
     const hazardBlocklistContainer = document.getElementById(
         "hazard-blocklist-container"
     );
+    const distractionBlocklistContainer = document.getElementById(
+        "distraction-blocklist-container"
+    );
 
     let isFreeText = false;
 
@@ -196,6 +199,8 @@ document.addEventListener("DOMContentLoaded", function () {
                         "<p>Error loading blocklists.</p>";
                     hazardBlocklistContainer.innerHTML =
                         "<p>Error loading blocklists.</p>";
+                    distractionBlocklistContainer.innerHTML =
+                        "<p>Error loading blocklists.</p>";
                     return;
                 }
                 if (!blocklists) {
@@ -203,6 +208,7 @@ document.addEventListener("DOMContentLoaded", function () {
                     // Clear loading indicators even if blocklists are empty/null
                     viceBlocklistContainer.innerHTML = "";
                     hazardBlocklistContainer.innerHTML = "";
+                    distractionBlocklistContainer.innerHTML = "";
                     return;
                 }
 
@@ -211,10 +217,12 @@ document.addEventListener("DOMContentLoaded", function () {
                 // Clear containers (remove loading indicators)
                 viceBlocklistContainer.innerHTML = "";
                 hazardBlocklistContainer.innerHTML = "";
+                distractionBlocklistContainer.innerHTML = "";
 
                 // Organize blocklists by category
                 const viceBlocklists = [];
                 const hazardBlocklists = [];
+                const distractionBlocklists = [];
 
                 // Sort and categorize
                 Object.entries(blocklists).forEach(([name, info]) => {
@@ -225,6 +233,8 @@ document.addEventListener("DOMContentLoaded", function () {
                         viceBlocklists.push([name, info]);
                     } else if (info.category === "hazard") {
                         hazardBlocklists.push([name, info]);
+                    } else if (info.category === "distraction") {
+                        distractionBlocklists.push([name, info]);
                     } else {
                         console.warn(
                             `Blocklist ${name} has unknown category: ${info.category}`
@@ -237,6 +247,7 @@ document.addEventListener("DOMContentLoaded", function () {
                     a[1].description.localeCompare(b[1].description);
                 viceBlocklists.sort(sortFn);
                 hazardBlocklists.sort(sortFn);
+                distractionBlocklists.sort(sortFn);
 
                 // --- Helper function to create a blocklist item ---
                 function createBlocklistItem(
@@ -303,6 +314,31 @@ document.addEventListener("DOMContentLoaded", function () {
                     );
 
                     // Set up event handler for toggleable hazard blocklists
+                    checkbox.addEventListener("change", function () {
+                        const blocklistName = this.dataset.blocklist; // Access data attribute
+                        const isEnabled = this.checked;
+
+                        chrome.runtime.sendMessage({
+                            r: "toggleBlocklist",
+                            name: blocklistName,
+                            enabled: isEnabled,
+                        });
+                    });
+                });
+
+                // --- Create Distraction blocklist items ---
+                distractionBlocklists.forEach(([name, info]) => {
+                    // Distraction blocklists are toggleable
+                    const checkbox = createBlocklistItem(
+                        distractionBlocklistContainer,
+                        name,
+                        info,
+                        info.enabled,
+                        false,
+                        "distraction-item"
+                    );
+
+                    // Set up event handler for toggleable distraction blocklists
                     checkbox.addEventListener("change", function () {
                         const blocklistName = this.dataset.blocklist; // Access data attribute
                         const isEnabled = this.checked;

@@ -17,7 +17,7 @@ body {
 }
 
 #cont {
-    width: 800px;
+    width: 1800px;
     background-color: #2e2e2e;
     padding: 20px;
     box-shadow: 0 4px 20px rgba(0, 0, 0, 0.5);
@@ -26,28 +26,40 @@ body {
 
 /* Blocklist styling */
 .vice-item {
-    background-color: rgba(255, 69, 0, 0.1); /* Semi-transparent orangered */
+    background-color: rgba(255, 0, 0, 0.1); /* Semi-transparent red */
     padding: 8px;
     margin-bottom: 8px;
-    border-left: 4px solid #ff4500;
+    border-left: 4px solid #ff0000;
     border-radius: 2px;
 }
 
 .hazard-item {
-    background-color: rgba(255, 215, 0, 0.1); /* Semi-transparent gold */
+    background-color: rgba(255, 165, 0, 0.1); /* Semi-transparent orange */
     padding: 8px;
     margin-bottom: 8px;
-    border-left: 4px solid #ffd700;
+    border-left: 4px solid #ffa500;
+    border-radius: 2px;
+}
+
+.distraction-item {
+    background-color: rgba(255, 255, 0, 0.1); /* Semi-transparent yellow */
+    padding: 8px;
+    margin-bottom: 8px;
+    border-left: 4px solid #ffff00;
     border-radius: 2px;
 }
 
 .vice-item label {
-    color: #ff9980; /* Lighter orangered */
+    color: #ff9999; /* Lighter red */
     font-weight: bold;
 }
 
 .hazard-item label {
-    color: #ffeb99; /* Lighter gold */
+    color: #ffcc99; /* Lighter orange */
+}
+
+.distraction-item label {
+    color: #ffffcc; /* Lighter yellow */
 }
 
 .settings-group {
@@ -181,9 +193,88 @@ button:hover {
     color: #ffffff;
 }
 
+/* Two-column layout styles */
+.two-column-layout {
+    display: flex;
+    width: 100%;
+    position: relative;
+    justify-content: space-between;
+}
+
+/* Center divider */
+.two-column-layout::after {
+    content: '';
+    position: absolute;
+    left: 50%;
+    top: 0;
+    bottom: 0;
+    width: 2px;
+    background-color: #00ff00;
+    transform: translateX(-50%);
+}
+
+.column {
+    width: 45%;
+    flex: none;
+}
+
+.left-column, .right-column {
+    width: calc(50% - 11px); /* 20px container padding minus half the divider width (1px) */
+    /* No margin needed, padding handled by container */
+}
+
+.column-title {
+    font-size: 1.5em;
+    font-weight: bold;
+    color: #00ff00;
+    margin-top: 10px;
+    margin-bottom: 24px;
+    letter-spacing: 1px;
+    text-align: center;
+    width: 100%;
+    display: block;
+}
+
+@media (max-width: 768px) {
+    .column-title {
+        text-align: left;
+        margin-top: 0;
+        margin-bottom: 18px;
+    }
+}
+
 @media (max-width: 768px) {
     #cont {
         width: 95%;
+    }
+
+    .two-column-layout {
+        flex-direction: column;
+    }
+    
+    /* Hide the vertical divider on mobile */
+    .two-column-layout::after {
+        display: none;
+    }
+    
+    /* Add a horizontal divider between columns on mobile */
+    .left-column::after {
+        content: '';
+        display: block;
+        height: 2px;
+        background-color: #00ff00;
+        margin: 30px 0;
+        width: 100%;
+    }
+
+    .left-column {
+        padding-right: 0;
+        padding-bottom: 0;
+    }
+
+    .right-column {
+        padding-left: 0;
+        padding-top: 0;
     }
 
     .checkbox-group,

@@ -54,9 +54,27 @@ function setFilterColor(color, tabId) {
     // Send message to background script to update the filter color
     chrome.runtime.sendMessage({ r: 'setFilterColor', color: color })
         .then(() => {
-            // Refresh the current tab to apply the new filter color
-            chrome.tabs.sendMessage(tabId, { r: 'updateFilterColor', color: color })
-                .catch(err => console.error('Failed to update filter color:', err));
+            // Make sure we have a valid tab ID before trying to send a message
+            if (tabId) {
+                // Check if we can send a message to this tab (avoid chrome:// URLs)
+                chrome.tabs.get(tabId, (tab) => {
+                    if (chrome.runtime.lastError) {
+                        console.log('Tab not found:', chrome.runtime.lastError.message);
+                        return;
+                    }
+                    
+                    // Only try to send message if the tab URL is supported
+                    if (tab.url && !tab.url.startsWith('chrome://')) {
+                        chrome.tabs.sendMessage(tabId, { r: 'updateFilterColor', color: color })
+                            .catch(err => {
+                                // This error is expected in some cases and can be safely ignored
+                                console.log('Note: Filter color updated in storage but not in current tab');
+                            });
+                    } else {
+                        console.log('Cannot send messages to this tab type');
+                    }
+                });
+            }
         })
         .catch(err => console.error('Error setting filter color:', err));
 }

@@ -41,6 +41,12 @@ const BLOCKLISTS = {
   },
   
   // Hazards category (orange) - toggleable
+  crypto: {
+    url: chrome.runtime.getURL('blocklists/crypto.txt'),
+    enabled: false,
+    description: 'Cryptocurrency mining domains',
+    category: 'hazard'
+  },
   fraud: {
     url: chrome.runtime.getURL('blocklists/fraud.txt'),
     enabled: false,
@@ -77,18 +83,18 @@ const BLOCKLISTS = {
     description: 'Scam sites',
     category: 'hazard'
   },
+  tracking: {
+    url: chrome.runtime.getURL('blocklists/tracking.txt'),
+    enabled: false,
+    description: 'Tracking domains',
+    category: 'hazard'
+  },
   
   // Distractions category (yellow) - toggleable
   ads: {
     url: chrome.runtime.getURL('blocklists/ads.txt'),
     enabled: false,
     description: 'Ad servers and trackers',
-    category: 'distraction'
-  },
-  crypto: {
-    url: chrome.runtime.getURL('blocklists/crypto.txt'),
-    enabled: false,
-    description: 'Cryptocurrency mining domains',
     category: 'distraction'
   },
   facebook: {
@@ -125,12 +131,6 @@ const BLOCKLISTS = {
     url: chrome.runtime.getURL('blocklists/torrent.txt'),
     enabled: false,
     description: 'Torrent sites',
-    category: 'distraction'
-  },
-  tracking: {
-    url: chrome.runtime.getURL('blocklists/tracking.txt'),
-    enabled: false,
-    description: 'Tracking domains',
     category: 'distraction'
   },
   twitter: {

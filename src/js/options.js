@@ -303,12 +303,13 @@ document.addEventListener("DOMContentLoaded", function () {
 
                 // --- Create Hazard blocklist items ---
                 hazardBlocklists.forEach(([name, info]) => {
-                    // Hazard blocklists are toggleable
+                    // Hazard blocklists are checked by default, but remain toggleable
+                    // and respect user preferences when they've been explicitly disabled
                     const checkbox = createBlocklistItem(
                         hazardBlocklistContainer,
                         name,
                         info,
-                        info.enabled,
+                        info.enabled, // Use the stored state to respect user preference
                         false,
                         "hazard-item"
                     );
@@ -324,6 +325,17 @@ document.addEventListener("DOMContentLoaded", function () {
                             enabled: isEnabled,
                         });
                     });
+                    
+                    // For newly added hazard categories or first installation,
+                    // enable them by default
+                    if (info.enabled === undefined) {
+                        checkbox.checked = true;
+                        chrome.runtime.sendMessage({
+                            r: "toggleBlocklist",
+                            name: name,
+                            enabled: true,
+                        });
+                    }
                 });
 
                 // --- Create Distraction blocklist items ---

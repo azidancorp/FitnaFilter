@@ -194,6 +194,8 @@ getSettings()
 .then(onSuccess => {
     storedSettings = onSuccess;
     console.log("Startup storedSettings: " + JSON.stringify(storedSettings));
+    // Start blocklist processing after initial settings load
+    fetchAndProcessBlocklist();
 });
 
 function getDomain(url) {
@@ -519,6 +521,9 @@ async function processBlocklist(url) {
     let addedCount = 0;
     
     // Process each line
+    const CHUNK_SIZE = 1000;
+    let processed = 0;
+
     for (const line of lines) {
       const trimmedLine = line.trim();
       // Skip comments and empty lines
@@ -538,6 +543,11 @@ async function processBlocklist(url) {
       if (domain && domain.includes('.')) {
         blockedDomains.add(domain);
         addedCount++;
+      }
+
+      processed++;
+      if (processed % CHUNK_SIZE === 0) {
+        await new Promise((r) => setTimeout(r));
       }
     }
     
@@ -575,8 +585,7 @@ async function fetchAndProcessBlocklist() {
   }
 }
 
-// Fetch blocklist when service worker starts
-fetchAndProcessBlocklist();
+// Fetch blocklists after settings load to avoid blocking startup
 
 // Listen for navigation events
 chrome.webNavigation.onBeforeNavigate.addListener(

@@ -24,7 +24,7 @@ function MouseController() {
         doc.removeEventListener('mousemove', mouseMoveCallback);
     }
     /*
-     * Interal use
+     * Internal use
      */
     function mouseMoveCallback(event) {
         mMoved = true;

@@ -1,4 +1,3 @@
-// README.md
 # FitnaFilter (v1.1.0)
 
 A Chrome extension designed to help purify your browsing experience by filtering visual content and blocking access to potentially harmful websites.

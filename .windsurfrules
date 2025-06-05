@@ -1,25 +1,154 @@
-FitnaFilter is a Chrome extension to purify your browsing experience.
+FitnaFilter is a Chrome extension (Manifest V3) that provides comprehensive content filtering through advanced image processing and website blocking.
 
-Features:
-- Filter human skin tones in websites' images.
-- Block and redirect away from websites that you know are not safe. (WIP)
-- Configure the extension to exclude and pause on websites that you know are safe.
+## Core Functionality
 
-The extension filters images by analyzing their pixels, those within the human skin range are replaced by a grayscale tone.
+**Image Filtering Pipeline:**
+- Multi-color space skin detection (YCbCr + HSV color spaces)
+- Canvas-based pixel analysis with configurable filter colors (white/black/grey)
+- Cross-origin image handling via background service worker
+- Performance-optimized processing (size thresholds, lazy loading, caching)
 
-The extension analyzes every IMG node in a webpage. It obtains the data of the image (pixel information)
-displayed in the node by using a canvas element. Then, it checks every pixel and compares its components (RGB values)
-against a range of values that define the human skin color. Those pixels within that range are grayed out.
+**Website Blocking System:**
+- Curated blocklists from The Block List Project
+- Three categories: Vice (always enabled), Hazard (configurable), Distraction (configurable)
+- Real-time domain blocking via chrome.webNavigation API
+- Comprehensive exclusion system (domains, URLs, per-tab)
 
-In some cases, it is not possible to get the data of the image using a canvas element due to same origin policy; 
-that happens when the images are fetched from domains different to the web page's. In those cases the
-extension makes xml http requests to get the data of the image. 
+## Architecture
 
-To avoid CORS errors when fetching data using a xml http requests, the request to fetch images is moved to the
-service worker to avoid the issue.
+**Background Service Worker** (`src/js/background.js`):
+- Settings management via chrome.storage (sync/local)
+- Blocklist processing and domain blocking
+- CORS proxy for cross-origin image requests
+- Central message handling hub
 
-Once an image has been filtered, it is encoded in base64 format, so this value can be 
-set in the SRC attribute of a IMG node.
+**Content Scripts** (`src/js/content/`):
+- Modular architecture with specialized components
+- Main controller (js.js) orchestrates all modules
+- Image processing engine with advanced algorithms
+- Element tracking and user interaction handling
 
-The extension allows to see the original image by clicking in the eye icon shown when the mouse pointers hovers
-an IMG element.
+**UI Components:**
+- Popup interface for quick controls and per-tab management
+- Options page for comprehensive settings and exclusion management
+- Hover eye icon system for revealing original images
+
+## Technical Implementation
+
+**Skin Detection Algorithm:**
+- YCbCr color space: Cb (85-128) and Cr (142-180) ranges
+- HSV color space: Hue (0-32°) and Saturation (>15%) ranges
+- Optional RGB verification for enhanced face feature detection
+- Configurable sensitivity and filter color options
+
+**Cross-Origin Handling:**
+1. Content scripts request images via chrome.runtime.sendMessage
+2. Background service worker fetches images bypassing CORS
+3. Returns base64 encoded image data to content scripts
+4. Content scripts create blob URLs for Canvas processing
+
+**Storage Strategy:**
+- chrome.storage.sync: User preferences, settings, blocklist states
+- chrome.storage.local: Temporary states, pause status, timestamps
+- Runtime messaging for real-time component communication
+
+**Performance Optimizations:**
+- Size-based image filtering (configurable thresholds)
+- MutationObserver for dynamic content detection
+- Chunked blocklist processing for large datasets
+- Element caching to prevent reprocessing
+- Lazy loading and processing strategies
+
+## User Controls
+
+**Global Shortcuts:**
+- Alt+P: Global pause/unpause toggle
+- Alt+Z: Reveal filtered images temporarily
+- Alt+A: Reveal filtered background images temporarily
+
+**Management Features:**
+- Per-tab exclusions and pause controls
+- Domain and URL whitelist management
+- Auto-unpause with configurable timers
+- Filter color customization (white/black/grey)
+
+## AI Agent Development Workflow
+
+### Typical Modification Sequence
+1. **Understand the Request**: Identify if change affects image processing, blocklists, UI, or core logic
+2. **Locate Target Files**: Use file structure guide to find relevant components
+3. **Read Existing Code**: Understand current implementation patterns and dependencies
+4. **Implement Changes**: Follow coding standards and existing patterns
+5. **Test Manually**: Load unpacked extension and verify functionality
+6. **Update Documentation**: Maintain consistency across CLAUDE.md, AGENTS.md, .windsurfrules
+
+### Common AI Agent Tasks
+- **Feature Additions**: New filtering algorithms, UI controls, blocklist categories
+- **Bug Fixes**: CORS issues, performance problems, storage conflicts
+- **Optimizations**: Image processing speed, memory usage, startup time
+- **Configuration**: New user settings, exclusion patterns, shortcut keys
+
+### File Modification Patterns
+- **Image Processing Changes**: Focus on `ImageProcessing.js`, test with various image sources
+- **Blocklist Updates**: Modify `background.js`, update Python script, test domain blocking
+- **UI Enhancements**: Edit popup/options JS/HTML/CSS, maintain responsive design
+- **Core Logic**: Update main controller `js.js`, ensure proper module coordination
+
+### Extension Development Best Practices
+- Always test cross-origin image handling after Canvas modifications
+- Verify chrome.storage operations don't conflict with existing data
+- Check that new features respect user's pause/exclusion settings
+- Ensure background service worker remains responsive during heavy processing
+- Test on multiple websites with different image types and sizes
+
+## Development Standards
+
+- Use 4 spaces for indentation (JavaScript and Python)
+- Keep line length under 120 characters
+- Use camelCase for JavaScript variables and functions
+- Add comments for complex logic and new functions
+- No build system - pure JavaScript development
+- Manual testing workflow via Chrome's "Load unpacked" feature
+
+## Critical Integration Points
+
+### Inter-Component Communication
+- **Background ↔ Content**: Use `chrome.runtime.sendMessage` for image requests and settings
+- **Content ↔ Content**: Direct function calls within same context
+- **UI ↔ Background**: `chrome.runtime.sendMessage` for settings updates
+- **Storage Events**: Listen for `chrome.storage.onChanged` for real-time updates
+
+### Extension Lifecycle Events
+- **Installation**: Initialize default settings in background worker
+- **Tab Navigation**: Reset per-tab state, apply exclusions
+- **Content Loading**: Start image processing pipeline, apply current settings
+- **User Actions**: Update storage, broadcast to relevant components
+
+### Error Handling Patterns
+- **CORS Failures**: Fallback to background worker image fetching
+- **Canvas Security**: Graceful degradation when image processing fails
+- **Storage Errors**: Use defaults when sync/local storage unavailable
+- **DOM Mutations**: Handle rapid content changes without performance degradation
+
+## File Structure
+
+```
+src/
+├── manifest.json          # Extension configuration (V3)
+├── js/
+│   ├── background.js      # Service worker - settings, blocklists, CORS proxy
+│   ├── popup.js          # Popup interface - quick controls
+│   ├── options.js        # Options page - comprehensive settings
+│   └── content/          # Content scripts
+│       ├── js.js         # Main controller - orchestrates all modules
+│       ├── ImageProcessing.js  # Core filtering algorithms
+│       ├── Suspects.js   # Element tracking - manages filtered elements
+│       ├── Eye.js        # Hover icon system - reveal functionality
+│       ├── MouseController.js  # Mouse interaction handling
+│       ├── ImagesDisplayer.js  # Image visibility management
+│       ├── domManipulation.js  # DOM utility functions
+│       └── constants.js  # Shared constants and feature flags
+├── css/                  # UI styling - popup.css, options.css
+├── images/               # Icons and assets - extension icons, UI elements
+└── blocklists/          # Domain blocking lists - one domain per line
+```

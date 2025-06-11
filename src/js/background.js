@@ -4,7 +4,89 @@ domainRegex = /^\w+:\/\/([\w\.:-]+)/;
 
 // Blocklist feature variables
 let blockedDomains = new Set();
-const REDIRECT_URL = 'https://quran.com/';
+let domainToBlocklistMap = new Map(); // Maps domain to blocklist name for contextual redirects
+
+// Contextual Quran verse mappings for different blocklist categories
+const VERSE_MAPPINGS = {
+    // Vice category verses
+    gambling: [
+        '2:219',  // "They ask you about wine and gambling..."
+        '5:90' // "O you who believe! Intoxicants and gambling..."
+    ],
+    porn: [
+        '24:30',  // "Tell the believing men to lower their gaze..."
+        '24:31',  // "And tell the believing women to lower their gaze..."
+        '17:32'   // "And do not approach unlawful sexual intercourse..."
+    ],
+    drugs: [
+        '5:90',   // "O you who believe! Intoxicants and gambling..."
+        '2:219'   // "They ask you about wine and gambling..."
+    ],
+    vaping: [
+        '5:90',   // "O you who believe! Intoxicants and gambling..."
+        '2:195'   // "And do not throw yourselves into destruction..."
+    ],
+    abuse: [
+        '4:36',   // "Worship Allah and associate nothing with Him, and be kind to parents..."
+        '17:23'   // "Your Lord has decreed that you worship none but Him..."
+    ],
+    
+    // Hazard category verses
+    fraud: [
+        '2:188',  // "And do not consume one another's wealth unjustly..."
+        '4:29'    // "O you who believe! Do not consume one another's wealth unjustly..."
+    ],
+    scam: [
+        '2:188',  // "And do not consume one another's wealth unjustly..."
+        '83:1'  // "Woe to those who give less [than due]..."
+    ],
+    malware: [
+        '2:195',  // "And do not throw yourselves into destruction..."
+        '4:29'    // "O you who believe! Do not consume one another's wealth unjustly..."
+    ],
+    phishing: [
+        '2:42',   // "And do not mix truth with falsehood..."
+        '2:188'   // "And do not consume one another's wealth unjustly..."
+    ],
+    ransomware: [
+        '2:188',  // "And do not consume one another's wealth unjustly..."
+        '4:29'    // "O you who believe! Do not consume one another's wealth unjustly..."
+    ],
+    
+    // Distraction category verses
+    youtube: [
+        '103:1', // "By time, Indeed mankind is in loss..."
+        '62:9'     // "O you who believe! When the call is proclaimed for Salah..."
+    ],
+    tiktok: [
+        '103:1', // "By time, Indeed mankind is in loss..."
+        '25:67'    // "And those who, when they spend, do so neither extravagantly nor sparingly..."
+    ],
+    facebook: [
+        '49:12',   // "O you who believe! Avoid much suspicion..."
+        '103:1'  // "By time, Indeed mankind is in loss..."
+    ],
+    twitter: [
+        '49:12',   // "O you who believe! Avoid much suspicion..."
+        '103:1'  // "By time, Indeed mankind is in loss..."
+    ],
+    fortnite: [
+        '103:1', // "By time, Indeed mankind is in loss..."
+        '2:195'    // "And do not throw yourselves into destruction..."
+    ],
+    
+    // Default verses for uncategorized or general blocking
+    default: [
+        '2:286',   // "Allah does not burden a soul beyond that it can bear..."
+        '94:5'   // "So verily, with hardship, there is relief..."
+    ]
+};
+
+function getContextualRedirectUrl(blocklistName) {
+    const verses = VERSE_MAPPINGS[blocklistName] || VERSE_MAPPINGS.default;
+    const randomVerse = verses[Math.floor(Math.random() * verses.length)];
+    return `https://quran.com/${randomVerse}`;
+}
 
 // Available blocklists
 const BLOCKLISTS = {
@@ -505,9 +587,10 @@ function saveBlocklistSettings() {
 /**
  * Process a single blocklist file and add domains to the blockedDomains set
  * @param {string} url - URL of the blocklist (local file URL or remote URL)
+ * @param {string} blocklistName - Name of the blocklist for contextual mapping
  * @returns {Promise<number>} - Number of domains added
  */
-async function processBlocklist(url) {
+async function processBlocklist(url, blocklistName) {
   try {
     console.log("Loading blocklist from: " + url);
     const response = await fetch(url);
@@ -542,6 +625,7 @@ async function processBlocklist(url) {
       // Add to our Set if it's a valid domain
       if (domain && domain.includes('.')) {
         blockedDomains.add(domain);
+        domainToBlocklistMap.set(domain, blocklistName); // Track which blocklist this domain belongs to
         addedCount++;
       }
 
@@ -566,6 +650,7 @@ async function fetchAndProcessBlocklist() {
   try {
     // Clear existing blocklist
     blockedDomains.clear();
+    domainToBlocklistMap.clear();
     
     let totalDomains = 0;
     const enabledLists = [];
@@ -574,7 +659,7 @@ async function fetchAndProcessBlocklist() {
     for (const [key, blocklist] of Object.entries(BLOCKLISTS)) {
       if (blocklist.enabled) {
         enabledLists.push(key);
-        const addedCount = await processBlocklist(blocklist.url);
+        const addedCount = await processBlocklist(blocklist.url, key);
         totalDomains += addedCount;
       }
     }
@@ -600,11 +685,14 @@ chrome.webNavigation.onBeforeNavigate.addListener(
       
       // Check if hostname is in our blocklist
       if (blockedDomains.has(hostname)) {
-        console.log(`Blocked navigation to: ${hostname}`);
+        const blocklistName = domainToBlocklistMap.get(hostname);
+        const redirectUrl = getContextualRedirectUrl(blocklistName);
         
-        // Redirect the tab
+        console.log(`Blocked navigation to: ${hostname} (${blocklistName}) -> redirecting to: ${redirectUrl}`);
+        
+        // Redirect the tab to contextual Quran verse
         chrome.tabs.update(details.tabId, { 
-          url: REDIRECT_URL 
+          url: redirectUrl 
         });
       }
     } catch (error) {

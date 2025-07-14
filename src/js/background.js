@@ -2,238 +2,13 @@ excludeForTabList = [];
 pauseForTabList = [];
 domainRegex = /^\w+:\/\/([\w\.:-]+)/;
 
+// Import domain filtering functionality
+importScripts('content/DomainFilter.js');
+
 // Blocklist feature variables
 let blockedDomains = new Set();
 let domainToBlocklistMap = new Map(); // Maps domain to blocklist name for contextual redirects
 
-// Contextual Quran verse mappings for different blocklist categories
-const VERSE_MAPPINGS = {
-    // Vice category verses
-    gambling: [
-        '2:219',  // "They ask you about wine and gambling..."
-        '5:90' // "O you who believe! Intoxicants and gambling..."
-    ],
-    porn: [
-        '24:30',  // "Tell the believing men to lower their gaze..."
-        '24:31',  // "And tell the believing women to lower their gaze..."
-        '17:32'   // "And do not approach unlawful sexual intercourse..."
-    ],
-    drugs: [
-        '5:90',   // "O you who believe! Intoxicants and gambling..."
-        '2:219'   // "They ask you about wine and gambling..."
-    ],
-    vaping: [
-        '5:90',   // "O you who believe! Intoxicants and gambling..."
-        '2:195'   // "And do not throw yourselves into destruction..."
-    ],
-    abuse: [
-        '4:36',   // "Worship Allah and associate nothing with Him, and be kind to parents..."
-        '17:23'   // "Your Lord has decreed that you worship none but Him..."
-    ],
-    
-    // Hazard category verses
-    fraud: [
-        '2:188',  // "And do not consume one another's wealth unjustly..."
-        '4:29'    // "O you who believe! Do not consume one another's wealth unjustly..."
-    ],
-    scam: [
-        '2:188',  // "And do not consume one another's wealth unjustly..."
-        '83:1'  // "Woe to those who give less [than due]..."
-    ],
-    malware: [
-        '2:195',  // "And do not throw yourselves into destruction..."
-        '4:29'    // "O you who believe! Do not consume one another's wealth unjustly..."
-    ],
-    phishing: [
-        '2:42',   // "And do not mix truth with falsehood..."
-        '2:188'   // "And do not consume one another's wealth unjustly..."
-    ],
-    ransomware: [
-        '2:188',  // "And do not consume one another's wealth unjustly..."
-        '4:29'    // "O you who believe! Do not consume one another's wealth unjustly..."
-    ],
-    
-    // Distraction category verses
-    youtube: [
-        '103:1', // "By time, Indeed mankind is in loss..."
-        '62:9'     // "O you who believe! When the call is proclaimed for Salah..."
-    ],
-    tiktok: [
-        '103:1', // "By time, Indeed mankind is in loss..."
-        '25:67'    // "And those who, when they spend, do so neither extravagantly nor sparingly..."
-    ],
-    facebook: [
-        '49:12',   // "O you who believe! Avoid much suspicion..."
-        '103:1'  // "By time, Indeed mankind is in loss..."
-    ],
-    twitter: [
-        '49:12',   // "O you who believe! Avoid much suspicion..."
-        '103:1'  // "By time, Indeed mankind is in loss..."
-    ],
-    fortnite: [
-        '103:1', // "By time, Indeed mankind is in loss..."
-        '2:195'    // "And do not throw yourselves into destruction..."
-    ],
-    
-    // Default verses for uncategorized or general blocking
-    default: [
-        '2:286',   // "Allah does not burden a soul beyond that it can bear..."
-        '94:5'   // "So verily, with hardship, there is relief..."
-    ]
-};
-
-function getContextualRedirectUrl(blocklistName) {
-    const verses = VERSE_MAPPINGS[blocklistName] || VERSE_MAPPINGS.default;
-    const randomVerse = verses[Math.floor(Math.random() * verses.length)];
-    return `https://quran.com/${randomVerse}`;
-}
-
-// Available blocklists
-const BLOCKLISTS = {
-  // Vice category (red) - always enabled
-  abuse: {
-    url: chrome.runtime.getURL('blocklists/abuse.txt'),
-    enabled: true,
-    description: 'Sites promoting abusive behavior',
-    category: 'vice'
-  },
-  drugs: {
-    url: chrome.runtime.getURL('blocklists/drugs.txt'),
-    enabled: true,
-    description: 'Drug-related sites',
-    category: 'vice'
-  },
-  gambling: {
-    url: chrome.runtime.getURL('blocklists/gambling.txt'),
-    enabled: true,
-    description: 'Gambling sites',
-    category: 'vice'
-  },
-  porn: {
-    url: chrome.runtime.getURL('blocklists/porn.txt'),
-    enabled: true,
-    description: 'Pornography sites',
-    category: 'vice'
-  },
-  vaping: {
-    url: chrome.runtime.getURL('blocklists/vaping.txt'),
-    enabled: true,
-    description: 'Vaping and e-cigarette sites',
-    category: 'vice'
-  },
-  
-  // Hazards category (orange) - toggleable
-  crypto: {
-    url: chrome.runtime.getURL('blocklists/crypto.txt'),
-    enabled: false,
-    description: 'Cryptocurrency mining domains',
-    category: 'hazard'
-  },
-  fraud: {
-    url: chrome.runtime.getURL('blocklists/fraud.txt'),
-    enabled: false,
-    description: 'Known fraud sites',
-    category: 'hazard'
-  },
-  malware: {
-    url: chrome.runtime.getURL('blocklists/malware.txt'),
-    enabled: false,
-    description: 'Known malware domains',
-    category: 'hazard'
-  },
-  phishing: {
-    url: chrome.runtime.getURL('blocklists/phishing.txt'),
-    enabled: false,
-    description: 'Phishing sites',
-    category: 'hazard'
-  },
-  ransomware: {
-    url: chrome.runtime.getURL('blocklists/ransomware.txt'),
-    enabled: false,
-    description: 'Ransomware domains',
-    category: 'hazard'
-  },
-  redirect: {
-    url: chrome.runtime.getURL('blocklists/redirect.txt'),
-    enabled: false,
-    description: 'URL shorteners and redirectors',
-    category: 'hazard'
-  },
-  scam: {
-    url: chrome.runtime.getURL('blocklists/scam.txt'),
-    enabled: false,
-    description: 'Scam sites',
-    category: 'hazard'
-  },
-  tracking: {
-    url: chrome.runtime.getURL('blocklists/tracking.txt'),
-    enabled: false,
-    description: 'Tracking domains',
-    category: 'hazard'
-  },
-  
-  // Distractions category (yellow) - toggleable
-  ads: {
-    url: chrome.runtime.getURL('blocklists/ads.txt'),
-    enabled: false,
-    description: 'Ad servers and trackers',
-    category: 'distraction'
-  },
-  facebook: {
-    url: chrome.runtime.getURL('blocklists/facebook.txt'),
-    enabled: false,
-    description: 'Facebook-related domains',
-    category: 'distraction'
-  },
-  fortnite: {
-    url: chrome.runtime.getURL('blocklists/fortnite.txt'),
-    enabled: false,
-    description: 'Fortnite gaming domains',
-    category: 'distraction'
-  },
-  piracy: {
-    url: chrome.runtime.getURL('blocklists/piracy.txt'),
-    enabled: false,
-    description: 'Piracy sites',
-    category: 'distraction'
-  },
-  smarttv: {
-    url: chrome.runtime.getURL('blocklists/smart-tv.txt'),
-    enabled: false,
-    description: 'Smart TV related domains',
-    category: 'distraction'
-  },
-  tiktok: {
-    url: chrome.runtime.getURL('blocklists/tiktok.txt'),
-    enabled: false,
-    description: 'TikTok domains',
-    category: 'distraction'
-  },
-  torrent: {
-    url: chrome.runtime.getURL('blocklists/torrent.txt'),
-    enabled: false,
-    description: 'Torrent sites',
-    category: 'distraction'
-  },
-  twitter: {
-    url: chrome.runtime.getURL('blocklists/twitter.txt'),
-    enabled: false,
-    description: 'Twitter domains',
-    category: 'distraction'
-  },
-  whatsapp: {
-    url: chrome.runtime.getURL('blocklists/whatsapp.txt'),
-    enabled: false,
-    description: 'WhatsApp domains',
-    category: 'distraction'
-  },
-  youtube: {
-    url: chrome.runtime.getURL('blocklists/youtube.txt'),
-    enabled: false,
-    description: 'YouTube domains',
-    category: 'distraction'
-  }
-};
 
 async function getSettings() {
     var result = await chrome.storage.sync.get({
@@ -572,16 +347,16 @@ function reload() {
  * Save blocklist settings to storage
  */
 function saveBlocklistSettings() {
-  const settings = {};
-  
-  // Extract just the enabled status for each blocklist
-  for (const [key, blocklist] of Object.entries(BLOCKLISTS)) {
-    settings[key] = blocklist.enabled;
-  }
-  
-  chrome.storage.sync.set({
-    "blocklistSettings": JSON.stringify(settings)
-  });
+    const settings = {};
+    
+    // Extract just the enabled status for each blocklist
+    for (const [key, blocklist] of Object.entries(BLOCKLISTS)) {
+        settings[key] = blocklist.enabled;
+    }
+    
+    chrome.storage.sync.set({
+        "blocklistSettings": JSON.stringify(settings)
+    });
 }
 
 /**
@@ -591,113 +366,112 @@ function saveBlocklistSettings() {
  * @returns {Promise<number>} - Number of domains added
  */
 async function processBlocklist(url, blocklistName) {
-  try {
-    console.log("Loading blocklist from: " + url);
-    const response = await fetch(url);
-    
-    if (!response.ok) {
-      throw new Error(`Failed to fetch blocklist: ${response.status}`);
-    }
-    
-    const text = await response.text();
-    const lines = text.split('\n');
-    let addedCount = 0;
-    
-    // Process each line
-    const CHUNK_SIZE = 1000;
-    let processed = 0;
+    try {
+        console.log("Loading blocklist from: " + url);
+        const response = await fetch(url);
+        
+        if (!response.ok) {
+            throw new Error(`Failed to fetch blocklist: ${response.status}`);
+        }
+        
+        const text = await response.text();
+        const lines = text.split('\n');
+        let addedCount = 0;
+        
+        // Process each line
+        const CHUNK_SIZE = 1000;
+        let processed = 0;
 
-    for (const line of lines) {
-      const trimmedLine = line.trim();
-      // Skip comments and empty lines
-      if (!trimmedLine || trimmedLine.startsWith('#')) {
-        continue;
-      }
-      
-      // Handle different formats (0.0.0.0 domain.com or just domain.com)
-      let domain;
-      if (trimmedLine.startsWith('0.0.0.0')) {
-        domain = trimmedLine.split(/\s+/)[1]; // Extract domain after IP
-      } else {
-        domain = trimmedLine;
-      }
-      
-      // Add to our Set if it's a valid domain
-      if (domain && domain.includes('.')) {
-        blockedDomains.add(domain);
-        domainToBlocklistMap.set(domain, blocklistName); // Track which blocklist this domain belongs to
-        addedCount++;
-      }
+        for (const line of lines) {
+            const trimmedLine = line.trim();
+            // Skip comments and empty lines
+            if (!trimmedLine || trimmedLine.startsWith('#')) {
+                continue;
+            }
+            
+            // Handle different formats (0.0.0.0 domain.com or just domain.com)
+            let domain;
+            if (trimmedLine.startsWith('0.0.0.0')) {
+                domain = trimmedLine.split(/\s+/)[1]; // Extract domain after IP
+            } else {
+                domain = trimmedLine;
+            }
+            
+            // Add to our Set if it's a valid domain
+            if (domain && domain.includes('.')) {
+                blockedDomains.add(domain);
+                domainToBlocklistMap.set(domain, blocklistName); // Track which blocklist this domain belongs to
+                addedCount++;
+            }
 
-      processed++;
-      if (processed % CHUNK_SIZE === 0) {
-        await new Promise((r) => setTimeout(r));
-      }
+            processed++;
+            if (processed % CHUNK_SIZE === 0) {
+                await new Promise((r) => setTimeout(r));
+            }
+        }
+        
+        console.log(`Added ${addedCount} domains from blocklist: ${url}`);
+        return addedCount;
+    } catch (error) {
+        console.error(`Error processing blocklist ${url}:`, error);
+        return 0;
     }
-    
-    console.log(`Added ${addedCount} domains from blocklist: ${url}`);
-    return addedCount;
-  } catch (error) {
-    console.error(`Error processing blocklist ${url}:`, error);
-    return 0;
-  }
 }
 
 /**
- * Fetches all enabled blocklists from GitHub and processes them
+ * Fetches all enabled blocklists and processes them
  */
 async function fetchAndProcessBlocklist() {
-  try {
-    // Clear existing blocklist
-    blockedDomains.clear();
-    domainToBlocklistMap.clear();
-    
-    let totalDomains = 0;
-    const enabledLists = [];
-    
-    // Process each enabled blocklist
-    for (const [key, blocklist] of Object.entries(BLOCKLISTS)) {
-      if (blocklist.enabled) {
-        enabledLists.push(key);
-        const addedCount = await processBlocklist(blocklist.url, key);
-        totalDomains += addedCount;
-      }
+    try {
+        // Clear existing blocklist
+        blockedDomains.clear();
+        domainToBlocklistMap.clear();
+        
+        let totalDomains = 0;
+        const enabledLists = [];
+        
+        // Process each enabled blocklist
+        for (const [key, blocklist] of Object.entries(BLOCKLISTS)) {
+            if (blocklist.enabled) {
+                enabledLists.push(key);
+                const addedCount = await processBlocklist(blocklist.url, key);
+                totalDomains += addedCount;
+            }
+        }
+        
+        console.log(`Loaded ${totalDomains} domains from blocklists: ${enabledLists.join(', ') || 'none'}`);
+    } catch (error) {
+        console.error("Error fetching or processing blocklists:", error);
     }
-    
-    console.log(`Loaded ${totalDomains} domains from blocklists: ${enabledLists.join(', ') || 'none'}`);
-  } catch (error) {
-    console.error("Error fetching or processing blocklists:", error);
-  }
 }
-
-// Fetch blocklists after settings load to avoid blocking startup
 
 // Listen for navigation events
 chrome.webNavigation.onBeforeNavigate.addListener(
-  (details) => {
-    // Only intercept main frame navigation (not iframes, etc)
-    if (details.frameId !== 0) return;
-    
-    try {
-      // Get the hostname from the URL
-      const url = new URL(details.url);
-      const hostname = url.hostname;
-      
-      // Check if hostname is in our blocklist
-      if (blockedDomains.has(hostname)) {
-        const blocklistName = domainToBlocklistMap.get(hostname);
-        const redirectUrl = getContextualRedirectUrl(blocklistName);
+    (details) => {
+        // Only intercept main frame navigation (not iframes, etc)
+        if (details.frameId !== 0) return;
         
-        console.log(`Blocked navigation to: ${hostname} (${blocklistName}) -> redirecting to: ${redirectUrl}`);
-        
-        // Redirect the tab to contextual Quran verse
-        chrome.tabs.update(details.tabId, { 
-          url: redirectUrl 
-        });
-      }
-    } catch (error) {
-      console.error("Error processing navigation:", error);
-    }
-  },
-  { url: [{ schemes: ['http', 'https'] }] }
+        try {
+            // Get the hostname from the URL
+            const url = new URL(details.url);
+            const hostname = url.hostname;
+            
+            // Check if hostname is in our blocklist
+            if (blockedDomains.has(hostname)) {
+                const blocklistName = domainToBlocklistMap.get(hostname);
+                const redirectUrl = getContextualRedirectUrl(blocklistName);
+                
+                console.log(`Blocked navigation to: ${hostname} (${blocklistName}) -> redirecting to: ${redirectUrl}`);
+                
+                // Redirect the tab to contextual Quran verse
+                chrome.tabs.update(details.tabId, { 
+                    url: redirectUrl 
+                });
+            }
+        } catch (error) {
+            console.error("Error processing navigation:", error);
+        }
+    },
+    { url: [{ schemes: ['http', 'https'] }] }
 );
+

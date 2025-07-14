@@ -230,5 +230,92 @@ const BLOCKLISTS = {
     }
 };
 
-// This file only contains shared data and utilities
-// The actual blocking logic should remain in background.js using webNavigation API
+/**
+ * Process a single blocklist file and add domains to the blockedDomains set
+ * @param {string} url - URL of the blocklist (local file URL or remote URL)
+ * @param {string} blocklistName - Name of the blocklist for contextual mapping
+ * @param {Set} blockedDomains - Set to add domains to
+ * @param {Map} domainToBlocklistMap - Map to track domain to blocklist mapping
+ * @returns {Promise<number>} - Number of domains added
+ */
+async function processBlocklist(url, blocklistName, blockedDomains, domainToBlocklistMap) {
+    try {
+        console.log("Loading blocklist from: " + url);
+        const response = await fetch(url);
+        
+        if (!response.ok) {
+            throw new Error(`Failed to fetch blocklist: ${response.status}`);
+        }
+        
+        const text = await response.text();
+        const lines = text.split('\n');
+        let addedCount = 0;
+        
+        // Process each line
+        const CHUNK_SIZE = 1000;
+        let processed = 0;
+
+        for (const line of lines) {
+            const trimmedLine = line.trim();
+            // Skip comments and empty lines
+            if (!trimmedLine || trimmedLine.startsWith('#')) {
+                continue;
+            }
+            
+            // Handle different formats (0.0.0.0 domain.com or just domain.com)
+            let domain;
+            if (trimmedLine.startsWith('0.0.0.0')) {
+                domain = trimmedLine.split(/\s+/)[1]; // Extract domain after IP
+            } else {
+                domain = trimmedLine;
+            }
+            
+            // Add to our Set if it's a valid domain
+            if (domain && domain.includes('.')) {
+                blockedDomains.add(domain);
+                domainToBlocklistMap.set(domain, blocklistName); // Track which blocklist this domain belongs to
+                addedCount++;
+            }
+
+            processed++;
+            if (processed % CHUNK_SIZE === 0) {
+                await new Promise((r) => setTimeout(r));
+            }
+        }
+        
+        console.log(`Added ${addedCount} domains from blocklist: ${url}`);
+        return addedCount;
+    } catch (error) {
+        console.error(`Error processing blocklist ${url}:`, error);
+        return 0;
+    }
+}
+
+/**
+ * Fetches all enabled blocklists and processes them
+ * @param {Set} blockedDomains - Set to store blocked domains
+ * @param {Map} domainToBlocklistMap - Map to track domain to blocklist mapping
+ */
+async function fetchAndProcessBlocklist(blockedDomains, domainToBlocklistMap) {
+    try {
+        // Clear existing blocklist
+        blockedDomains.clear();
+        domainToBlocklistMap.clear();
+        
+        let totalDomains = 0;
+        const enabledLists = [];
+        
+        // Process each enabled blocklist
+        for (const [key, blocklist] of Object.entries(BLOCKLISTS)) {
+            if (blocklist.enabled) {
+                enabledLists.push(key);
+                const addedCount = await processBlocklist(blocklist.url, key, blockedDomains, domainToBlocklistMap);
+                totalDomains += addedCount;
+            }
+        }
+        
+        console.log(`Loaded ${totalDomains} domains from blocklists: ${enabledLists.join(', ') || 'none'}`);
+    } catch (error) {
+        console.error("Error fetching or processing blocklists:", error);
+    }
+}

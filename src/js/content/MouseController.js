@@ -114,7 +114,7 @@ function MouseController() {
      * @returns {boolean}
      */
     function hasMoved() {
-        mMoved;
+        return mMoved;
     }
     /**
      * Determine if the local
@@ -122,7 +122,7 @@ function MouseController() {
      * is set.
      */
     function hasEvent() {
-        mEvent !== null;
+        return mEvent !== null;
     }
     /**
      * Get the local
@@ -131,7 +131,7 @@ function MouseController() {
      * @returns {MouseEvent}
      */
     function getEvent() {
-        mEvent;
+        return mEvent;
     }
 
     return Object.freeze({

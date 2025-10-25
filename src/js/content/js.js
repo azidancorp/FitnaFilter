@@ -590,13 +590,17 @@ function ProcessWin(win, winContentLoaded) {
 
                     const image = new Image();
                     image.owner = this;
-                    image.onload = () => {
-                        const { height, width } = this;
+                    image.onload = function() {
+                        const owner = this.owner;
+                        if (!owner) {
+                            this.onload = null;
+                            return;
+                        }
+
+                        const { height, width } = owner;
 
                         if (height <= settings.maxSafe || width <= settings.maxSafe) {
-
-                            showElement(this.owner);
-
+                            showElement(owner);
                         }
                         this.onload = null;
                     };

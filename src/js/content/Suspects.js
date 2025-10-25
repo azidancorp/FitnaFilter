@@ -49,8 +49,12 @@ function Suspects() {
             }
 
             const rect = suspect[ATTR_RECTANGLE];
+            if (!rect) {
+                return false;
+            }
+
+            let isValid = false;
             if (isMouseIn(mouseEvent, rect)) {
-                let isValid = false;
                 if (!defaultElement) {
                     isValid = true;
                 } else if (!defaultElement[HAS_BACKGROUND_IMAGE] &&
@@ -65,7 +69,7 @@ function Suspects() {
                 }
             }
 
-            return false;
+            return isValid;
         });
     }
 

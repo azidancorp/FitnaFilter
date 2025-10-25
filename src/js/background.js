@@ -131,6 +131,7 @@ chrome.runtime.onMessage.addListener(
                     storedSettings.urlList.splice(request.index, 1);
                 saveUrlList(storedSettings.urlList);
                 //chrome.runtime.sendMessage({ r: 'urlListModified' });
+                sendResponse(true);
                 break;
             case 'getUrlList':
                 sendResponse(storedSettings.urlList);
@@ -141,13 +142,17 @@ chrome.runtime.onMessage.addListener(
                 break;
             case 'excludeForTab':
                 var domain = getDomain(request.tab.url);
-                if (!domain) return;
+                if (!domain) {
+                    sendResponse(false);
+                    break;
+                }
                 if (request.toggle) {
                     excludeForTabList.push({ tabId: request.tab.id, domain: domain });
                 } else {
                     for (var i = 0; i < excludeForTabList.length; i++)
                         if (excludeForTabList[i].tabId == request.tab.id && excludeForTabList[i].domain == domain) { excludeForTabList.splice(i, 1); break; }
                 }
+                sendResponse(true);
                 break;
             case 'pause':
                 pause = request.toggle;
@@ -157,6 +162,7 @@ chrome.runtime.onMessage.addListener(
                     chrome.storage.local.set({"pausedTime": null});
                 }
                 chrome.storage.local.set({"isPaused": pause ? 1 : 0});
+                sendResponse(true);
                 break;
             case 'pauseForTab':
                 if (request.toggle)
@@ -164,30 +170,38 @@ chrome.runtime.onMessage.addListener(
                 else
                     for (var i = 0; i < pauseForTabList.length; i++)
                         if (pauseForTabList[i] == request.tabId) { pauseForTabList.splice(i, 1); break; }
+                sendResponse(true);
                 break;
             case 'setNoEye':
                 isNoEye = request.toggle;
                 chrome.storage.sync.set({"isNoEye": isNoEye});
+                sendResponse(true);
                 break;
             case 'setNoFaceFeatures':
                 isNoFaceFeatures = request.toggle;
                 chrome.storage.sync.set({"isNoFaceFeatures": isNoFaceFeatures});
+                sendResponse(true);
                 break;
             case 'setAutoUnpause':
                 autoUnpause = request.toggle;
                 chrome.storage.sync.set({"autoUnpause": autoUnpause});
+                sendResponse(true);
                 break;
             case 'setAutoUnpauseTimeout':
                 var autoUnpauseTimeout = +request.autoUnpauseTimeout;
-                if (!autoUnpauseTimeout || autoUnpauseTimeout < 1 || autoUnpauseTimeout > 1000)
+                if (!autoUnpauseTimeout || autoUnpauseTimeout < 1 || autoUnpauseTimeout > 1000) {
                     autoUnpauseTimeout = 15;
-                    chrome.storage.sync.set({"autoUnpauseTimeout": autoUnpauseTimeout});
+                }
+                chrome.storage.sync.set({"autoUnpauseTimeout": autoUnpauseTimeout});
+                sendResponse(true);
                 break;
             case 'setMaxSafe':
                 var ms = +request.maxSafe;
-                if (!ms || ms < 1 || ms > 1000)
+                if (!ms || ms < 1 || ms > 1000) {
                     ms = 32;
-                    chrome.storage.sync.set({"maxSafe": maxSafe = ms});
+                }
+                chrome.storage.sync.set({"maxSafe": maxSafe = ms});
+                sendResponse(true);
                 break;
             case 'setFilterColor':
                 const validColors = ['white', 'black', 'grey'];

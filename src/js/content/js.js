@@ -285,55 +285,57 @@ function ProcessWin(win, winContentLoaded) {
         }
 
         // Mutation observer checks when a change in the DOM tree has occured.
-        mObserver = new WebKitMutationObserver((mutations, observer) => {
+        const MutationObserverConstructor = mWin.MutationObserver || mWin.WebKitMutationObserver;
+        if (MutationObserverConstructor) {
+            mObserver = new MutationObserverConstructor((mutations, observer) => {
+                mutations.map(m => {
+                    // This is for changes in the nodes already in the DOM tree.
+                    if (m.type == 'attributes') {
 
-            mutations.map(m => {
-                // This is for changes in the nodes already in the DOM tree.
-                if (m.type == 'attributes') {
+                        if (m.attributeName == 'class') {
 
-                    if (m.attributeName == 'class') {
+                            const oldHasLazy = m.oldValue != null && m.oldValue.indexOf('lazy') > -1;
+                            let className = m.target.className;
+                            if (typeof className === 'object' && className.baseVal !== undefined) {
+                                className = className.baseVal;
+                            }
+                            const newHasLazy = className != null && className.indexOf('lazy') > -1;
 
-                        const oldHasLazy = m.oldValue != null && m.oldValue.indexOf('lazy') > -1;
-                        let className = m.target.className;
-                        if (typeof className === 'object' && className.baseVal !== undefined) {
-                            className = className.baseVal;
-                        }
-                        const newHasLazy = className != null && className.indexOf('lazy') > -1;
+                            if (oldHasLazy != newHasLazy) {
+                                doElements(m.target, true);
+                            }
 
-                        if (oldHasLazy != newHasLazy) {
-                            doElements(m.target, true);
-                        }
+                        } else if (m.attributeName == 'style' && m.target.style.backgroundImage.indexOf('url(') > -1) {
 
-                    } else if (m.attributeName == 'style' && m.target.style.backgroundImage.indexOf('url(') > -1) {
+                            let oldBgImg, oldBgImgMatch;
+                            if (m.oldValue == null || !(oldBgImgMatch = /background(?:-image)?:[^;]*url\(['"]?(.+?)['"]?\)/.exec(m.oldValue))) {
+                                oldBgImg = '';
+                            } else {
+                                oldBgImg = oldBgImgMatch[1];
+                            }
 
-                        let oldBgImg, oldBgImgMatch;
-                        if (m.oldValue == null || !(oldBgImgMatch = /background(?:-image)?:[^;]*url\(['"]?(.+?)['"]?\)/.exec(m.oldValue))) {
-                            oldBgImg = '';
-                        } else {
-                            oldBgImg = oldBgImgMatch[1];
-                        }
-
-                        if (oldBgImg != /url\(['"]?(.+?)['"]?\)/.exec(m.target.style.backgroundImage)[1]) {
-                            doElement.call(m.target);
+                            if (oldBgImg != /url\(['"]?(.+?)['"]?\)/.exec(m.target.style.backgroundImage)[1]) {
+                                doElement.call(m.target);
+                            }
                         }
                     }
-                }
-                // When new nodes have been added.
-                else if (m.addedNodes != null && m.addedNodes.length > 0) {
+                    // When new nodes have been added.
+                    else if (m.addedNodes != null && m.addedNodes.length > 0) {
 
-                    m.addedNodes.forEach(domElement => {
+                        m.addedNodes.forEach(domElement => {
 
-                        if (domElement.tagName && domElement.tagName === 'IFRAME') {
-                            doIframe(domElement);
+                            if (domElement.tagName && domElement.tagName === 'IFRAME') {
+                                doIframe(domElement);
 
-                        } else if (domElement.tagName && domElement.tagName !== 'CANVAS') {
-                            doElements(domElement, true);
-                        }
-                    });
-                }
+                            } else if (domElement.tagName && domElement.tagName !== 'CANVAS') {
+                                doElements(domElement, true);
+                            }
+                        });
+                    }
+                });
             });
-        });
-        mObserver.observe(mDoc, { subtree: true, childList: true, attributes: true, attributeOldValue: true });
+            mObserver.observe(mDoc, { subtree: true, childList: true, attributes: true, attributeOldValue: true });
+        }
 
         // checkMousePosition every so often. This is to update the
         // positon of the eye when the mouse pointer is over an image.

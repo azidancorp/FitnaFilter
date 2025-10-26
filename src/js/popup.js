@@ -15,6 +15,8 @@ const elements = {
     grabUrlBtn: document.getElementById('grabUrlBtn')
 };
 
+let currentFilterColor = null;
+
 
 
 
@@ -28,46 +30,33 @@ function showImages(tabId) {
 }
 
 /**
- * Sets the filter color and updates UI
- * @param {string} color - The color to set ('white', 'black', or 'grey')
- * @param {number} tabId - The ID of the active tab
+ * Apply the active class to the selected filter color button without messaging.
+ * @param {string} color
  */
-function setFilterColor(color, tabId) {
-    // Remove active class from all buttons
-    elements.whiteFilter.classList.remove('active');
-    elements.blackFilter.classList.remove('active');
-    elements.greyFilter.classList.remove('active');
+function applyFilterColorUI(color) {
+    elements.whiteFilter.classList.toggle('active', color === 'white');
+    elements.blackFilter.classList.toggle('active', color === 'black');
+    elements.greyFilter.classList.toggle('active', color === 'grey');
+}
 
-    // Add active class to selected button
-    switch (color) {
-        case 'white':
-            elements.whiteFilter.classList.add('active');
-            break;
-        case 'black':
-            elements.blackFilter.classList.add('active');
-            break;
-        case 'grey':
-            elements.greyFilter.classList.add('active');
-            break;
-    }
-
-    // Send message to background script to update the filter color
+/**
+ * Sends the new filter color to background and active tab if supported.
+ * @param {string} color
+ * @param {number} tabId
+ */
+function dispatchFilterColor(color, tabId) {
     chrome.runtime.sendMessage({ r: 'setFilterColor', color: color })
         .then(() => {
-            // Make sure we have a valid tab ID before trying to send a message
             if (tabId) {
-                // Check if we can send a message to this tab (avoid chrome:// URLs)
                 chrome.tabs.get(tabId, (tab) => {
                     if (chrome.runtime.lastError) {
                         console.log('Tab not found:', chrome.runtime.lastError.message);
                         return;
                     }
-                    
-                    // Only try to send message if the tab URL is supported
+
                     if (tab.url && !tab.url.startsWith('chrome://')) {
                         chrome.tabs.sendMessage(tabId, { r: 'updateFilterColor', color: color })
                             .catch(err => {
-                                // This error is expected in some cases and can be safely ignored
                                 console.log('Note: Filter color updated in storage but not in current tab');
                             });
                     } else {
@@ -77,6 +66,29 @@ function setFilterColor(color, tabId) {
             }
         })
         .catch(err => console.error('Error setting filter color:', err));
+}
+
+/**
+ * Sets the filter color and updates UI
+ * @param {string} color - The color to set ('white', 'black', or 'grey')
+ * @param {number} tabId - The ID of the active tab
+ * @param {{force?: boolean, broadcast?: boolean}} options
+ */
+function setFilterColor(color, tabId, options = {}) {
+    const normalizedColor = ['white', 'black', 'grey'].includes(color) ? color : 'grey';
+    const force = options.force === true;
+    const broadcast = options.broadcast !== false;
+
+    if (!force && normalizedColor === currentFilterColor) {
+        return;
+    }
+
+    currentFilterColor = normalizedColor;
+    applyFilterColorUI(normalizedColor);
+
+    if (broadcast) {
+        dispatchFilterColor(normalizedColor, tabId);
+    }
 }
 
 /**
@@ -97,7 +109,7 @@ function initializePopup(activeTab) {
         
         // Set active filter color button
         const filterColor = settings.filterColor || 'grey'; // Default to grey if not set
-        setFilterColor(filterColor, activeTab.id);
+        setFilterColor(filterColor, activeTab.id, { broadcast: false, force: true });
     });
 }
 

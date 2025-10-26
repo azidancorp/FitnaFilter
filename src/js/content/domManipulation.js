@@ -489,6 +489,29 @@ async function filterImageElementAsBackground(imgElement, uuid, canvas, suffix) 
             actualElement.style.backgroundImage += ", " + suffix;
         }
         actualElement[IS_PROCESSED] = true;
+
+        if (base64Img && typeof base64Img === 'string' && base64Img.startsWith('blob:')) {
+            let tracker;
+            const cleanupObjectUrl = () => {
+                try {
+                    URL.revokeObjectURL(base64Img);
+                } catch (error) {
+                    console.warn('FitnaFilter: failed to revoke background object URL', error);
+                }
+                if (actualElement[ATTR_BACKGROUND_OBJECT_URL] === base64Img) {
+                    actualElement[ATTR_BACKGROUND_OBJECT_URL] = null;
+                }
+                if (tracker) {
+                    tracker.onload = null;
+                    tracker.onerror = null;
+                }
+            };
+
+            tracker = new Image();
+            tracker.onload = cleanupObjectUrl;
+            tracker.onerror = cleanupObjectUrl;
+            tracker.src = base64Img;
+        }
     }
 }
 /**
@@ -521,7 +544,21 @@ async function filterImageElement(imgElement, uuid, canvas) {
             actualElement.setAttribute(IS_PROCESSED, 'true');
             actualElement[IS_PROCESSED] = true;
             handleBackgroundForElement(actualElement, true);
-        }
+
+            if (urlData && typeof urlData === 'string' && urlData.startsWith('blob:')) {
+                try {
+                    URL.revokeObjectURL(urlData);
+                } catch (error) {
+                    console.warn('FitnaFilter: failed to revoke object URL for image', error);
+                }
+            }
+
+            if (actualElement[ATTR_OBJECT_URL] === urlData) {
+                actualElement[ATTR_OBJECT_URL] = null;
+            }
+
+            actualElement.onload = null;
+        };
     }
 }
 /**

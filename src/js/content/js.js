@@ -25,6 +25,7 @@ let tagListCSS = tagList.join();
 let contentLoaded = false;
 let settings = null;
 let quotesRegex = /['"]/g;
+const PROCESS_CLEANUP_KEY = '__fitnaCleanupProcessWin';
 
 // Detect if the script is being executed within an iframe. It is
 // useful when trying to accomplish something just in the main page
@@ -34,6 +35,24 @@ function inIframe() {
         return window.self !== window.top;
     } catch (e) {
         return true;
+    }
+}
+
+/**
+ * Tear down any existing processing instance before starting a new one.
+ * @param {Window} win
+ */
+function cleanupExistingProcess(win) {
+    if (!win) {
+        return;
+    }
+    const cleanup = win[PROCESS_CLEANUP_KEY];
+    if (typeof cleanup === 'function') {
+        try {
+            cleanup({ reason: 'reprocess' });
+        } catch (error) {
+            console.warn('FitnaFilter: cleanup before reprocessing failed', error);
+        }
     }
 }
 
@@ -60,6 +79,7 @@ chrome.runtime.sendMessage({
             r: 'setColorIcon',
             toggle: true
         });
+        cleanupExistingProcess(window);
         ProcessWin(window, contentLoaded);
 
     }
@@ -76,6 +96,7 @@ chrome.runtime.onMessage.addListener(request => {
             // If the extension is active, reprocess the page with the new filter color
             if (!settings.isExcluded && !settings.isExcludedForTab && !settings.isPaused && !settings.isPausedForTab) {
                 // Refresh the page processing to apply the new filter color
+                cleanupExistingProcess(window);
                 ProcessWin(window, contentLoaded);
             }
         }
@@ -94,6 +115,7 @@ const displayer = ImagesDisplayer();
  * @param {boolean} winContentLoaded
  */
 function ProcessWin(win, winContentLoaded) {
+    cleanupExistingProcess(win);
     const mSuspects = Suspects();
     const mEye = Eye(win.document);
     const mMouseController = MouseController();
@@ -102,6 +124,8 @@ function ProcessWin(win, winContentLoaded) {
     let mDoc = mWin.document;
     let mHeadStyles = {};
     let mObserver = null;
+    let mMouseIntervalId = null;
+    let mRectIntervalId = null;
     // This flag is used to check if the iteration over the
     // structure to find the elements and process the images has
     // started.
@@ -192,6 +216,10 @@ function ProcessWin(win, winContentLoaded) {
 
             if (mObserver) {
                 mObserver.disconnect();
+            }
+
+            if (mWin && mWin[PROCESS_CLEANUP_KEY] === cleanup) {
+                mWin[PROCESS_CLEANUP_KEY] = null;
             }
         }
     }
@@ -338,12 +366,18 @@ function ProcessWin(win, winContentLoaded) {
         }
 
         // checkMousePosition every so often. This is to update the
-        // positon of the eye when the mouse pointer is over an image.
-        setInterval(checkMousePosition, 250);
+        // position of the eye when the mouse pointer is over an image.
+        if (mMouseIntervalId !== null) {
+            clearInterval(mMouseIntervalId);
+        }
+        mMouseIntervalId = setInterval(checkMousePosition, 250);
 
         // Update the bounding boxes for every element with an image.
-        setInterval(() => {
-            mSuspects.updateSuspectsRectangles()
+        if (mRectIntervalId !== null) {
+            clearInterval(mRectIntervalId);
+        }
+        mRectIntervalId = setInterval(() => {
+            mSuspects.updateSuspectsRectangles();
         }, 3000);
 
         // This is likely to be set based on an average time for a web page to be loaded.
@@ -410,6 +444,7 @@ function ProcessWin(win, winContentLoaded) {
         const pollID = setInterval(() => {
             if (mDoc.body) {
                 clearInterval(pollID);
+                cleanupExistingProcess(win);
                 ProcessWin(win, true);
             }
 
@@ -820,4 +855,49 @@ function ProcessWin(win, winContentLoaded) {
     function mouseLeft(event) {
         toggleHover(this, false, event);
     }
+
+    /**
+     * Cleanup listeners, observers, and timers so a subsequent run can start fresh.
+     * @param {object} [options]
+     */
+    function cleanup(options) {
+        if (mMouseIntervalId !== null) {
+            clearInterval(mMouseIntervalId);
+            mMouseIntervalId = null;
+        }
+        if (mRectIntervalId !== null) {
+            clearInterval(mRectIntervalId);
+            mRectIntervalId = null;
+        }
+
+        mMouseController.unwatchDocument(mDoc);
+        mDoc.removeEventListener('keydown', docKeyDown);
+        mWin.removeEventListener('scroll', windowScroll);
+        mWin.removeEventListener('DOMContentLoaded', start);
+
+        if (mMouseController.hasElement()) {
+            toggleHover(mMouseController.getElement(), false);
+            mMouseController.clearElement();
+        }
+
+        if (mObserver) {
+            mObserver.disconnect();
+            mObserver = null;
+        }
+
+        if (mEye) {
+            mEye.detach();
+        }
+
+        Object.keys(mHeadStyles).forEach(selector => {
+            removeHeadStyle(mDoc, mHeadStyles, selector);
+        });
+        mHeadStyles = {};
+
+        if (mWin && mWin[PROCESS_CLEANUP_KEY] === cleanup) {
+            mWin[PROCESS_CLEANUP_KEY] = null;
+        }
+    }
+
+    mWin[PROCESS_CLEANUP_KEY] = cleanup;
 }

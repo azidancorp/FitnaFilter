@@ -4,12 +4,25 @@
 function Suspects() {
     let mList = [];
 
+    function pruneDisconnected() {
+        mList = mList.filter(suspect => {
+            if (!suspect || !suspect.isConnected) {
+                if (suspect && typeof releaseFilteredResources === 'function') {
+                    releaseFilteredResources(suspect);
+                }
+                return false;
+            }
+            return true;
+        });
+    }
+
     /**
      * Apply a callback to the list of elements.
      * @param {function} callback
      */
     function applyCallback(callback) {
-        mList.map(suspect => {
+        pruneDisconnected();
+        mList.forEach(suspect => {
             callback(suspect);
         });
     }
@@ -19,6 +32,10 @@ function Suspects() {
      * @param {Element} domElement
      */
     function addSuspect(domElement) {
+        pruneDisconnected();
+        if (!domElement || !domElement.isConnected) {
+            return;
+        }
         if (mList.indexOf(domElement) === -1) {
             mList.push(domElement);
             domElement[ATTR_RECTANGLE] = domElement.getBoundingClientRect();
@@ -29,7 +46,8 @@ function Suspects() {
      * Update the bounding rectangles of the elements in the list.
      */
     function updateSuspectsRectangles() {
-        mList.map(suspect => {
+        pruneDisconnected();
+        mList.forEach(suspect => {
             suspect[ATTR_RECTANGLE] = suspect.getBoundingClientRect();
         });
     }
@@ -39,6 +57,7 @@ function Suspects() {
      * @param {MouseEvent} mouseEvent
      */
     function findSuspectsUnderMouse(defaultElement, mouseEvent) {
+        pruneDisconnected();
         let foundSize = defaultElement ?
             defaultElement[ATTR_RECTANGLE].width * defaultElement[ATTR_RECTANGLE].height :
             null;

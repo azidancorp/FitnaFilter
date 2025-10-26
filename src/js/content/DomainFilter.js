@@ -272,8 +272,9 @@ async function processBlocklist(url, blocklistName, blockedDomains, domainToBloc
             
             // Add to our Set if it's a valid domain
             if (domain && domain.includes('.')) {
-                blockedDomains.add(domain);
-                domainToBlocklistMap.set(domain, blocklistName); // Track which blocklist this domain belongs to
+                const normalizedDomain = domain.toLowerCase();
+                blockedDomains.add(normalizedDomain);
+                domainToBlocklistMap.set(normalizedDomain, blocklistName); // Track which blocklist this domain belongs to
                 addedCount++;
             }
 

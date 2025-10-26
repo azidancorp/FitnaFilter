@@ -14,6 +14,16 @@ const ATTR_UUID = 'skf-uuid';
 const ATTR_RECTANGLE = 'skf-rectangle';
 
 /**
+ * Attribute to keep track of blob URLs assigned to inline images.
+ */
+const ATTR_OBJECT_URL = 'skf-object-url';
+
+/**
+ * Attribute to keep track of blob URLs assigned to background images.
+ */
+const ATTR_BACKGROUND_OBJECT_URL = 'skf-background-object-url';
+
+/**
  * Attribute to set the background-image value of an Element's CSS style. This attribute is set in the html tag.
  */
 const ATTR_LAST_CHECKED_SRC = 'skf-last-checked-src';

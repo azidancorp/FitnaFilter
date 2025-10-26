@@ -182,6 +182,10 @@ function canvasBlobify(canvas) {
     return new Promise((resolve, reject) => {
         try {
             canvas.toBlob(function(blob){
+                if (!blob) {
+                    reject(new Error('Canvas toBlob returned null'));
+                    return;
+                }
                 const blobUrl = URL.createObjectURL(blob);
                 resolve(blobUrl);
             }, 'image/png');

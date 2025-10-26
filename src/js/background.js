@@ -1,6 +1,11 @@
-excludeForTabList = [];
-pauseForTabList = [];
-domainRegex = /^\w+:\/\/([\w\.:-]+)/;
+let excludeForTabList = [];
+let pauseForTabList = [];
+const domainRegex = /^\w+:\/\/([\w.:+-]+)/;
+let pause = 0;
+let isNoEye = 0;
+let isNoFaceFeatures = 0;
+let autoUnpause = 1;
+let maxSafe = 32;
 
 // Import domain filtering functionality
 importScripts('content/DomainFilter.js');
@@ -232,21 +237,38 @@ chrome.runtime.onMessage.addListener(
                     sendResponse(false);
                 }
                 break;
-            case 'fetchAndReadImage':
+            case 'fetchAndReadImage': {
+                const respondWithError = (errorMessage) => {
+                    console.error('FitnaFilter: fetchAndReadImage failed', errorMessage);
+                    sendResponse({ success: false, error: errorMessage });
+                };
+
+                if (!request.url) {
+                    respondWithError('Missing image URL');
+                    break;
+                }
+
                 fetch(request.url)
-                .then((response) => {
-                    return response.blob()})
-                .then(rblob => {
-                    const reader = new FileReader();
-                    reader.readAsDataURL(rblob);
-            
-                    return new Promise((resolve, reject) => {
-                        reader.onloadend = () => resolve(reader);
+                    .then((response) => {
+                        if (!response.ok) {
+                            throw new Error('Unexpected status ' + response.status);
+                        }
+                        return response.blob();
+                    })
+                    .then(rblob => new Promise((resolve, reject) => {
+                        const reader = new FileReader();
+                        reader.onloadend = () => resolve(reader.result);
+                        reader.onerror = () => reject(new Error('Could not read fetched blob'));
+                        reader.readAsDataURL(rblob);
+                    }))
+                    .then(dataUrl => {
+                        sendResponse({ success: true, dataUrl });
+                    })
+                    .catch(error => {
+                        respondWithError(error.message || 'Unknown fetch failure');
                     });
-                }).then(reader => {
-                    sendResponse(reader.result);
-                });
                 break;
+            }
         }
         return true;
     }
@@ -255,15 +277,15 @@ chrome.runtime.onMessage.addListener(
 /////////////////////////////////////////////////////
 // Allow-Control-Allow-Origin: *
 /////////////////////////////////////////////////////
-var accessControlRequestHeaders;
-var exposedHeaders;
+let accessControlRequestHeaders;
+let exposedHeaders;
 
 var requestListener = function(details) {
-    var flag = false,
-        rule = {
-            name: "Origin",
-            value: "http://evil.com/"
-        };
+    var flag = false;
+    var rule = {
+        name: "Origin",
+        value: "http://evil.com/"
+    };
     var i;
 
     for (i = 0; i < details.requestHeaders.length; ++i) {
@@ -285,11 +307,11 @@ var requestListener = function(details) {
 };
 
 var responseListener = function(details) {
-    var flag = false,
-        rule = {
-            "name": "Access-Control-Allow-Origin",
-            "value": "*"
-        };
+    var flag = false;
+    var rule = {
+        "name": "Access-Control-Allow-Origin",
+        "value": "*"
+    };
 
     for (var i = 0; i < details.responseHeaders.length; ++i) {
         if (details.responseHeaders[i].name.toLowerCase() === rule.name.toLowerCase()) {
@@ -386,8 +408,9 @@ chrome.webNavigation.onBeforeNavigate.addListener(
             const hostname = url.hostname;
             
             // Check if hostname is in our blocklist
-            if (blockedDomains.has(hostname)) {
-                const blocklistName = domainToBlocklistMap.get(hostname);
+            const matchedDomain = findMatchingBlockedDomain(hostname);
+            if (matchedDomain) {
+                const blocklistName = domainToBlocklistMap.get(matchedDomain);
                 const redirectUrl = getContextualRedirectUrl(blocklistName);
                 
                 console.log(`Blocked navigation to: ${hostname} (${blocklistName}) -> redirecting to: ${redirectUrl}`);
@@ -403,4 +426,30 @@ chrome.webNavigation.onBeforeNavigate.addListener(
     },
     { url: [{ schemes: ['http', 'https'] }] }
 );
+
+/**
+ * Find a matching blocked domain by walking the hostname labels.
+ * @param {string} hostname
+ * @returns {string|null}
+ */
+function findMatchingBlockedDomain(hostname) {
+    if (!hostname) {
+        return null;
+    }
+
+    let candidate = hostname.toLowerCase();
+    while (candidate) {
+        if (blockedDomains.has(candidate)) {
+            return candidate;
+        }
+
+        const nextDot = candidate.indexOf('.');
+        if (nextDot === -1) {
+            break;
+        }
+        candidate = candidate.slice(nextDot + 1);
+    }
+
+    return null;
+}
 

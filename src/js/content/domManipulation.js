@@ -283,10 +283,12 @@ function handleSourceOfImage(domElement, toggle) {
         domElement.srcset = '';
         domElement.setAttribute(IS_TOGGLED, 'true');
     } else if (!toggle && domElement.getAttribute(IS_TOGGLED) === 'true') {
-        const oldsrc = domElement.oldsrc;
-        domElement.oldsrc = domElement.src;
-        domElement.src = oldsrc;
+        const filteredSrc = domElement.src;
+        const originalSrc = domElement.oldsrc;
+        domElement.oldsrc = filteredSrc;
+        domElement.src = originalSrc;
         domElement.srcset = domElement.oldsrcset;
+        releaseFilteredResources(domElement);
     }
 }
 /**
@@ -307,6 +309,9 @@ function handleSourceOfImage(domElement, toggle) {
  * console.log(element[HAS_BACKGROUND_IMAGE]); // false
  */
 function handleBackgroundForElement(domElement, toggle) {
+    if (!toggle) {
+        releaseFilteredResources(domElement);
+    }
     handleStyleClasses(domElement, [], toggle, HAS_BACKGROUND_IMAGE)
 }
 /**
@@ -374,19 +379,20 @@ async function processDomImage(domElement, canvas) {
         handleSourceOfImage(domElement, true);
     }
 
-    
     try {
-        if (domElement.src.indexOf("=eyJ") != -1 ) {
+        if (domElement.src.indexOf("=eyJ") != -1) {
             //Some images are protected by JWT tokens (like OWA attachments)
             //They need to be fetched first
             throw new Error("Fetch with token");
         }
         await filterImageElement(domElement, uuid, canvas);
     } catch (err) {
-        //console.log(domElement.src);
-        fetchAndReadImage(domElement.src).then(image => {
-            filterImageElement(image, uuid, canvas);
-        });
+        try {
+            const image = await fetchAndReadImage(domElement.src);
+            await filterImageElement(image, uuid, canvas);
+        } catch (proxyError) {
+            console.error('FitnaFilter: failed to process image', proxyError);
+        }
     }
 }
 /**
@@ -416,6 +422,8 @@ function processBackgroundImage(domElement, url, suffix, canvas) {
 
     fetchAndReadImage(url).then(image => {
         filterImageElementAsBackground(image, uuid, canvas, suffix);
+    }).catch(error => {
+        console.error('FitnaFilter: failed to process background image', error);
     });
 }
 /**
@@ -432,15 +440,24 @@ function processBackgroundImage(domElement, url, suffix, canvas) {
  * });
  */
 async function fetchAndReadImage(url) {
-      return chrome.runtime.sendMessage({ r: 'fetchAndReadImage', url: url }).then(response => {
-            const image = new Image();
-            image.crossOrigin = 'anonymous';
-            image.src = response;
+    try {
+        const response = await chrome.runtime.sendMessage({ r: 'fetchAndReadImage', url: url });
+        if (!response || !response.success || !response.dataUrl) {
+            throw new Error(response && response.error ? response.error : 'Unknown background fetch failure');
+        }
 
-            return new Promise((resolve, reject) => {
-                image.onload = () => resolve(image);
-            })
+        const image = new Image();
+        image.crossOrigin = 'anonymous';
+
+        return await new Promise((resolve, reject) => {
+            image.onload = () => resolve(image);
+            image.onerror = () => reject(new Error('Failed to load fetched image'));
+            image.src = response.dataUrl;
         });
+    } catch (error) {
+        console.error('FitnaFilter: background image fetch failed', error);
+        throw error;
+    }
 }
 /**
  * Filter the bitmap in an HTMLImageElement and update the background-image
@@ -465,6 +482,8 @@ async function filterImageElementAsBackground(imgElement, uuid, canvas, suffix) 
     const actualElement = findElementByUuid(document, uuid);
 
     if (actualElement) {
+        releaseFilteredResources(actualElement);
+        actualElement[ATTR_BACKGROUND_OBJECT_URL] = base64Img;
         actualElement.style.backgroundImage = newBackgroundImgUrl;
         if (suffix) {
             actualElement.style.backgroundImage += ", " + suffix;
@@ -489,10 +508,12 @@ async function filterImageElementAsBackground(imgElement, uuid, canvas, suffix) 
  * filterImageElement(element, uuid, canvas);
  */
 async function filterImageElement(imgElement, uuid, canvas) {
-    const urlData = await applyImageFilters(imgElement, uuid, canvas)
+    const urlData = await applyImageFilters(imgElement, uuid, canvas);
     const actualElement = findElementByUuid(document, uuid);
 
     if (actualElement) {
+        releaseFilteredResources(actualElement);
+        actualElement[ATTR_OBJECT_URL] = urlData;
         actualElement.src = urlData;
         actualElement.srcset = '';
         actualElement.onload = () => {
@@ -516,18 +537,11 @@ async function filterImageElement(imgElement, uuid, canvas) {
  * const actualElement = findElementByUuid(document, uuid);
  */
 function findElementByUuid(doc, uuid) {
-    let elements = doc.querySelectorAll('[' + ATTR_UUID + ']');
-    elements = [...elements];
-
-    elements = elements.filter((element) => {
-        return element.getAttribute(ATTR_UUID) === uuid;
-    });
-
-    if (elements.length > 0) {
-        return elements[0];
+    if (!uuid) {
+        return null;
     }
 
-    return null;
+    return doc.querySelector('[' + ATTR_UUID + '="' + uuid + '"]');
 }
 
 /**
@@ -546,6 +560,29 @@ function addRandomWizUuid(domElement) {
         domElement.setAttribute(ATTR_UUID, guid());
 
     }
+}
+
+/**
+ * Release any blob URLs associated with a filtered element to avoid leaks.
+ *
+ * @param {Element} domElement
+ */
+function releaseFilteredResources(domElement) {
+    if (!domElement) {
+        return;
+    }
+
+    if (domElement[ATTR_OBJECT_URL] && typeof domElement[ATTR_OBJECT_URL] === 'string' &&
+        domElement[ATTR_OBJECT_URL].startsWith('blob:')) {
+        URL.revokeObjectURL(domElement[ATTR_OBJECT_URL]);
+    }
+    if (domElement[ATTR_BACKGROUND_OBJECT_URL] && typeof domElement[ATTR_BACKGROUND_OBJECT_URL] === 'string' &&
+        domElement[ATTR_BACKGROUND_OBJECT_URL].startsWith('blob:')) {
+        URL.revokeObjectURL(domElement[ATTR_BACKGROUND_OBJECT_URL]);
+    }
+
+    domElement[ATTR_OBJECT_URL] = null;
+    domElement[ATTR_BACKGROUND_OBJECT_URL] = null;
 }
 /**
  * Generate an uuid.

@@ -113,63 +113,90 @@ function isSkinPixel(r, g, b, hue, saturation, cb, cr) {
  */
 async function filterSkinColor(imgElement, uuid, canvas) {
     const { width, height } = imgElement;
-    canvas.width = width;
-    canvas.height = height;
+    const fallbackSrc = imgElement && typeof imgElement.src === 'string' ? imgElement.src : null;
 
-    const context = canvas.getContext('2d', {willReadFrequently: true});
-    context.drawImage(imgElement, 0, 0, imgElement.width, imgElement.height);
-
-    const imageData = context.getImageData(0, 0, width, height);
-    const pixelData = imageData.data;
-
-    for (let pixelIndex = 0; pixelIndex < pixelData.length; pixelIndex += 4) {
-        const redIndex = pixelIndex;
-        const greenIndex = pixelIndex + 1;
-        const blueIndex = pixelIndex + 2;
-        const alphaIndex = pixelIndex + 3;
-
-        const redValue = pixelData[redIndex];
-        const greenValue = pixelData[greenIndex];
-        const blueValue = pixelData[blueIndex];
-
-        //Djamila Dahmani, Mehdi Cheref, Slimane Larabi, Zero-sum game theory model for segmenting skin regions
-        //Image and Vision Computing, Volume 99, 2020, 103925,ISSN 0262-8856, https://doi.org/10.1016/j.imavis.2020.103925.
-
-        // Convert to YCbCr
-        const { y: luminance, cb: blueChrominance, cr: redChrominance } = rgbToYCbCr(redValue, greenValue, blueValue);
-        // Convert to HSV
-        const { h: hue, s: saturation, v: value } = rgbToHsv(redValue, greenValue, blueValue);
-
-        if (isSkinPixel(redValue, greenValue, blueValue, hue, saturation, blueChrominance, redChrominance)) {
-            // Apply the selected filter color based on settings
-            const filterColor = settings.filterColor || 'grey';
-            
-            switch (filterColor) {
-                case 'white':
-                    pixelData[redIndex] = 255;
-                    pixelData[greenIndex] = 255;
-                    pixelData[blueIndex] = 255;
-                    break;
-                case 'black':
-                    pixelData[redIndex] = 0;
-                    pixelData[greenIndex] = 0;
-                    pixelData[blueIndex] = 0;
-                    break;
-                case 'grey':
-                default:
-                    pixelData[redIndex] = 127;
-                    pixelData[greenIndex] = 127;
-                    pixelData[blueIndex] = 127;
-                    break;
-            }
-            
-            pixelData[alphaIndex] = 255;
-        }
+    if (!width || !height) {
+        return fallbackSrc;
     }
 
-    context.putImageData(imageData, 0, 0);
-    const base64Image = await canvasBlobify(canvas);
-    return base64Image;
+    let shouldResetCanvas = false;
+
+    try {
+        canvas.width = width;
+        canvas.height = height;
+
+        const context = canvas.getContext('2d', { willReadFrequently: true });
+        if (!context) {
+            throw new Error('Canvas 2D context could not be created');
+        }
+
+        context.drawImage(imgElement, 0, 0, imgElement.width, imgElement.height);
+
+        const imageData = context.getImageData(0, 0, width, height);
+        const pixelData = imageData.data;
+
+        for (let pixelIndex = 0; pixelIndex < pixelData.length; pixelIndex += 4) {
+            const redIndex = pixelIndex;
+            const greenIndex = pixelIndex + 1;
+            const blueIndex = pixelIndex + 2;
+            const alphaIndex = pixelIndex + 3;
+
+            const redValue = pixelData[redIndex];
+            const greenValue = pixelData[greenIndex];
+            const blueValue = pixelData[blueIndex];
+
+            //Djamila Dahmani, Mehdi Cheref, Slimane Larabi, Zero-sum game theory model for segmenting skin regions
+            //Image and Vision Computing, Volume 99, 2020, 103925,ISSN 0262-8856, https://doi.org/10.1016/j.imavis.2020.103925.
+
+            // Convert to YCbCr
+            const { y: luminance, cb: blueChrominance, cr: redChrominance } = rgbToYCbCr(redValue, greenValue, blueValue);
+            // Convert to HSV
+            const { h: hue, s: saturation, v: value } = rgbToHsv(redValue, greenValue, blueValue);
+
+            if (isSkinPixel(redValue, greenValue, blueValue, hue, saturation, blueChrominance, redChrominance)) {
+                // Apply the selected filter color based on settings
+                const filterColor = settings.filterColor || 'grey';
+
+                switch (filterColor) {
+                    case 'white':
+                        pixelData[redIndex] = 255;
+                        pixelData[greenIndex] = 255;
+                        pixelData[blueIndex] = 255;
+                        break;
+                    case 'black':
+                        pixelData[redIndex] = 0;
+                        pixelData[greenIndex] = 0;
+                        pixelData[blueIndex] = 0;
+                        break;
+                    case 'grey':
+                    default:
+                        pixelData[redIndex] = 127;
+                        pixelData[greenIndex] = 127;
+                        pixelData[blueIndex] = 127;
+                        break;
+                }
+
+                pixelData[alphaIndex] = 255;
+            }
+        }
+
+        context.putImageData(imageData, 0, 0);
+        return await canvasBlobify(canvas);
+    } catch (error) {
+        shouldResetCanvas = true;
+        console.warn('FitnaFilter: canvas filtering failed, falling back to original image', error);
+        return fallbackSrc;
+    } finally {
+        if (shouldResetCanvas) {
+            try {
+                // Reset canvas to avoid leaving tainted state when filtering fails.
+                canvas.width = 0;
+                canvas.height = 0;
+            } catch (cleanupError) {
+                console.warn('FitnaFilter: failed to reset canvas after error', cleanupError);
+            }
+        }
+    }
 }
 
 /**

@@ -6,6 +6,10 @@
  */
 function Eye(doc) {
     let mDomElement = createEye(doc);
+    let mCurrentMode = 'reveal'; // 'reveal' or 'undo'
+    let mRevealCallback = null;
+    let mFilterCallback = null;
+    let mTargetElement = null;
 
     /**
      * Create the eye that is positioned accordingly in elements with filtered images
@@ -69,29 +73,45 @@ function Eye(doc) {
     }
 
     /**
-     * Set the element which original unfiltered image might be shown.
+     * Set the element which original unfiltered image might be shown,
+     * with toggle support for reveal/undo.
      *
      * @param {Element} domElement
-     * @param {Function} domElementCallback
-     * @param {string} eyeCSSUrl
+     * @param {Function} revealCallback - Callback to reveal original image
+     * @param {Function} filterCallback - Callback to re-apply filter
+     * @param {string} eyeCSSUrl - CSS URL for reveal icon
+     * @param {string} undoCSSUrl - CSS URL for undo icon
      */
-    function setAnchor(domElement, domElementCallback, eyeCSSUrl) {
-        mDomElement.style.backgroundImage = eyeCSSUrl;
+    function setAnchor(domElement, revealCallback, filterCallback, eyeCSSUrl, undoCSSUrl) {
+        mTargetElement = domElement;
+        mRevealCallback = revealCallback;
+        mFilterCallback = filterCallback;
+
+        // Set initial mode based on element state
+        if (domElement[IS_REVEALED]) {
+            mCurrentMode = 'undo';
+            mDomElement.style.backgroundImage = undoCSSUrl;
+        } else {
+            mCurrentMode = 'reveal';
+            mDomElement.style.backgroundImage = eyeCSSUrl;
+        }
+
         mDomElement.onclick = event => {
             event.stopPropagation();
-            domElementCallback(domElement);
-            // Hide the eye icon and not allow undo option
-            // for now.
-            // TODO: Implement undo option
-            hide();
-            // eye.style.backgroundImage = undoCSSUrl;
-            // doHoverVisualClearTimer(el, true);
-            // eye.onclick = function (e) {
-            //     e.stopPropagation();
-            //     doElement.call(el);
-            //     setupEye();
-            //     doHoverVisualClearTimer(el, true);
-            // }
+
+            if (mCurrentMode === 'reveal') {
+                // Reveal original image
+                mRevealCallback(domElement);
+                mCurrentMode = 'undo';
+                mDomElement.style.backgroundImage = undoCSSUrl;
+                // Keep eye visible (don't hide)
+            } else {
+                // Re-apply filter
+                mFilterCallback(domElement);
+                mCurrentMode = 'reveal';
+                mDomElement.style.backgroundImage = eyeCSSUrl;
+                // Keep eye visible (don't hide)
+            }
         };
     }
 
@@ -113,6 +133,13 @@ function Eye(doc) {
         }
     }
 
+    /**
+     * Reset the eye to reveal mode (used when re-filtering an element).
+     */
+    function resetToRevealMode() {
+        mCurrentMode = 'reveal';
+    }
+
     return Object.freeze({
         createEye,
         getDomElement,
@@ -121,6 +148,7 @@ function Eye(doc) {
         show,
         setAnchor,
         attachTo,
-        detach
+        detach,
+        resetToRevealMode
     });
 }

@@ -206,7 +206,14 @@ function ProcessWin(win, winContentLoaded) {
             mMouseController.unwatchDocument(mDoc);
             mDoc.removeEventListener('keydown', docKeyDown);
             mWin.removeEventListener('scroll', windowScroll);
-            mSuspects.applyCallback(showElement);
+
+            // Clear IS_REVEALED flags before showing all
+            mSuspects.applyCallback(element => {
+                if (element[IS_REVEALED]) {
+                    element[IS_REVEALED] = false;
+                }
+                showElement(element);
+            });
 
             mWin.removeEventListener('DOMContentLoaded', start);
 
@@ -740,10 +747,50 @@ function ProcessWin(win, winContentLoaded) {
 
         handleBackgroundForElement(domElement, false);
 
+        // Mark element as revealed (showing original)
+        domElement[IS_REVEALED] = true;
+
         if (displayer.isShowAll()) {
             toggleMouseEventListeners(domElement, false);
         }
     }
+
+    /**
+     * Re-apply filter to a revealed Element (undo reveal).
+     *
+     * @param {Element} domElement
+     */
+    function filterElement(domElement) {
+        // Mark element as no longer revealed first
+        domElement[IS_REVEALED] = false;
+
+        // Reset eye to reveal mode
+        mEye.resetToRevealMode();
+
+        if (domElement.tagName === 'IMG') {
+            // Reset the toggled state so handleSourceOfImage can work
+            domElement.removeAttribute(IS_TOGGLED);
+
+            // Clear processed flag to allow reprocessing
+            domElement[IS_PROCESSED] = false;
+            domElement.removeAttribute(IS_PROCESSED);
+
+            // Clear old blob reference (it was revoked anyway)
+            domElement.oldsrc = '';
+
+            // Re-setup the element for filtering
+            doElement.call(domElement);
+
+            // Manually trigger processing since image is already loaded
+            // (load event won't fire again)
+            processDomImage(domElement, document.getElementById(CANVAS_GLOBAL_ID));
+        } else {
+            // For background images, clear processed flag and reprocess
+            domElement[IS_PROCESSED] = false;
+            doElement.call(domElement);
+        }
+    }
+
     /**
      * Control the visuals when the mouse pointer is over an Element.
 
@@ -789,7 +836,8 @@ function ProcessWin(win, winContentLoaded) {
 
                 mEye.position(domElement, coords, mDoc);
                 mEye.show();
-                mEye.setAnchor(domElement, showElement, eyeCSSUrl);
+                // Pass both reveal and filter callbacks, plus both icon URLs
+                mEye.setAnchor(domElement, showElement, filterElement, eyeCSSUrl, undoCSSUrl);
 
             } else {
                 addCssClass(domElement, CSS_CLASS_BACKGROUND_LIGHT_PATTERN);
@@ -892,6 +940,13 @@ function ProcessWin(win, winContentLoaded) {
         if (mEye) {
             mEye.detach();
         }
+
+        // Clear IS_REVEALED flags from all suspects during cleanup
+        mSuspects.applyCallback(element => {
+            if (element[IS_REVEALED]) {
+                element[IS_REVEALED] = false;
+            }
+        });
 
         Object.keys(mHeadStyles).forEach(selector => {
             removeHeadStyle(mDoc, mHeadStyles, selector);

@@ -44,6 +44,11 @@ const IS_TOGGLED = 'skf-is-toggled';
 const IS_PROCESSED = 'skf-is-processed';
 
 /**
+ * Flag to determine if an Element is currently showing its original unfiltered image. This flag is set in the javascript object.
+ */
+const IS_REVEALED = 'skf-is-revealed';
+
+/**
  * Flag used when the mouse pointer is hovering over an Element. This flag is set in the javascript object.
  */
 const HAS_HOVER = 'skf-has-hover';

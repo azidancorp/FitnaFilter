@@ -26,6 +26,14 @@ let contentLoaded = false;
 let settings = null;
 let quotesRegex = /['"]/g;
 const PROCESS_CLEANUP_KEY = '__fitnaCleanupProcessWin';
+const STYLE_POLL_INTERVAL_MS = 32; // Balance quick styling with reduced CPU churn
+const PATTERN_VARIATIONS = 8;
+const HOVER_POLL_INTERVAL_MS = 250;
+const RECT_UPDATE_INTERVAL_MS = 3000;
+const RECT_TIMEOUT_BASE_MS = 1500;
+const RECT_TIMEOUT_REPEAT_COUNT = 3;
+const IFRAME_POLL_INTERVAL_MS = 50;
+const IFRAME_POLL_MAX_ATTEMPTS = 100;
 
 // Detect if the script is being executed within an iframe. It is
 // useful when trying to accomplish something just in the main page
@@ -156,8 +164,8 @@ function ProcessWin(win, winContentLoaded) {
 
         // Set some css as soon as possible. These styles are going to be
         // used in the elements containing images, and other additional
-        // items added by the chrome extension. The logic is set to repeat
-        // every 1ms. At this point we do not know if the DOM tree is
+        // items added by the chrome extension. The logic repeats on a
+        // short interval. At this point we do not know if the DOM tree is
         // ready for manipulation. The variable doc.head is check to see
         // if the styles can be added.
         const pollID = setInterval(function() {
@@ -178,7 +186,7 @@ function ProcessWin(win, winContentLoaded) {
                 addHeadStyle(mDoc, mHeadStyles, '.' + CSS_CLASS_HIDE, '{opacity: 0 !important;}');
                 addHeadStyle(mDoc, mHeadStyles, '.' + CSS_CLASS_BACKGROUND_PATTERN, '{ background-repeat: repeat !important;text-indent:0 !important;}'); //text-indent to show alt text
 
-                for (let i = 0; i < 8; i++) {
+                for (let i = 0; i < PATTERN_VARIATIONS; i++) {
 
                     addHeadStyle(mDoc, mHeadStyles, '.' + CSS_CLASS_BACKGROUND_PATTERN + '.' + CSS_CLASS_SHADE + i, '{background-image: ' + (settings.isNoPattern ? 'none' : 'url(' + extensionUrl + "pattern" + i + ".png" + ')') + ' !important; }');
                     addHeadStyle(mDoc, mHeadStyles, '.' + CSS_CLASS_BACKGROUND_PATTERN + '.' + CSS_CLASS_BACKGROUND_LIGHT_PATTERN + '.' + CSS_CLASS_SHADE + i, '{background-image: ' + (settings.isNoPattern ? 'none' : 'url(' + extensionUrl + "pattern-light" + i + ".png" + ')') + ' !important; }');
@@ -187,7 +195,7 @@ function ProcessWin(win, winContentLoaded) {
 
                 clearInterval(pollID);
             }
-        }, 1);
+        }, STYLE_POLL_INTERVAL_MS);
 
         //ALT-a, ALT-z
         mMouseController.watchDocument(mDoc);
@@ -301,7 +309,7 @@ function ProcessWin(win, winContentLoaded) {
         // for noEye to avoid flicker.
         if (settings.isNoEye) {
 
-            for (let i = 0; i < 8; i++) {
+            for (let i = 0; i < PATTERN_VARIATIONS; i++) {
 
                 const div = mDoc.createElement('div');
                 div.style.opacity = div.style.width = div.style.height = 0;
@@ -370,7 +378,7 @@ function ProcessWin(win, winContentLoaded) {
         if (mMouseIntervalId !== null) {
             clearInterval(mMouseIntervalId);
         }
-        mMouseIntervalId = setInterval(checkMousePosition, 250);
+        mMouseIntervalId = setInterval(checkMousePosition, HOVER_POLL_INTERVAL_MS);
 
         // Update the bounding boxes for every element with an image.
         if (mRectIntervalId !== null) {
@@ -378,18 +386,14 @@ function ProcessWin(win, winContentLoaded) {
         }
         mRectIntervalId = setInterval(() => {
             mSuspects.updateSuspectsRectangles();
-        }, 3000);
+        }, RECT_UPDATE_INTERVAL_MS);
 
         // This is likely to be set based on an average time for a web page to be loaded.
         // TODO: Improve this
-        for (let i = 1; i < 7; i++) {
-            if ((i % 2) > 0) {
-
-                setTimeout(() => {
-                    mSuspects.updateSuspectsRectangles()
-                }, i * 1500);
-
-            }
+        for (let i = 1; i <= RECT_TIMEOUT_REPEAT_COUNT; i++) {
+            setTimeout(() => {
+                mSuspects.updateSuspectsRectangles()
+            }, i * RECT_TIMEOUT_BASE_MS);
         }
 
         // At this point, the frame elements are already in the DOM
@@ -448,10 +452,10 @@ function ProcessWin(win, winContentLoaded) {
                 ProcessWin(win, true);
             }
 
-            if (++pollNum == 500) {
+            if (++pollNum >= IFRAME_POLL_MAX_ATTEMPTS) {
                 clearInterval(pollID);
             }
-        }, 10);
+        }, IFRAME_POLL_INTERVAL_MS);
     }
     /**
      * Listener for the load event of an Element.

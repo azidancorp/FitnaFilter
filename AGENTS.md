@@ -17,6 +17,9 @@ This repository contains **FitnaFilter**, a Chrome extension (Manifest V3) that 
 
 ### Blocklist System
 Categories: **Vice** (always enabled), **Hazard** (configurable), **Distraction** (configurable)
+- **Vice**: abuse, drugs, gambling, porn, vaping
+- **Hazard**: crypto, fraud, malware, phishing, ransomware, redirect, scam, tracking
+- **Distraction**: ads, facebook, fortnite, piracy, smarttv, tiktok, torrent, twitter, whatsapp, youtube
 - Source: The Block List Project (community-maintained)
 - Processing: Chunked loading for performance
 - Storage: chrome.storage.sync for persistence
@@ -39,8 +42,11 @@ Categories: **Vice** (always enabled), **Hazard** (configurable), **Distraction*
 ### Content Script Architecture
 - **Main Controller** (`js.js`): Orchestrates all modules and manages global state
 - **Suspects** (`Suspects.js`): Tracks filtered elements and their states
-- **Eye** (`Eye.js`): Hover icon system for revealing original images
-- **ImageProcessing** (`ImageProcessing.js`): Core filtering algorithms
+- **Eye** (`Eye.js`): Hover icon system with toggle mode (reveal original / re-apply filter)
+- **ImageProcessing** (`ImageProcessing.js`): Core filtering algorithms (skin detection, color space conversion)
+- **domManipulation** (`domManipulation.js`): DOM manipulation helpers, image processing functions (`processDomImage`, `processBackgroundImage`, `filterImageElement`, `filterImageElementAsBackground`)
+- **MouseController** (`MouseController.js`): Mouse event tracking and element state management
+- **ImagesDisplayer** (`ImagesDisplayer.js`): Image visibility control and iframe coordination
 
 ### Cross-Origin Image Handling
 1. Content script requests image via `chrome.runtime.sendMessage`
@@ -78,13 +84,16 @@ No automated tests provided. Manual verification required:
 5. Test cross-origin image handling
 6. Verify user controls (Alt+P pause, Alt+Z reveal, etc.)
 
-## Recent Agent Notes (2025-10-28)
+## Recent Agent Notes (2025-12-07)
 
 - Background `getSettings` now reads fresh sync/local storage on every call, so consumers immediately see toggled values; retain the mirror in `storedSettings`.
 - Popup initialization no longer fires redundant `setFilterColor` messages; only actual colour changes trigger a reprocess.
 - Content script revokes blob URLs once filtered assets finish loading to prevent session-long memory growth.
 - DOM/style bootstrapping, hover polling, rectangle refresh, and iframe readiness all reference the constants declared at the top of `src/js/content/js.js` (`STYLE_POLL_INTERVAL_MS`, `HOVER_POLL_INTERVAL_MS`, `RECT_UPDATE_INTERVAL_MS`, `RECT_TIMEOUT_BASE_MS`, `RECT_TIMEOUT_REPEAT_COUNT`, `IFRAME_POLL_INTERVAL_MS`, `IFRAME_POLL_MAX_ATTEMPTS`, `PATTERN_VARIATIONS`). Adjust those values instead of sprinkling new literals.
 - Style injection now uses a 32 ms poll; if you pursue an event-driven approach, remove the corresponding `setInterval` and clear logic.
+
+- **Eye toggle functionality**: The Eye component now supports reveal/undo toggle mode via `setAnchor()`. Clicking the eye reveals the original image, then clicking again re-applies the filter. The `mCurrentMode` state tracks whether to reveal or filter.
+- **Canvas error handling**: `filterSkinColor()` in `ImageProcessing.js` now has proper try-catch error handling with fallback to the original image source and canvas cleanup on failure.
 
 ## AI Agent Development Patterns
 
@@ -182,16 +191,16 @@ No automated tests provided. Manual verification required:
 
 - Style bootstrapping still relies on polling (`STYLE_POLL_INTERVAL_MS`), so we keep checking until `document.head` exists. Investigate event-driven hooks if you need further CPU savings.
 - Iframe readiness waits on a polling loop (`IFRAME_POLL_INTERVAL_MS`, `IFRAME_POLL_MAX_ATTEMPTS`); very slow embeds may still slip past the 5 s budget.
-- The hover-eye “undo” affordance is still unimplemented (`src/js/content/Eye.js`), and related UI copy references a non-existent button.
+- The hover-eye toggle now supports both reveal and re-filter actions via `setAnchor()` in `src/js/content/Eye.js`.
 - `Suspects` now has `pruneDisconnected()` to clean up disconnected elements (`Suspects.js:7-17`), but still uses O(n) `indexOf` for duplicate detection (`Suspects.js:39`).
 
 
-### High Priority Issues (Open)
-1. **Canvas Error Handling** (`ImageProcessing.js:114-173`)
-   - No try-catch for tainted canvas or CORS errors in canvas operations
-   - Uncaught exceptions possible when calling `getContext()`, `drawImage()`, `getImageData()`, or `putImageData()`
-   - **Fix**: Wrap canvas operations in try-catch with fallback
-   - **Status**: Still open as of 2025-10-28
+### High Priority Issues (Resolved)
+1. **Canvas Error Handling** (`ImageProcessing.js:114-200`) - ✅ FIXED
+   - `filterSkinColor()` now has proper try-catch error handling
+   - Falls back to original image source on canvas errors
+   - Canvas cleanup (reset width/height) on failure to avoid tainted state
+   - **Status**: Resolved as of 2025-12-07
 
 ### Medium Priority Optimizations (Still Open)
 1. **Settings Tight Coupling** (`ImageProcessing.js:95`)
@@ -214,7 +223,7 @@ No automated tests provided. Manual verification required:
 ### Code Quality Weaknesses
 - ❌ No automated tests (unit, integration, or E2E)
 - ⚠️ Polling loops still drive style injection and iframe readiness; the cadence now lives in `STYLE_POLL_INTERVAL_MS` and `IFRAME_POLL_INTERVAL_MS` but could move to event-driven triggers.
-- ⚠️ Incomplete undo feature (commented out in Eye.js:85-94)
+- ✅ Eye toggle feature now fully implemented with reveal/re-filter modes
 - ⚠️ Memory leak potential: Suspects list has `pruneDisconnected()` to remove disconnected elements, but still uses O(n) linear search (see Medium Priority Optimization #2)
 
 ### Performance Insights

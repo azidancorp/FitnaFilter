@@ -25,14 +25,14 @@
     {
         "matches": ["<all_urls>"],
         "js": [
+            "./js/content/constants.js",
+            "./js/content/ImageProcessing.js",
+            "./js/content/domManipulation.js",
             "./js/content/MouseController.js",
             "./js/content/Suspects.js",
-            "./js/content/ImageProcessing.js",
             "./js/content/Eye.js",
             "./js/content/ImagesDisplayer.js",
-            "./js/content/js.js",
-            "./js/content/constants.js",
-            "./js/content/domManipulation.js"
+            "./js/content/js.js"
         ],
         "run_at": "document_start",
         "all_frames": true

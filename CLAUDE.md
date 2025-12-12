@@ -47,9 +47,10 @@ Located in `src/js/content/ImageProcessing.js`:
 ### Content Script Architecture
 - **Main Controller** (`js.js`): Orchestrates all content script modules
 - **Suspects** (`Suspects.js`): Tracks filtered elements and their states
-- **Eye** (`Eye.js`): Hover icon system for revealing original images
+- **Eye** (`Eye.js`): Hover icon system for revealing/re-filtering original images (toggle mode)
 - **MouseController** (`MouseController.js`): Mouse interaction handling
 - **ImagesDisplayer** (`ImagesDisplayer.js`): Image visibility management
+- **domManipulation** (`domManipulation.js`): DOM manipulation helpers, image processing functions (`processDomImage`, `processBackgroundImage`, `filterImageElement`)
 
 ### Storage Strategy
 - **chrome.storage.sync**: User preferences, settings, blocklist configurations
@@ -59,8 +60,8 @@ Located in `src/js/content/ImageProcessing.js`:
 ### Blocklist System
 Organized in `src/blocklists/` with categories:
 - **Vice** (always enabled): abuse, drugs, gambling, porn, vaping
-- **Hazard** (configurable): crypto, fraud, malware, phishing, ransomware, scam, tracking  
-- **Distraction** (configurable): ads, facebook, fortnite, piracy, tiktok, twitter, youtube
+- **Hazard** (configurable): crypto, fraud, malware, phishing, ransomware, redirect, scam, tracking
+- **Distraction** (configurable): ads, facebook, fortnite, piracy, smarttv, tiktok, torrent, twitter, whatsapp, youtube
 
 ## Key Technical Details
 
@@ -126,6 +127,7 @@ No automated tests provided. Manual verification required:
 ## File Structure Notes
 - `src/manifest.json`: Extension configuration (V3)
 - `src/js/content/constants.js`: Shared constants and feature flags
+- `src/js/content/domManipulation.js`: DOM manipulation helpers and image processing functions
 - `src/css/`: Styling for popup and options UI
 - `src/images/`: Extension icons and UI assets
 - `src/blocklists/`: Text files with blocked domains (one per line)

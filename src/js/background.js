@@ -151,46 +151,83 @@ chrome.runtime.onMessage.addListener(
             case 'setColorIcon':
                 chrome.action.setIcon({ path: request.toggle ? '../images/icon.png' : '../images/icon-d.png', tabId: sender.tab.id });
                 break;
-            case 'urlListAdd':
-                var url = request.domainOnly ? getDomain(request.url) : request.url.toLowerCase();
-                if (url) {
-                    if (!Array.isArray(storedSettings.urlList)) {
-                        storedSettings.urlList = [];
-                    }
-                    storedSettings.urlList.push(url);
-                    saveUrlList(storedSettings.urlList);
-                    chrome.runtime.sendMessage({ r: 'urlListModified' });
+            case 'urlListAdd': {
+                const url = request.domainOnly ? getDomain(request.url) : request.url.toLowerCase();
+                if (!url) {
+                    sendResponse(false);
+                    break;
                 }
-                sendResponse(true);
+                chrome.storage.sync.get({ urlList: '[]' })
+                    .then(result => {
+                        const list = JSON.parse(result.urlList);
+                        list.push(url);
+                        return chrome.storage.sync.set({ urlList: JSON.stringify(list) })
+                            .then(() => list);
+                    })
+                    .then(list => {
+                        storedSettings.urlList = list;
+                        chrome.runtime.sendMessage({ r: 'urlListModified' });
+                        sendResponse(true);
+                    })
+                    .catch(error => {
+                        console.error('Error adding URL to list:', error);
+                        sendResponse(false);
+                    });
                 break;
-            case 'urlListRemove':
-                if (!Array.isArray(storedSettings.urlList)) {
-                    storedSettings.urlList = [];
-                }
-                if (request.url) {
-                    var lowerUrl = request.url.toLowerCase();
-                    for (var i = 0; i < storedSettings.urlList.length; i++) {
-                        if (lowerUrl.indexOf(storedSettings.urlList[i]) != -1) {
-                            storedSettings.urlList.splice(i, 1);
-                            i--;
+            }
+            case 'urlListRemove': {
+                chrome.storage.sync.get({ urlList: '[]' })
+                    .then(result => {
+                        let list = JSON.parse(result.urlList);
+                        if (request.url) {
+                            const lowerUrl = request.url.toLowerCase();
+                            list = list.filter(item => lowerUrl.indexOf(item) === -1);
+                        } else if (typeof request.index === 'number' && request.index >= 0 && request.index < list.length) {
+                            list.splice(request.index, 1);
                         }
-                    }
-                } else
-                    storedSettings.urlList.splice(request.index, 1);
-                saveUrlList(storedSettings.urlList);
-                //chrome.runtime.sendMessage({ r: 'urlListModified' });
-                sendResponse(true);
+                        return chrome.storage.sync.set({ urlList: JSON.stringify(list) })
+                            .then(() => list);
+                    })
+                    .then(list => {
+                        storedSettings.urlList = list;
+                        sendResponse(true);
+                    })
+                    .catch(error => {
+                        console.error('Error removing URL from list:', error);
+                        sendResponse(false);
+                    });
                 break;
-            case 'getUrlList':
-                sendResponse(Array.isArray(storedSettings.urlList) ? storedSettings.urlList : []);
+            }
+            case 'getUrlList': {
+                chrome.storage.sync.get({ urlList: '[]' })
+                    .then(result => {
+                        const list = JSON.parse(result.urlList);
+                        storedSettings.urlList = list;
+                        sendResponse(list);
+                    })
+                    .catch(error => {
+                        console.error('Error getting URL list:', error);
+                        sendResponse([]);
+                    });
                 break;
-            case 'setUrlList':
-                if (Array.isArray(request.urlList)) {
-                    storedSettings.urlList = request.urlList.slice();
-                    saveUrlList(storedSettings.urlList);
+            }
+            case 'setUrlList': {
+                if (!Array.isArray(request.urlList)) {
+                    sendResponse(false);
+                    break;
                 }
-                sendResponse(true);
+                const list = request.urlList.slice();
+                chrome.storage.sync.set({ urlList: JSON.stringify(list) })
+                    .then(() => {
+                        storedSettings.urlList = list;
+                        sendResponse(true);
+                    })
+                    .catch(error => {
+                        console.error('Error setting URL list:', error);
+                        sendResponse(false);
+                    });
                 break;
+            }
             case 'excludeForTab':
                 var domain = getDomain(request.tab.url);
                 if (!domain) {

@@ -92,18 +92,3 @@ const ATTR_CLEAR_HOVER_VISUAL_TIMER = 'skf-clear-hover-visual-timer';
  * CSS class name to hide an Element.
  */
 const CSS_CLASS_HIDE = 'skf-hide';
-
-/**
- * CSS class name to shade an Element.
- */
-const CSS_CLASS_SHADE = 'skf-shade';
-
-/**
- * CSS class name for background image pattern on Elements.
- */
-const CSS_CLASS_BACKGROUND_PATTERN = 'skf-background-pattern-image';
-
-/**
- * CSS class name for light background image pattern on Elements.
- */
-const CSS_CLASS_BACKGROUND_LIGHT_PATTERN = 'skf-background-light-pattern-image';

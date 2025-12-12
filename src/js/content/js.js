@@ -27,7 +27,6 @@ let settings = null;
 let quotesRegex = /['"]/g;
 const PROCESS_CLEANUP_KEY = '__fitnaCleanupProcessWin';
 const STYLE_POLL_INTERVAL_MS = 32; // Balance quick styling with reduced CPU churn
-const PATTERN_VARIATIONS = 8;
 const HOVER_POLL_INTERVAL_MS = 250;
 const RECT_UPDATE_INTERVAL_MS = 3000;
 const RECT_TIMEOUT_BASE_MS = 1500;
@@ -184,14 +183,6 @@ function ProcessWin(win, winContentLoaded) {
 
                 addHeadStyle(mDoc, mHeadStyles, 'body ', '{background-image: none !important;}');
                 addHeadStyle(mDoc, mHeadStyles, '.' + CSS_CLASS_HIDE, '{opacity: 0 !important;}');
-                addHeadStyle(mDoc, mHeadStyles, '.' + CSS_CLASS_BACKGROUND_PATTERN, '{ background-repeat: repeat !important;text-indent:0 !important;}'); //text-indent to show alt text
-
-                for (let i = 0; i < PATTERN_VARIATIONS; i++) {
-
-                    addHeadStyle(mDoc, mHeadStyles, '.' + CSS_CLASS_BACKGROUND_PATTERN + '.' + CSS_CLASS_SHADE + i, '{background-image: ' + (settings.isNoPattern ? 'none' : 'url(' + extensionUrl + "pattern" + i + ".png" + ')') + ' !important; }');
-                    addHeadStyle(mDoc, mHeadStyles, '.' + CSS_CLASS_BACKGROUND_PATTERN + '.' + CSS_CLASS_BACKGROUND_LIGHT_PATTERN + '.' + CSS_CLASS_SHADE + i, '{background-image: ' + (settings.isNoPattern ? 'none' : 'url(' + extensionUrl + "pattern-light" + i + ".png" + ')') + ' !important; }');
-
-                }
 
                 clearInterval(pollID);
             }
@@ -311,21 +302,6 @@ function ProcessWin(win, winContentLoaded) {
         }
 
         mEye.attachTo(mDoc.body);
-
-        // Create temporary div, to eager load background img light
-        // for noEye to avoid flicker.
-        if (settings.isNoEye) {
-
-            for (let i = 0; i < PATTERN_VARIATIONS; i++) {
-
-                const div = mDoc.createElement('div');
-                div.style.opacity = div.style.width = div.style.height = 0;
-                div.className = CSS_CLASS_BACKGROUND_PATTERN + ' ' + CSS_CLASS_BACKGROUND_LIGHT_PATTERN + ' ' + CSS_CLASS_SHADE + i;
-                mDoc.body.appendChild(div);
-
-            }
-
-        }
 
         // Mutation observer checks when a change in the DOM tree has occured.
         const MutationObserverConstructor = mWin.MutationObserver || mWin.WebKitMutationObserver;
@@ -838,9 +814,6 @@ function ProcessWin(win, winContentLoaded) {
                 mEye.show();
                 // Pass both reveal and filter callbacks, plus both icon URLs
                 mEye.setAnchor(domElement, showElement, filterElement, eyeCSSUrl, undoCSSUrl);
-
-            } else {
-                addCssClass(domElement, CSS_CLASS_BACKGROUND_LIGHT_PATTERN);
             }
 
             toggleHoverVisualClearTimer(domElement, true);
@@ -850,8 +823,6 @@ function ProcessWin(win, winContentLoaded) {
 
             if (!settings.isNoEye) {
                 mEye.hide();
-            } else {
-                removeCssClass(domElement, CSS_CLASS_BACKGROUND_LIGHT_PATTERN);
             }
 
             toggleHoverVisualClearTimer(domElement, false);

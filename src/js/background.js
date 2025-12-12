@@ -76,6 +76,25 @@ getSettings()
     fetchAndProcessBlocklist(blockedDomains, domainToBlocklistMap);
 });
 
+/**
+ * Remove any per-tab pause/exclusion entries for a tab.
+ * These lists live in-memory only, so we must prune when tabs close/rebind.
+ * @param {number} tabId
+ */
+function pruneTabState(tabId) {
+    pauseForTabList = pauseForTabList.filter(id => id !== tabId);
+    excludeForTabList = excludeForTabList.filter(entry => entry.tabId !== tabId);
+}
+
+// Clean up in-memory per-tab state to avoid unbounded growth.
+chrome.tabs.onRemoved.addListener((tabId) => {
+    pruneTabState(tabId);
+});
+
+chrome.tabs.onReplaced.addListener((addedTabId, removedTabId) => {
+    pruneTabState(removedTabId);
+});
+
 function getDomain(url) {
     var regex = domainRegex.exec(url);
     return regex ? regex[1].toLowerCase() : null;
@@ -235,7 +254,11 @@ chrome.runtime.onMessage.addListener(
                     break;
                 }
                 if (request.toggle) {
-                    excludeForTabList.push({ tabId: request.tab.id, domain: domain });
+                    // Prevent duplicates if the same tab/domain is toggled repeatedly.
+                    const existing = excludeForTabList.find(entry => entry.tabId === request.tab.id && entry.domain === domain);
+                    if (!existing) {
+                        excludeForTabList.push({ tabId: request.tab.id, domain: domain });
+                    }
                 } else {
                     for (var i = 0; i < excludeForTabList.length; i++)
                         if (excludeForTabList[i].tabId == request.tab.id && excludeForTabList[i].domain == domain) { excludeForTabList.splice(i, 1); break; }
@@ -252,11 +275,14 @@ chrome.runtime.onMessage.addListener(
                 break;
             }
             case 'pauseForTab':
-                if (request.toggle)
-                    pauseForTabList.push(request.tabId);
-                else
+                if (request.toggle) {
+                    if (pauseForTabList.indexOf(request.tabId) === -1) {
+                        pauseForTabList.push(request.tabId);
+                    }
+                } else {
                     for (var i = 0; i < pauseForTabList.length; i++)
                         if (pauseForTabList[i] == request.tabId) { pauseForTabList.splice(i, 1); break; }
+                }
                 sendResponse(true);
                 break;
             case 'setNoEye': {
@@ -440,4 +466,3 @@ function findMatchingBlockedDomain(hostname) {
 
     return null;
 }
-

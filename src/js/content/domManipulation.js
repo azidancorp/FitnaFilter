@@ -512,6 +512,15 @@ async function filterImageElementAsBackground(imgElement, uuid, canvas, suffix) 
             tracker.onerror = cleanupObjectUrl;
             tracker.src = base64Img;
         }
+    } else {
+        // Element was removed before filtering completed - revoke orphaned blob URL
+        if (base64Img && typeof base64Img === 'string' && base64Img.startsWith('blob:')) {
+            try {
+                URL.revokeObjectURL(base64Img);
+            } catch (error) {
+                console.warn('FitnaFilter: failed to revoke orphaned background blob URL', error);
+            }
+        }
     }
 }
 /**
@@ -559,6 +568,15 @@ async function filterImageElement(imgElement, uuid, canvas) {
 
             actualElement.onload = null;
         };
+    } else {
+        // Element was removed before filtering completed - revoke orphaned blob URL
+        if (urlData && typeof urlData === 'string' && urlData.startsWith('blob:')) {
+            try {
+                URL.revokeObjectURL(urlData);
+            } catch (error) {
+                console.warn('FitnaFilter: failed to revoke orphaned image blob URL', error);
+            }
+        }
     }
 }
 /**

@@ -10,6 +10,7 @@ document.addEventListener("DOMContentLoaded", function () {
     const autoUnpauseCheckbox = document.getElementById("autoUnpause");
     const autoUnpauseTimeoutInput =
         document.getElementById("autoUnpauseTimeout");
+    const excludeLocalhostCheckbox = document.getElementById("excludeLocalhost");
     const viceBlocklistContainer = document.getElementById(
         "vice-blocklist-container"
     );
@@ -39,6 +40,7 @@ document.addEventListener("DOMContentLoaded", function () {
             autoUnpauseCheckbox.checked = settings.autoUnpause;
             autoUnpauseTimeoutInput.value = settings.autoUnpauseTimeout;
             maxSafeInput.value = settings.maxSafe;
+            excludeLocalhostCheckbox.checked = settings.excludeLocalhost !== false;
         } else {
             console.warn("Received null settings object.");
         }
@@ -73,6 +75,13 @@ document.addEventListener("DOMContentLoaded", function () {
     autoUnpauseCheckbox.addEventListener("click", function () {
         chrome.runtime.sendMessage({
             r: "setAutoUnpause",
+            toggle: this.checked,
+        });
+    });
+
+    excludeLocalhostCheckbox.addEventListener("click", function () {
+        chrome.runtime.sendMessage({
+            r: "setExcludeLocalhost",
             toggle: this.checked,
         });
     });

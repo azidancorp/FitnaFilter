@@ -12,7 +12,8 @@ const DEFAULT_SETTINGS = {
     filterColor: 'grey',
     isPaused: false,
     pausedTime: null,
-    isBlackList: false
+    isBlackList: false,
+    excludeLocalhost: true
 };
 
 // Import domain filtering functionality
@@ -32,7 +33,8 @@ async function getSettings() {
         'autoUnpause': null,
         'autoUnpauseTimeout': null,
         'blocklistSettings': null,
-        'filterColor': null
+        'filterColor': null,
+        'excludeLocalhost': null
     });
 
     const nextSettings = { ...DEFAULT_SETTINGS };
@@ -43,6 +45,7 @@ async function getSettings() {
     nextSettings.autoUnpause = syncResult.autoUnpause !== null ? syncResult.autoUnpause == 1 : DEFAULT_SETTINGS.autoUnpause;
     nextSettings.autoUnpauseTimeout = +syncResult.autoUnpauseTimeout || DEFAULT_SETTINGS.autoUnpauseTimeout;
     nextSettings.filterColor = ['white', 'black', 'grey'].includes(syncResult.filterColor) ? syncResult.filterColor : DEFAULT_SETTINGS.filterColor;
+    nextSettings.excludeLocalhost = syncResult.excludeLocalhost !== null ? syncResult.excludeLocalhost == 1 : DEFAULT_SETTINGS.excludeLocalhost;
 
     // Load blocklist settings
     if (syncResult.blocklistSettings) {
@@ -100,6 +103,49 @@ function getDomain(url) {
     return regex ? regex[1].toLowerCase() : null;
 }
 
+/**
+ * Extract a hostname from a URL string, including bracketed IPv6 hosts like http://[::1]:3000/.
+ * @param {string} url
+ * @returns {string|null}
+ */
+function getHostname(url) {
+    if (typeof url !== 'string' || !url) {
+        return null;
+    }
+
+    const normalizedUrl = url.startsWith('view-source:') ? url.slice('view-source:'.length) : url;
+
+    try {
+        const parsedUrl = new URL(normalizedUrl);
+        if (!parsedUrl.hostname) {
+            return null;
+        }
+        return parsedUrl.hostname.toLowerCase().replace(/\.$/, '');
+    } catch (error) {
+        const domain = getDomain(url);
+        if (!domain) {
+            return null;
+        }
+        return domain.split(':')[0].toLowerCase().replace(/\.$/, '');
+    }
+}
+
+/**
+ * Determine whether a hostname is a localhost variant (IPv4/IPv6 loopback or .localhost domains).
+ * @param {string|null} hostname
+ * @returns {boolean}
+ */
+function isLocalhostHostname(hostname) {
+    if (!hostname) {
+        return false;
+    }
+
+    return hostname === 'localhost' ||
+        hostname === '127.0.0.1' ||
+        hostname === '::1' ||
+        hostname.endsWith('.localhost');
+}
+
 function saveUrlList(urlList) {
     chrome.storage.sync.set({"urlList": JSON.stringify(urlList)});
 }
@@ -118,7 +164,8 @@ chrome.runtime.onMessage.addListener(
                             isNoFaceFeatures: freshSettings.isNoFaceFeatures,
                             maxSafe: freshSettings.maxSafe,
                             filterColor: freshSettings.filterColor,
-                            isBlackList: !!freshSettings.isBlackList
+                            isBlackList: !!freshSettings.isBlackList,
+                            excludeLocalhost: freshSettings.excludeLocalhost
                         };
 
                         const tab = request.tab || sender.tab;
@@ -130,23 +177,31 @@ chrome.runtime.onMessage.addListener(
                                 const domain = getDomain(tab.url);
                                 if (domain) {
                                     for (let i = 0; i < excludeForTabList.length; i++) {
-                                        if (excludeForTabList[i].tabId === tab.id && excludeForTabList[i].domain === domain) {
+                                        const entry = excludeForTabList[i];
+                                        if (entry.tabId === tab.id && entry.domain === domain) {
                                             settings.isExcludedForTab = true;
                                             break;
                                         }
                                     }
                                 }
+
+                                const hostname = getHostname(tab.url);
+                                const isExcludedByLocalhost = freshSettings.excludeLocalhost &&
+                                    isLocalhostHostname(hostname);
+
                                 const lowerUrl = tab.url.toLowerCase();
                                 const list = Array.isArray(freshSettings.urlList) ? freshSettings.urlList : [];
+                                let isInUserList = false;
                                 for (let i = 0; i < list.length; i++) {
                                     if (lowerUrl.indexOf(list[i]) !== -1) {
-                                        settings.isExcluded = true;
+                                        isInUserList = true;
                                         break;
                                     }
                                 }
-                                if (settings.isBlackList) {
-                                    settings.isExcluded = !settings.isExcluded;
-                                }
+
+                                // Apply blacklist inversion to user-list only; localhost exclusion always wins.
+                                const isExcludedByUserList = settings.isBlackList ? !isInUserList : isInUserList;
+                                settings.isExcluded = isExcludedByLocalhost || isExcludedByUserList;
                             }
                         }
 
@@ -313,6 +368,13 @@ chrome.runtime.onMessage.addListener(
                 }
                 storedSettings.autoUnpauseTimeout = autoUnpauseTimeout;
                 chrome.storage.sync.set({"autoUnpauseTimeout": autoUnpauseTimeout});
+                sendResponse(true);
+                break;
+            }
+            case 'setExcludeLocalhost': {
+                const excludeLocalhostValue = request.toggle ? 1 : 0;
+                storedSettings.excludeLocalhost = !!request.toggle;
+                chrome.storage.sync.set({"excludeLocalhost": excludeLocalhostValue});
                 sendResponse(true);
                 break;
             }

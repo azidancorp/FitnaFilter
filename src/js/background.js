@@ -104,6 +104,29 @@ function getDomain(url) {
 }
 
 /**
+ * Extract a URL protocol (e.g. "https:", "file:") from a URL string.
+ * @param {string} url
+ * @returns {string|null}
+ */
+function getUrlProtocol(url) {
+    if (typeof url !== 'string' || !url) {
+        return null;
+    }
+
+    const normalizedUrl = url.startsWith('view-source:') ? url.slice('view-source:'.length) : url;
+
+    try {
+        return new URL(normalizedUrl).protocol.toLowerCase();
+    } catch (error) {
+        const index = normalizedUrl.indexOf(':');
+        if (index === -1) {
+            return null;
+        }
+        return normalizedUrl.slice(0, index + 1).toLowerCase();
+    }
+}
+
+/**
  * Extract a hostname from a URL string, including bracketed IPv6 hosts like http://[::1]:3000/.
  * @param {string} url
  * @returns {string|null}
@@ -144,6 +167,16 @@ function isLocalhostHostname(hostname) {
         hostname === '127.0.0.1' ||
         hostname === '::1' ||
         hostname.endsWith('.localhost');
+}
+
+/**
+ * Determine whether a URL is a local file URL (file:// or filesystem:).
+ * @param {string} url
+ * @returns {boolean}
+ */
+function isLocalFileUrl(url) {
+    const protocol = getUrlProtocol(url);
+    return protocol === 'file:' || protocol === 'filesystem:';
 }
 
 function saveUrlList(urlList) {
@@ -187,7 +220,7 @@ chrome.runtime.onMessage.addListener(
 
                                 const hostname = getHostname(tab.url);
                                 const isExcludedByLocalhost = freshSettings.excludeLocalhost &&
-                                    isLocalhostHostname(hostname);
+                                    (isLocalhostHostname(hostname) || isLocalFileUrl(tab.url));
 
                                 const lowerUrl = tab.url.toLowerCase();
                                 const list = Array.isArray(freshSettings.urlList) ? freshSettings.urlList : [];

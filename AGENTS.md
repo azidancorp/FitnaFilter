@@ -111,8 +111,8 @@ No automated tests provided. Manual verification required:
    - Update constants in `src/js/content/constants.js`
 
 3. **Adding User Interface Features**:
-   - Popup controls: `src/js/popup.js` + `src/popup.htm`
-   - Options page: `src/js/options.js` + `src/options.htm`
+   - Popup controls: `src/js/popup.js` + `src/popup.html`
+   - Options page: `src/js/options.js` + `src/options.html`
    - Styling: `src/css/popup.css` or `src/css/options.css`
 
 4. **Implementing New Exclusion Logic**:
@@ -166,8 +166,8 @@ No automated tests provided. Manual verification required:
 - Lazy-loaded `<img>` elements and CSS backgrounds are reprocessed when their sources update, aided by mutation observers and cached bounding rectangles.
 
 ### UI Surfaces
-- **Popup (`src/popup.htm`, `src/js/popup.js`)** exposes quick actions: toggling pause/exclusions, reloading, grabbing the current URL, and switching filter colours. Filter colour changes notify both storage (via the service worker) and active tabs (`updateFilterColor`).
-- **Options (`src/options.htm`, `src/js/options.js`)** presents two columns: image filtering settings (eye icon, facial features removal, max safe size, pause timeout, exclusion list with optional free-text editing) and blocklist toggles split by category. Vice lists render as checked + disabled, while hazard/distraction lists stay user-toggleable.
+- **Popup (`src/popup.html`, `src/js/popup.js`)** exposes quick actions: toggling pause/exclusions, reloading, grabbing the current URL, and switching filter colours. Filter colour changes notify both storage (via the service worker) and active tabs (`updateFilterColor`).
+- **Options (`src/options.html`, `src/js/options.js`)** presents two columns: image filtering settings (eye icon, facial features removal, max safe size, pause timeout, exclusion list with optional free-text editing) and blocklist toggles split by category. Vice lists render as checked + disabled, while hazard/distraction lists stay user-toggleable.
 - Styling resides in `src/css/popup.css` and `src/css/options.css`; assets are served through `web_accessible_resources`.
 
 ### Storage Layout

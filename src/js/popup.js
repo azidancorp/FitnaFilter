@@ -12,13 +12,62 @@ const elements = {
     greyFilter: document.getElementById('greyFilter'),
     customUrlInput: document.getElementById('customUrlInput'),
     addUrlBtn: document.getElementById('addUrlBtn'),
-    grabUrlBtn: document.getElementById('grabUrlBtn')
+    grabUrlBtn: document.getElementById('grabUrlBtn'),
+    statusIndicator: document.getElementById('statusIndicator')
 };
 
 let currentFilterColor = null;
 
+/**
+ * Updates the status indicator in the footer
+ * @param {boolean} isPaused - Whether filtering is paused
+ */
+function updateStatusIndicator(isPaused) {
+    if (!elements.statusIndicator) return;
+    
+    const dot = elements.statusIndicator.querySelector('.status-dot');
+    const text = elements.statusIndicator.querySelector('.status-text');
+    
+    if (isPaused) {
+        elements.statusIndicator.classList.add('paused');
+        dot.style.background = '#ff4757';
+        dot.style.boxShadow = '0 0 8px #ff4757';
+        text.textContent = 'Paused';
+    } else {
+        elements.statusIndicator.classList.remove('paused');
+        dot.style.background = '#00d9a5';
+        dot.style.boxShadow = '0 0 8px #00d9a5';
+        text.textContent = 'Active';
+    }
+}
 
-
+/**
+ * Creates a ripple effect on button click
+ * @param {Event} e - Click event
+ */
+function createRipple(e) {
+    const button = e.currentTarget;
+    const rect = button.getBoundingClientRect();
+    const ripple = document.createElement('span');
+    const size = Math.max(rect.width, rect.height);
+    const x = e.clientX - rect.left - size / 2;
+    const y = e.clientY - rect.top - size / 2;
+    
+    ripple.style.cssText = `
+        position: absolute;
+        border-radius: 50%;
+        background: rgba(255, 255, 255, 0.3);
+        width: ${size}px;
+        height: ${size}px;
+        left: ${x}px;
+        top: ${y}px;
+        pointer-events: none;
+        animation: ripple 0.6s ease-out;
+    `;
+    
+    button.appendChild(ripple);
+    setTimeout(() => ripple.remove(), 600);
+}
 
 /**
  * Shows images on the specified tab
@@ -107,6 +156,10 @@ function initializePopup(activeTab) {
         elements.excludeForTab.checked = settings.isExcludedForTab;
         elements.excludeDomainLabel.innerText = (settings.isBlackList ? 'Add' : 'Exclude') + ' Website';
         
+        // Update status indicator
+        const isPaused = settings.isPaused || settings.isPausedForTab;
+        updateStatusIndicator(isPaused);
+        
         // Set active filter color button
         const filterColor = settings.filterColor || 'grey'; // Default to grey if not set
         setFilterColor(filterColor, activeTab.id, { broadcast: false, force: true });
@@ -138,7 +191,12 @@ chrome.tabs.query({ active: true, currentWindow: true }, function (tabs) {
     // Initialize popup with current settings
     initializePopup(activeTab);
 
-    // Setup event listeners
+    // Setup event listeners with ripple effects
+    const buttons = document.querySelectorAll('.btn');
+    buttons.forEach(button => {
+        button.addEventListener('click', createRipple);
+    });
+
     elements.showImages.addEventListener('click', () => showImages(activeTab.id));
     elements.reloadTab.addEventListener('click', () => {
         chrome.tabs.reload(activeTab.id);
@@ -164,12 +222,18 @@ chrome.tabs.query({ active: true, currentWindow: true }, function (tabs) {
     });
     elements.pauseChk.addEventListener('click', function() {
         chrome.runtime.sendMessage({ r: 'pause', toggle: this.checked })
-            .then(() => showImages(activeTab.id))
+            .then(() => {
+                showImages(activeTab.id);
+                updateStatusIndicator(this.checked || elements.pauseForTab.checked);
+            })
             .catch(err => console.error('Error toggling pause:', err));
     });
     elements.pauseForTab.addEventListener('click', function() {
         chrome.runtime.sendMessage({ r: 'pauseForTab', tabId: activeTab.id, toggle: this.checked })
-            .then(() => showImages(activeTab.id))
+            .then(() => {
+                showImages(activeTab.id);
+                updateStatusIndicator(elements.pauseChk.checked || this.checked);
+            })
             .catch(err => console.error('Error toggling tab pause:', err));
     });
 

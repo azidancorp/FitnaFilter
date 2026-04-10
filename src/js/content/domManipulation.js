@@ -1,3 +1,5 @@
+'use strict';
+
 /**
  * Add css style to the head of a Document.
  *
@@ -89,6 +91,11 @@ function addHeadScript(doc, src, code, onload) {
  * addCssClass(domElement, className);
  */
 function addCssClass(domElement, className) {
+    if (domElement.classList) {
+        domElement.classList.add(className);
+        return;
+    }
+
     domElement.className += ' ' + className;
 }
 /**
@@ -103,6 +110,11 @@ function addCssClass(domElement, className) {
  * removeCssClass(domElement, className);
  */
 function removeCssClass(domElement, className) {
+    if (domElement.classList) {
+        domElement.classList.remove(className);
+        return;
+    }
+
     const oldClass = domElement.className;
     const newClass = domElement.className.replace(new RegExp('\\b' + className + '\\b'), '');
 
@@ -196,7 +208,7 @@ function handleStyleClasses(domElement, classNames, add, flag) {
  * addClassToStyle(element, cssClass);
  */
 function addClassToStyle(domElement, className) {
-    domElement.className += ' ' + className;
+    addCssClass(domElement, className);
 }
 /**
  * Remove a css class from an Element.
@@ -210,11 +222,7 @@ function addClassToStyle(domElement, className) {
  * removeClassFromStyle(element, cssClass);
  */
 function removeClassFromStyle(domElement, className) {
-    const oldClass = domElement.className;
-    const newClass = domElement.className.replace(new RegExp('\\b' + className + '\\b'), '');
-    if (oldClass !== newClass) {
-        domElement.className = newClass;
-    }
+    removeCssClass(domElement, className);
 }
 /**
  * Create a HTMLCanvasElement.
@@ -248,6 +256,65 @@ function createCanvas(id) {
 function hideElement(domElement, toggle) {
     handleStyleClasses(domElement, [CSS_CLASS_HIDE], toggle, IS_HIDDEN);
 }
+
+/**
+ * Run internal src/srcset writes without re-triggering the mutation observer.
+ *
+ * @param {HTMLImageElement} domElement
+ * @param {function} callback
+ */
+function withManagedSourceMutation(domElement, callback) {
+    domElement[ATTR_IGNORE_SOURCE_MUTATIONS] = (domElement[ATTR_IGNORE_SOURCE_MUTATIONS] || 0) + 1;
+
+    try {
+        callback();
+    } finally {
+        const releaseMutationGuard = () => {
+            const pendingMutations = domElement[ATTR_IGNORE_SOURCE_MUTATIONS] || 0;
+            if (pendingMutations <= 1) {
+                domElement[ATTR_IGNORE_SOURCE_MUTATIONS] = 0;
+                return;
+            }
+            domElement[ATTR_IGNORE_SOURCE_MUTATIONS] = pendingMutations - 1;
+        };
+
+        if (typeof queueMicrotask === 'function') {
+            queueMicrotask(releaseMutationGuard);
+        } else {
+            Promise.resolve().then(releaseMutationGuard);
+        }
+    }
+}
+
+/**
+ * Run internal background-image writes without re-triggering the mutation observer.
+ *
+ * @param {Element} domElement
+ * @param {function} callback
+ */
+function withManagedBackgroundMutation(domElement, callback) {
+    domElement[ATTR_IGNORE_BACKGROUND_MUTATIONS] =
+        (domElement[ATTR_IGNORE_BACKGROUND_MUTATIONS] || 0) + 1;
+
+    try {
+        callback();
+    } finally {
+        const releaseMutationGuard = () => {
+            const pendingMutations = domElement[ATTR_IGNORE_BACKGROUND_MUTATIONS] || 0;
+            if (pendingMutations <= 1) {
+                domElement[ATTR_IGNORE_BACKGROUND_MUTATIONS] = 0;
+                return;
+            }
+            domElement[ATTR_IGNORE_BACKGROUND_MUTATIONS] = pendingMutations - 1;
+        };
+
+        if (typeof queueMicrotask === 'function') {
+            queueMicrotask(releaseMutationGuard);
+        } else {
+            Promise.resolve().then(releaseMutationGuard);
+        }
+    }
+}
 /**
  * Swap the original srcset parameter of an HTMLImageElement.
  * It uses the {@link IS_TOGGLED} flag.
@@ -280,14 +347,18 @@ function handleSourceOfImage(domElement, toggle) {
 
         // Empty string to make sure filtered images are displayed
         // in the img elements
-        domElement.srcset = '';
+        withManagedSourceMutation(domElement, () => {
+            domElement.srcset = '';
+        });
         domElement.setAttribute(IS_TOGGLED, 'true');
     } else if (!toggle && domElement.getAttribute(IS_TOGGLED) === 'true') {
         const filteredSrc = domElement.src;
         const originalSrc = domElement.oldsrc;
         domElement.oldsrc = filteredSrc;
-        domElement.src = originalSrc;
-        domElement.srcset = domElement.oldsrcset;
+        withManagedSourceMutation(domElement, () => {
+            domElement.src = originalSrc;
+            domElement.srcset = domElement.oldsrcset;
+        });
         releaseFilteredResources(domElement);
     }
 }
@@ -392,6 +463,8 @@ async function processDomImage(domElement, canvas) {
             await filterImageElement(image, uuid, canvas);
         } catch (proxyError) {
             console.error('FitnaFilter: failed to process image', proxyError);
+            hideElement(domElement, false);
+            handleSourceOfImage(domElement, false);
         }
     }
 }
@@ -420,10 +493,24 @@ async function processDomImage(domElement, canvas) {
 function processBackgroundImage(domElement, url, suffix, canvas) {
     const uuid = domElement.getAttribute(ATTR_UUID);
 
+    if (!url) {
+        handleBackgroundForElement(domElement, false);
+        hideElement(domElement, false);
+        return;
+    }
+
     fetchAndReadImage(url).then(image => {
-        filterImageElementAsBackground(image, uuid, canvas, suffix);
+        return filterImageElementAsBackground(image, uuid, canvas, suffix);
     }).catch(error => {
         console.error('FitnaFilter: failed to process background image', error);
+        withManagedBackgroundMutation(domElement, () => {
+            domElement.style.backgroundImage = "url('" + url + "')";
+            if (suffix) {
+                domElement.style.backgroundImage += ", " + suffix;
+            }
+        });
+        handleBackgroundForElement(domElement, false);
+        hideElement(domElement, false);
     });
 }
 /**
@@ -482,13 +569,19 @@ async function filterImageElementAsBackground(imgElement, uuid, canvas, suffix) 
     const actualElement = findElementByUuid(document, uuid);
 
     if (actualElement) {
-        releaseFilteredResources(actualElement);
+        const previousBackgroundObjectUrl = actualElement[ATTR_BACKGROUND_OBJECT_URL];
         actualElement[ATTR_BACKGROUND_OBJECT_URL] = base64Img;
-        actualElement.style.backgroundImage = newBackgroundImgUrl;
-        if (suffix) {
-            actualElement.style.backgroundImage += ", " + suffix;
-        }
         actualElement[IS_PROCESSED] = true;
+        withManagedBackgroundMutation(actualElement, () => {
+            actualElement.style.backgroundImage = newBackgroundImgUrl;
+            if (suffix) {
+                actualElement.style.backgroundImage += ", " + suffix;
+            }
+        });
+        if (previousBackgroundObjectUrl && previousBackgroundObjectUrl !== base64Img &&
+            typeof previousBackgroundObjectUrl === 'string' && previousBackgroundObjectUrl.startsWith('blob:')) {
+            URL.revokeObjectURL(previousBackgroundObjectUrl);
+        }
 
         if (base64Img && typeof base64Img === 'string' && base64Img.startsWith('blob:')) {
             let tracker;
@@ -544,10 +637,8 @@ async function filterImageElement(imgElement, uuid, canvas) {
     const actualElement = findElementByUuid(document, uuid);
 
     if (actualElement) {
-        releaseFilteredResources(actualElement);
+        const previousObjectUrl = actualElement[ATTR_OBJECT_URL];
         actualElement[ATTR_OBJECT_URL] = urlData;
-        actualElement.src = urlData;
-        actualElement.srcset = '';
         actualElement.onload = () => {
             removeCssClass(actualElement, CSS_CLASS_HIDE);
             actualElement.setAttribute(IS_PROCESSED, 'true');
@@ -566,8 +657,24 @@ async function filterImageElement(imgElement, uuid, canvas) {
                 actualElement[ATTR_OBJECT_URL] = null;
             }
 
+            actualElement.onerror = null;
             actualElement.onload = null;
         };
+        actualElement.onerror = () => {
+            console.error('FitnaFilter: failed to load filtered image', urlData);
+            hideElement(actualElement, false);
+            handleSourceOfImage(actualElement, false);
+            actualElement.onerror = null;
+            actualElement.onload = null;
+        };
+        withManagedSourceMutation(actualElement, () => {
+            actualElement.src = urlData;
+            actualElement.srcset = '';
+        });
+        if (previousObjectUrl && previousObjectUrl !== urlData &&
+            typeof previousObjectUrl === 'string' && previousObjectUrl.startsWith('blob:')) {
+            URL.revokeObjectURL(previousObjectUrl);
+        }
     } else {
         // Element was removed before filtering completed - revoke orphaned blob URL
         if (urlData && typeof urlData === 'string' && urlData.startsWith('blob:')) {
@@ -596,7 +703,8 @@ function findElementByUuid(doc, uuid) {
         return null;
     }
 
-    return doc.querySelector('[' + ATTR_UUID + '="' + uuid + '"]');
+    const escapedUuid = typeof CSS !== 'undefined' && CSS.escape ? CSS.escape(uuid) : uuid.replace(/["\\]/g, '\\$&');
+    return doc.querySelector('[' + ATTR_UUID + '="' + escapedUuid + '"]');
 }
 
 /**
@@ -648,12 +756,16 @@ function releaseFilteredResources(domElement) {
  * const uuid = guid();
  */
 function guid() {
-    // See https://stackoverflow.com/a/105074/1065981
+    if (typeof crypto !== 'undefined' && typeof crypto.randomUUID === 'function') {
+        return crypto.randomUUID();
+    }
+
     function s4() {
         return Math.floor((1 + Math.random()) * 0x10000)
             .toString(16)
             .substring(1);
     }
+
     return s4() + s4() + '-' + s4() + '-' + s4() + '-' +
         s4() + '-' + s4() + s4() + s4();
 }

@@ -1,3 +1,5 @@
+'use strict';
+
 // Global variables.
 let extensionUrl = chrome.runtime.getURL('');
 let urlExtensionUrl = 'url("' + extensionUrl;
@@ -33,6 +35,7 @@ const RECT_TIMEOUT_BASE_MS = 1500;
 const RECT_TIMEOUT_REPEAT_COUNT = 3;
 const IFRAME_POLL_INTERVAL_MS = 50;
 const IFRAME_POLL_MAX_ATTEMPTS = 100;
+const HOVER_VISUAL_CLEAR_TIMEOUT_MS = 2500;
 
 // Detect if the script is being executed within an iframe. It is
 // useful when trying to accomplish something just in the main page
@@ -74,6 +77,27 @@ window.addEventListener('DOMContentLoaded', () => {
 
 });
 
+function refreshCurrentWindowProcessing() {
+    chrome.runtime.sendMessage({ r: 'getSettings' }, (nextSettings) => {
+        if (chrome.runtime.lastError) {
+            console.error('Error refreshing settings:', chrome.runtime.lastError);
+            return;
+        }
+
+        settings = nextSettings;
+        cleanupExistingProcess(window);
+
+        if (settings && !settings.isExcluded && !settings.isExcludedForTab &&
+            !settings.isPaused && !settings.isPausedForTab) {
+            chrome.runtime.sendMessage({ r: 'setColorIcon', toggle: true });
+            ProcessWin(window, contentLoaded);
+        } else if (typeof window.skfShowImages === 'function') {
+            chrome.runtime.sendMessage({ r: 'setColorIcon', toggle: false });
+            window.skfShowImages();
+        }
+    });
+}
+
 // Get settings to check status of extension.
 chrome.runtime.sendMessage({
     r: 'getSettings'
@@ -107,6 +131,8 @@ chrome.runtime.onMessage.addListener(request => {
                 ProcessWin(window, contentLoaded);
             }
         }
+    } else if (request.r === 'refreshFiltering') {
+        refreshCurrentWindowProcessing();
     }
 });
 
@@ -324,7 +350,28 @@ function ProcessWin(win, winContentLoaded) {
                                 doElements(m.target, true);
                             }
 
+                        } else if ((m.attributeName == 'src' || m.attributeName == 'srcset') &&
+                            m.target.tagName == 'IMG') {
+
+                            if (m.target[ATTR_IGNORE_SOURCE_MUTATIONS]) {
+                                return;
+                            }
+
+                            const oldValue = m.oldValue || '';
+                            const newValue = m.attributeName == 'src' ? (m.target.getAttribute('src') || '') :
+                                (m.target.getAttribute('srcset') || '');
+
+                            if (oldValue != newValue) {
+                                m.target[IS_PROCESSED] = false;
+                                m.target.removeAttribute(IS_PROCESSED);
+                                doElements(m.target, true);
+                            }
+
                         } else if (m.attributeName == 'style' && m.target.style.backgroundImage.indexOf('url(') > -1) {
+
+                            if (m.target[ATTR_IGNORE_BACKGROUND_MUTATIONS]) {
+                                return;
+                            }
 
                             let oldBgImg, oldBgImgMatch;
                             if (m.oldValue == null || !(oldBgImgMatch = /background(?:-image)?:[^;]*url\(['"]?(.+?)['"]?\)/.exec(m.oldValue))) {
@@ -333,7 +380,8 @@ function ProcessWin(win, winContentLoaded) {
                                 oldBgImg = oldBgImgMatch[1];
                             }
 
-                            if (oldBgImg != /url\(['"]?(.+?)['"]?\)/.exec(m.target.style.backgroundImage)[1]) {
+                            const newBgImgMatch = /url\(['"]?(.+?)['"]?\)/.exec(m.target.style.backgroundImage);
+                            if (newBgImgMatch && oldBgImg != newBgImgMatch[1]) {
                                 doElement.call(m.target);
                             }
                         }
@@ -353,7 +401,13 @@ function ProcessWin(win, winContentLoaded) {
                     }
                 });
             });
-            mObserver.observe(mDoc, { subtree: true, childList: true, attributes: true, attributeOldValue: true });
+            mObserver.observe(mDoc, {
+                subtree: true,
+                childList: true,
+                attributes: true,
+                attributeOldValue: true,
+                attributeFilter: ['class', 'style', 'src', 'srcset']
+            });
         }
 
         // checkMousePosition every so often. This is to update the
@@ -429,9 +483,11 @@ function ProcessWin(win, winContentLoaded) {
         // until the iframe is ready to be processed.
         let pollNum = 0;
         const pollID = setInterval(() => {
-            if (mDoc.body) {
+            if (win.document && win.document.body) {
                 clearInterval(pollID);
-                cleanupExistingProcess(win);
+                if (win[PROCESS_CLEANUP_KEY]) {
+                    return;
+                }
                 ProcessWin(win, true);
             }
 
@@ -445,7 +501,7 @@ function ProcessWin(win, winContentLoaded) {
      */
     function processImage() {
 
-        processDomImage(this, document.getElementById(CANVAS_GLOBAL_ID));
+        processDomImage(this, mDoc.getElementById(CANVAS_GLOBAL_ID));
         handleLoadProcessImageListener(this, processImage, false);
         handleLoadEventListener(this, doElement, false);
 
@@ -482,7 +538,7 @@ function ProcessWin(win, winContentLoaded) {
                 //the display.  TODO fix this and all lazy loading
                 //Just process it now and be done with it
                 //handleSourceOfImage(this, true);  <--Don't enable this
-                processDomImage(this, document.getElementById(CANVAS_GLOBAL_ID));
+                processDomImage(this, mDoc.getElementById(CANVAS_GLOBAL_ID));
                 return;
             } 
 
@@ -530,8 +586,10 @@ function ProcessWin(win, winContentLoaded) {
 
                         } else {
 
-                            this.src.match(/([-\w]+)(\.[\w]+)?$/i);
-                            this.title = RegExp.$1;
+                            const titleMatch = this.src.match(/([-\w]+)(\.[\w]+)?$/i);
+                            if (titleMatch) {
+                                this.title = titleMatch[1];
+                            }
 
                         }
                     }
@@ -591,17 +649,30 @@ function ProcessWin(win, winContentLoaded) {
                 const bgImgUrl = bgImg.split(', ').filter(function(item){
                     return item.indexOf('url(') == 0;
                 })[0].slice(5, -2);
+                if (!bgImgUrl) {
+                    return;
+                }
+                try {
+                    const parsedBackgroundUrl = new URL(bgImgUrl, mDoc.baseURI);
+                    if (parsedBackgroundUrl.protocol !== 'http:' && parsedBackgroundUrl.protocol !== 'https:') {
+                        return;
+                    }
+                } catch (error) {
+                    return;
+                }
                 //Preserve the suffix of the background-image element
-                bgImgSuffix = null;
+                let bgImgSuffix = null;
                 if (bgImg.indexOf(', ') != -1) {
                     bgImgSuffix = bgImg.substring(bgImg.indexOf(", ") + 1).slice(0,-1);
                 }
                 // Avoids quick display of original image
-                this.style.backgroundImage = "url('')";
+                withManagedBackgroundMutation(this, () => {
+                    this.style.backgroundImage = "url('')";
+                });
                 // Reference for the element once the image is
                 // processed.
                 addRandomWizUuid(this);
-                const canvas = document.getElementById(CANVAS_GLOBAL_ID);
+                const canvas = mDoc.getElementById(CANVAS_GLOBAL_ID);
                 processBackgroundImage(this, bgImgUrl, bgImgSuffix, canvas);
 
                 mSuspects.addSuspect(this);
@@ -759,7 +830,7 @@ function ProcessWin(win, winContentLoaded) {
 
             // Manually trigger processing since image is already loaded
             // (load event won't fire again)
-            processDomImage(domElement, document.getElementById(CANVAS_GLOBAL_ID));
+            processDomImage(domElement, mDoc.getElementById(CANVAS_GLOBAL_ID));
         } else {
             // For background images, clear processed flag and reprocess
             domElement[IS_PROCESSED] = false;
@@ -838,7 +909,7 @@ function ProcessWin(win, winContentLoaded) {
             toggleHoverVisualClearTimer(domElement, false);
             domElement[ATTR_CLEAR_HOVER_VISUAL_TIMER] = setTimeout(() => {
                 toggleHoverVisual(domElement, false);
-            }, 2500);
+            }, HOVER_VISUAL_CLEAR_TIMEOUT_MS);
 
         } else if (!toggle && domElement[ATTR_CLEAR_HOVER_VISUAL_TIMER]) {
 
@@ -911,6 +982,17 @@ function ProcessWin(win, winContentLoaded) {
         if (mEye) {
             mEye.detach();
         }
+
+        // Ensure same-origin iframe processors are also torn down so the next run can recreate them.
+        Array.from(mDoc.getElementsByTagName('iframe')).forEach(iframe => {
+            try {
+                if (iframe.contentWindow) {
+                    cleanupExistingProcess(iframe.contentWindow);
+                }
+            } catch (error) {
+                // Cross-origin iframes cannot be inspected here.
+            }
+        });
 
         // Clear IS_REVEALED flags from all suspects during cleanup
         mSuspects.applyCallback(element => {

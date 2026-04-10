@@ -1,3 +1,5 @@
+'use strict';
+
 /**
  * Identifier for the global HTMLCanvasElement to process and gray out webpage images.
  */
@@ -47,6 +49,16 @@ const IS_PROCESSED = 'skf-is-processed';
  * Flag to determine if an Element is currently showing its original unfiltered image. This flag is set in the javascript object.
  */
 const IS_REVEALED = 'skf-is-revealed';
+
+/**
+ * Counter used to ignore source mutations triggered by FitnaFilter itself.
+ */
+const ATTR_IGNORE_SOURCE_MUTATIONS = 'skf-ignore-source-mutations';
+
+/**
+ * Counter used to ignore background-image mutations triggered by FitnaFilter itself.
+ */
+const ATTR_IGNORE_BACKGROUND_MUTATIONS = 'skf-ignore-background-mutations';
 
 /**
  * Flag used when the mouse pointer is hovering over an Element. This flag is set in the javascript object.

@@ -87,12 +87,24 @@ function rgbToHsv(r, g, b) {
  * @param {number} cr
  * @returns {boolean}
  */
-function isSkinPixel(r, g, b, hue, saturation, cb, cr) {
+function isSkinPixel(r, g, b, hue, saturation, cb, cr, isNoFaceFeatures) {
     return hue >= HUE_MIN && hue <= HUE_MAX &&
            saturation >= SAT_MIN &&
            cb >= CB_MIN && cb <= CB_MAX &&
            cr >= CR_MIN && cr < CR_MAX &&
-           (settings.isNoFaceFeatures || (r > 95 && g > 40 && b > 20));
+           (isNoFaceFeatures || (r > 95 && g > 40 && b > 20));
+}
+
+function getReplacementRgb(filterColor) {
+    switch (filterColor) {
+        case 'white':
+            return { red: 255, green: 255, blue: 255 };
+        case 'black':
+            return { red: 0, green: 0, blue: 0 };
+        case 'grey':
+        default:
+            return { red: 127, green: 127, blue: 127 };
+    }
 }
 
 /**
@@ -111,21 +123,26 @@ function isSkinPixel(r, g, b, hue, saturation, cb, cr) {
  *
  * const base64Image = filterSkinColor(element, uuid, canvas);
  */
-async function filterSkinColor(imgElement, uuid, canvas) {
+async function filterSkinColor(imgElement, uuid, canvas, filterColor, isNoFaceFeatures) {
     const { width, height } = imgElement;
-    const fallbackSrc = imgElement && typeof imgElement.src === 'string' ? imgElement.src : null;
 
     if (!width || !height) {
-        return fallbackSrc;
+        throw new Error('Image has invalid dimensions');
     }
 
-    let shouldResetCanvas = false;
+    const ownerDocument = (canvas && canvas.ownerDocument) ||
+        (imgElement && imgElement.ownerDocument) ||
+        document;
+    const workingCanvas = ownerDocument.createElement('canvas');
+    const normalizedFilterColor = filterColor || 'grey';
+    const replacement = getReplacementRgb(normalizedFilterColor);
+    const shouldRemoveFaceFeatures = !!isNoFaceFeatures;
 
     try {
-        canvas.width = width;
-        canvas.height = height;
+        workingCanvas.width = width;
+        workingCanvas.height = height;
 
-        const context = canvas.getContext('2d', { willReadFrequently: true });
+        const context = workingCanvas.getContext('2d', { willReadFrequently: true });
         if (!context) {
             throw new Error('Canvas 2D context could not be created');
         }
@@ -148,53 +165,39 @@ async function filterSkinColor(imgElement, uuid, canvas) {
             //Djamila Dahmani, Mehdi Cheref, Slimane Larabi, Zero-sum game theory model for segmenting skin regions
             //Image and Vision Computing, Volume 99, 2020, 103925,ISSN 0262-8856, https://doi.org/10.1016/j.imavis.2020.103925.
 
-            // Convert to YCbCr
-            const { y: luminance, cb: blueChrominance, cr: redChrominance } = rgbToYCbCr(redValue, greenValue, blueValue);
-            // Convert to HSV
-            const { h: hue, s: saturation, v: value } = rgbToHsv(redValue, greenValue, blueValue);
+            const { cb: blueChrominance, cr: redChrominance } = rgbToYCbCr(redValue, greenValue, blueValue);
+            const { h: hue, s: saturation } = rgbToHsv(redValue, greenValue, blueValue);
 
-            if (isSkinPixel(redValue, greenValue, blueValue, hue, saturation, blueChrominance, redChrominance)) {
-                // Apply the selected filter color based on settings
-                const filterColor = settings.filterColor || 'grey';
-
-                switch (filterColor) {
-                    case 'white':
-                        pixelData[redIndex] = 255;
-                        pixelData[greenIndex] = 255;
-                        pixelData[blueIndex] = 255;
-                        break;
-                    case 'black':
-                        pixelData[redIndex] = 0;
-                        pixelData[greenIndex] = 0;
-                        pixelData[blueIndex] = 0;
-                        break;
-                    case 'grey':
-                    default:
-                        pixelData[redIndex] = 127;
-                        pixelData[greenIndex] = 127;
-                        pixelData[blueIndex] = 127;
-                        break;
-                }
-
+            if (isSkinPixel(
+                redValue,
+                greenValue,
+                blueValue,
+                hue,
+                saturation,
+                blueChrominance,
+                redChrominance,
+                shouldRemoveFaceFeatures
+            )) {
+                pixelData[redIndex] = replacement.red;
+                pixelData[greenIndex] = replacement.green;
+                pixelData[blueIndex] = replacement.blue;
                 pixelData[alphaIndex] = 255;
             }
         }
 
         context.putImageData(imageData, 0, 0);
-        return await canvasBlobify(canvas);
+        return await canvasBlobify(workingCanvas);
     } catch (error) {
-        shouldResetCanvas = true;
-        console.warn('FitnaFilter: canvas filtering failed, falling back to original image', error);
-        return fallbackSrc;
+        // TODO: Investigate whether we can detect/refetch cross-origin images earlier
+        // so expected tainted-canvas failures do not spam the console first.
+        console.warn('FitnaFilter: canvas filtering failed', error);
+        throw error;
     } finally {
-        if (shouldResetCanvas) {
-            try {
-                // Reset canvas to avoid leaving tainted state when filtering fails.
-                canvas.width = 0;
-                canvas.height = 0;
-            } catch (cleanupError) {
-                console.warn('FitnaFilter: failed to reset canvas after error', cleanupError);
-            }
+        try {
+            workingCanvas.width = 0;
+            workingCanvas.height = 0;
+        } catch (cleanupError) {
+            console.warn('FitnaFilter: failed to reset canvas after processing', cleanupError);
         }
     }
 }
@@ -240,7 +243,7 @@ function canvasBlobify(canvas) {
  * const base64Image = applyImageFilters(element, uuid, canvas);
  */
 async function applyImageFilters(imgElement, uuid, canvas) {
-    // For now, this is just a passthrough to filterSkinColor
-    // More processing steps will be added here later
-    return filterSkinColor(imgElement, uuid, canvas);
+    const filterColor = settings && settings.filterColor ? settings.filterColor : 'grey';
+    const isNoFaceFeatures = !!(settings && settings.isNoFaceFeatures);
+    return filterSkinColor(imgElement, uuid, canvas, filterColor, isNoFaceFeatures);
 }

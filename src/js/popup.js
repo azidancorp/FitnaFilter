@@ -13,10 +13,27 @@ const elements = {
     customUrlInput: document.getElementById('customUrlInput'),
     addUrlBtn: document.getElementById('addUrlBtn'),
     grabUrlBtn: document.getElementById('grabUrlBtn'),
-    statusIndicator: document.getElementById('statusIndicator')
+    statusIndicator: document.getElementById('statusIndicator'),
+    extensionVersion: document.getElementById('extensionVersion')
 };
 
 let currentFilterColor = null;
+
+/**
+ * Updates the extension version label from the manifest.
+ */
+function updateExtensionVersion() {
+    if (!elements.extensionVersion) return;
+
+    try {
+        const manifest = chrome.runtime.getManifest();
+        if (manifest && manifest.version) {
+            elements.extensionVersion.textContent = `v${manifest.version}`;
+        }
+    } catch (error) {
+        console.warn('Failed to read extension manifest version:', error);
+    }
+}
 
 /**
  * Updates the status indicator in the footer
@@ -76,6 +93,11 @@ function createRipple(e) {
 function showImages(tabId) {
     chrome.tabs.sendMessage(tabId, { r: 'showImages' })
         .catch(err => console.error('Failed to show images:', err));
+}
+
+function refreshFiltering(tabId) {
+    chrome.tabs.sendMessage(tabId, { r: 'refreshFiltering' })
+        .catch(err => console.error('Failed to refresh filtering:', err));
 }
 
 /**
@@ -181,6 +203,8 @@ if (elements.grabUrlBtn) {
     });
 }
 
+updateExtensionVersion();
+
 // Query for active tab and initialize popup
 chrome.tabs.query({ active: true, currentWindow: true }, function (tabs) {
     if (chrome.runtime.lastError) {
@@ -208,7 +232,8 @@ chrome.tabs.query({ active: true, currentWindow: true }, function (tabs) {
                 .then(() => showImages(activeTab.id))
                 .catch(err => console.error('Error adding URL to list:', err));
         } else {
-            chrome.runtime.sendMessage({ r: 'urlListRemove', url: activeTab.url })
+            chrome.runtime.sendMessage({ r: 'urlListRemove', url: activeTab.url, domainOnly: true })
+                .then(() => refreshFiltering(activeTab.id))
                 .catch(err => console.error('Error removing URL from list:', err));
         }
     });
@@ -216,14 +241,22 @@ chrome.tabs.query({ active: true, currentWindow: true }, function (tabs) {
         const isChecked = this.checked;
         chrome.runtime.sendMessage({ r: 'excludeForTab', toggle: isChecked, tab: activeTab })
             .then(() => {
-                if (isChecked) showImages(activeTab.id);
+                if (isChecked) {
+                    showImages(activeTab.id);
+                } else {
+                    refreshFiltering(activeTab.id);
+                }
             })
             .catch(err => console.error('Error setting tab exclusion:', err));
     });
     elements.pauseChk.addEventListener('click', function() {
         chrome.runtime.sendMessage({ r: 'pause', toggle: this.checked })
             .then(() => {
-                showImages(activeTab.id);
+                if (this.checked) {
+                    showImages(activeTab.id);
+                } else {
+                    refreshFiltering(activeTab.id);
+                }
                 updateStatusIndicator(this.checked || elements.pauseForTab.checked);
             })
             .catch(err => console.error('Error toggling pause:', err));
@@ -231,7 +264,11 @@ chrome.tabs.query({ active: true, currentWindow: true }, function (tabs) {
     elements.pauseForTab.addEventListener('click', function() {
         chrome.runtime.sendMessage({ r: 'pauseForTab', tabId: activeTab.id, toggle: this.checked })
             .then(() => {
-                showImages(activeTab.id);
+                if (this.checked) {
+                    showImages(activeTab.id);
+                } else {
+                    refreshFiltering(activeTab.id);
+                }
                 updateStatusIndicator(elements.pauseChk.checked || this.checked);
             })
             .catch(err => console.error('Error toggling tab pause:', err));

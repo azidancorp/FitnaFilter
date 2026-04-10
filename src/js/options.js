@@ -20,10 +20,22 @@ document.addEventListener("DOMContentLoaded", function () {
     const distractionBlocklistContainer = document.getElementById(
         "distraction-blocklist-container"
     );
+    const extensionVersionElement = document.getElementById("extensionVersion");
 
     let isFreeText = false;
 
     // --- Initial Setup ---
+
+    if (extensionVersionElement) {
+        try {
+            const manifest = chrome.runtime.getManifest();
+            if (manifest && manifest.version) {
+                extensionVersionElement.textContent = `v${manifest.version}`;
+            }
+        } catch (error) {
+            console.warn("Failed to read extension manifest version:", error);
+        }
+    }
 
     // Focus on the addName input initially
     addNameInput.focus();

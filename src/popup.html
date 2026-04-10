@@ -12,8 +12,31 @@
     <div class="container">
         <!-- Header -->
         <div class="popup-header">
-            <h1>✨ FitnaFilter</h1>
-            <div class="subtitle">Purified Browsing Experience</div>
+            <div class="header-content">
+                <div class="logo">
+                    <svg class="logo-icon" viewBox="0 0 48 48" fill="none">
+                        <defs>
+                            <linearGradient id="logoGrad" x1="0%" y1="0%" x2="100%" y2="100%">
+                                <stop offset="0%" style="stop-color:#e699ff"/>
+                                <stop offset="50%" style="stop-color:#bf00ff"/>
+                                <stop offset="100%" style="stop-color:#8a00b8"/>
+                            </linearGradient>
+                        </defs>
+                        <circle cx="24" cy="24" r="22" stroke="url(#logoGrad)" stroke-width="2.5" fill="none"/>
+                        <circle cx="24" cy="24" r="18" fill="url(#logoGrad)" opacity="0.15"/>
+                        <ellipse cx="24" cy="22" rx="8" ry="10" fill="currentColor"/>
+                        <circle cx="24" cy="20" r="3.5" fill="#0a0a0c"/>
+                        <path d="M18 30 Q24 36 30 30" stroke="currentColor" stroke-width="2" fill="none" stroke-linecap="round"/>
+                        <path d="M12 24 Q8 20 12 16" stroke="url(#logoGrad)" stroke-width="1.5" fill="none" stroke-linecap="round" opacity="0.6"/>
+                        <path d="M36 24 Q40 20 36 16" stroke="url(#logoGrad)" stroke-width="1.5" fill="none" stroke-linecap="round" opacity="0.6"/>
+                    </svg>
+                    <div class="logo-text">
+                        <h1>FitnaFilter</h1>
+                        <div class="subtitle">Purified Browsing</div>
+                    </div>
+                </div>
+                <div class="header-glow"></div>
+            </div>
         </div>
 
         <!-- Quick Links -->
@@ -57,9 +80,9 @@
         <div class="filter-color-section">
             <span class="filter-color-label">Filter Color</span>
             <div class="color-buttons">
-                <button type="button" id="whiteFilter" class="color-button white-filter" title="White Filter"></button>
-                <button type="button" id="blackFilter" class="color-button black-filter" title="Black Filter"></button>
-                <button type="button" id="greyFilter" class="color-button grey-filter" title="Grey Filter"></button>
+                <button type="button" id="whiteFilter" class="color-button white-filter" title="White Filter" aria-label="Set filter color to white"></button>
+                <button type="button" id="blackFilter" class="color-button black-filter" title="Black Filter" aria-label="Set filter color to black"></button>
+                <button type="button" id="greyFilter" class="color-button grey-filter" title="Grey Filter" aria-label="Set filter color to grey"></button>
             </div>
         </div>
 
@@ -129,7 +152,7 @@
                 <span class="status-dot"></span>
                 <span class="status-text">Active</span>
             </div>
-            <span class="version">v1.1.2</span>
+            <span class="version" id="extensionVersion"></span>
         </div>
     </div>
     <script src="./js/popup.js" type="text/javascript"></script>

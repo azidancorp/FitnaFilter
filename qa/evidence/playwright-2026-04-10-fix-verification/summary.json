@@ -1,0 +1,63 @@
+{
+  "generatedAt": "2026-04-10T18:03:23.655Z",
+  "checks": {
+    "popupColorRefresh": {
+      "before": [
+        127,
+        127,
+        127,
+        255
+      ],
+      "afterWhite": [
+        255,
+        255,
+        255,
+        255
+      ]
+    },
+    "popupShowImagesAfterRefresh": {
+      "afterShowImages": [
+        231,
+        194,
+        177,
+        255
+      ]
+    },
+    "popupPauseUnpause": {
+      "paused": [
+        231,
+        194,
+        177,
+        255
+      ],
+      "unpaused": [
+        255,
+        255,
+        255,
+        255
+      ]
+    },
+    "altZ": {
+      "afterAltZ": [
+        231,
+        194,
+        177,
+        255
+      ]
+    },
+    "backgroundState": {
+      "svg": {
+        "style": "background-image: url(\"blob:http://127.0.0.1:8123/41311129-7868-4a91-b8a0-ec2509eb6781\");",
+        "computed": "url(\"blob:http://127.0.0.1:8123/41311129-7868-4a91-b8a0-ec2509eb6781\")"
+      },
+      "png": {
+        "style": "background-image: url(\"blob:http://127.0.0.1:8123/4bbcc403-d828-4a48-a785-adce009619ba\");",
+        "computed": "url(\"blob:http://127.0.0.1:8123/4bbcc403-d828-4a48-a785-adce009619ba\")"
+      },
+      "svgAfterAltA": {
+        "style": "background-image: url(\"http://127.0.0.1:8123/skin.svg\");",
+        "computed": "url(\"http://127.0.0.1:8123/skin.svg\")"
+      }
+    }
+  }
+}

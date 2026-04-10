@@ -341,6 +341,10 @@ function handleSourceOfImage(domElement, toggle) {
     if (toggle && !domElement.getAttribute(IS_TOGGLED)) {
         domElement.oldsrc = domElement.src;
         domElement.oldsrcset = domElement.srcset;
+        if (typeof domElement.src === 'string') {
+            domElement.setAttribute(ATTR_ORIGINAL_SRC, domElement.src);
+        }
+        domElement.setAttribute(ATTR_ORIGINAL_SRCSET, domElement.srcset || '');
         // Do not set to empty string, otherwise the processing
         // will result in an empty image
         // el.src = el.srcset = '';
@@ -353,14 +357,52 @@ function handleSourceOfImage(domElement, toggle) {
         domElement.setAttribute(IS_TOGGLED, 'true');
     } else if (!toggle && domElement.getAttribute(IS_TOGGLED) === 'true') {
         const filteredSrc = domElement.src;
-        const originalSrc = domElement.oldsrc;
+        const storedOriginalSrc = domElement.getAttribute(ATTR_ORIGINAL_SRC) || '';
+        const originalSrc =
+            domElement.oldsrc && !domElement.oldsrc.startsWith('blob:') ? domElement.oldsrc :
+                (storedOriginalSrc || domElement.src);
+        const originalSrcset =
+            domElement.oldsrcset !== undefined ? domElement.oldsrcset :
+                (domElement.getAttribute(ATTR_ORIGINAL_SRCSET) || '');
         domElement.oldsrc = filteredSrc;
         withManagedSourceMutation(domElement, () => {
             domElement.src = originalSrc;
-            domElement.srcset = domElement.oldsrcset;
+            domElement.srcset = originalSrcset;
         });
         releaseFilteredResources(domElement);
     }
+}
+
+/**
+ * Restore an image/source element to its original source values so it can be filtered again.
+ *
+ * @param {HTMLImageElement|HTMLSourceElement} domElement
+ */
+function restoreOriginalSourceOfImage(domElement) {
+    if (!domElement || domElement.getAttribute(IS_TOGGLED) !== 'true') {
+        return;
+    }
+
+    const currentSrc = typeof domElement.src === 'string' ? domElement.src : '';
+    const storedSrc = typeof domElement.oldsrc === 'string' ? domElement.oldsrc :
+        (domElement.getAttribute(ATTR_ORIGINAL_SRC) || '');
+    const originalSrc = storedSrc && !storedSrc.startsWith('blob:') ? storedSrc : currentSrc;
+    const originalSrcset =
+        typeof domElement.oldsrcset === 'string' ? domElement.oldsrcset :
+            (domElement.getAttribute(ATTR_ORIGINAL_SRCSET) || domElement.srcset || '');
+
+    withManagedSourceMutation(domElement, () => {
+        if ('src' in domElement && originalSrc && !originalSrc.startsWith('blob:')) {
+            domElement.src = originalSrc;
+        }
+        if ('srcset' in domElement) {
+            domElement.srcset = originalSrcset;
+        }
+    });
+
+    domElement.oldsrc = '';
+    domElement.oldsrcset = originalSrcset;
+    domElement.removeAttribute(IS_TOGGLED);
 }
 /**
  * Sets the {@link HAS_BACKGROUND_IMAGE} flag in an Element
@@ -383,7 +425,29 @@ function handleBackgroundForElement(domElement, toggle) {
     if (!toggle) {
         releaseFilteredResources(domElement);
     }
-    handleStyleClasses(domElement, [], toggle, HAS_BACKGROUND_IMAGE)
+    handleStyleClasses(domElement, [], toggle, HAS_BACKGROUND_IMAGE);
+}
+
+/**
+ * Restore an element's original background-image value.
+ *
+ * @param {Element} domElement
+ */
+function restoreOriginalBackgroundImage(domElement) {
+    if (!domElement) {
+        return;
+    }
+
+    const originalBackgroundImage = domElement[ATTR_ORIGINAL_BACKGROUND_IMAGE];
+    withManagedBackgroundMutation(domElement, () => {
+        if (typeof originalBackgroundImage === 'string' &&
+            originalBackgroundImage.length > 0 &&
+            originalBackgroundImage !== 'none') {
+            domElement.style.backgroundImage = originalBackgroundImage;
+        } else {
+            domElement.style.removeProperty('background-image');
+        }
+    });
 }
 /**
  * Add|remove a listener for load event in an
@@ -494,6 +558,7 @@ function processBackgroundImage(domElement, url, suffix, canvas) {
     const uuid = domElement.getAttribute(ATTR_UUID);
 
     if (!url) {
+        restoreOriginalBackgroundImage(domElement);
         handleBackgroundForElement(domElement, false);
         hideElement(domElement, false);
         return;
@@ -503,12 +568,7 @@ function processBackgroundImage(domElement, url, suffix, canvas) {
         return filterImageElementAsBackground(image, uuid, canvas, suffix);
     }).catch(error => {
         console.error('FitnaFilter: failed to process background image', error);
-        withManagedBackgroundMutation(domElement, () => {
-            domElement.style.backgroundImage = "url('" + url + "')";
-            if (suffix) {
-                domElement.style.backgroundImage += ", " + suffix;
-            }
-        });
+        restoreOriginalBackgroundImage(domElement);
         handleBackgroundForElement(domElement, false);
         hideElement(domElement, false);
     });
@@ -581,29 +641,6 @@ async function filterImageElementAsBackground(imgElement, uuid, canvas, suffix) 
         if (previousBackgroundObjectUrl && previousBackgroundObjectUrl !== base64Img &&
             typeof previousBackgroundObjectUrl === 'string' && previousBackgroundObjectUrl.startsWith('blob:')) {
             URL.revokeObjectURL(previousBackgroundObjectUrl);
-        }
-
-        if (base64Img && typeof base64Img === 'string' && base64Img.startsWith('blob:')) {
-            let tracker;
-            const cleanupObjectUrl = () => {
-                try {
-                    URL.revokeObjectURL(base64Img);
-                } catch (error) {
-                    console.warn('FitnaFilter: failed to revoke background object URL', error);
-                }
-                if (actualElement[ATTR_BACKGROUND_OBJECT_URL] === base64Img) {
-                    actualElement[ATTR_BACKGROUND_OBJECT_URL] = null;
-                }
-                if (tracker) {
-                    tracker.onload = null;
-                    tracker.onerror = null;
-                }
-            };
-
-            tracker = new Image();
-            tracker.onload = cleanupObjectUrl;
-            tracker.onerror = cleanupObjectUrl;
-            tracker.src = base64Img;
         }
     } else {
         // Element was removed before filtering completed - revoke orphaned blob URL

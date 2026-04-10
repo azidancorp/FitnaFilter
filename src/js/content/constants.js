@@ -26,6 +26,21 @@ const ATTR_OBJECT_URL = 'skf-object-url';
 const ATTR_BACKGROUND_OBJECT_URL = 'skf-background-object-url';
 
 /**
+ * Attribute to store the original background-image value before FitnaFilter overrides it.
+ */
+const ATTR_ORIGINAL_BACKGROUND_IMAGE = 'skf-original-background-image';
+
+/**
+ * Attribute to store an image element's original src before it is filtered.
+ */
+const ATTR_ORIGINAL_SRC = 'skf-original-src';
+
+/**
+ * Attribute to store an image element's original srcset before it is filtered.
+ */
+const ATTR_ORIGINAL_SRCSET = 'skf-original-srcset';
+
+/**
  * Attribute to set the background-image value of an Element's CSS style. This attribute is set in the html tag.
  */
 const ATTR_LAST_CHECKED_SRC = 'skf-last-checked-src';

@@ -51,15 +51,16 @@ function inIframe() {
 /**
  * Tear down any existing processing instance before starting a new one.
  * @param {Window} win
+ * @param {object} [options]
  */
-function cleanupExistingProcess(win) {
+function cleanupExistingProcess(win, options) {
     if (!win) {
         return;
     }
     const cleanup = win[PROCESS_CLEANUP_KEY];
     if (typeof cleanup === 'function') {
         try {
-            cleanup({ reason: 'reprocess' });
+            cleanup(options || { reason: 'reprocess' });
         } catch (error) {
             console.warn('FitnaFilter: cleanup before reprocessing failed', error);
         }
@@ -85,7 +86,8 @@ function refreshCurrentWindowProcessing() {
         }
 
         settings = nextSettings;
-        cleanupExistingProcess(window);
+        displayer.reset();
+        cleanupExistingProcess(window, { reason: 'reprocess' });
 
         if (settings && !settings.isExcluded && !settings.isExcludedForTab &&
             !settings.isPaused && !settings.isPausedForTab) {
@@ -127,7 +129,8 @@ chrome.runtime.onMessage.addListener(request => {
             // If the extension is active, reprocess the page with the new filter color
             if (!settings.isExcluded && !settings.isExcludedForTab && !settings.isPaused && !settings.isPausedForTab) {
                 // Refresh the page processing to apply the new filter color
-                cleanupExistingProcess(window);
+                displayer.reset();
+                cleanupExistingProcess(window, { reason: 'reprocess' });
                 ProcessWin(window, contentLoaded);
             }
         }
@@ -276,15 +279,16 @@ function ProcessWin(win, winContentLoaded) {
             displayer.showImages();
 
         } else if (mMouseController.hasElement() && event.altKey) {
+            const hoveredElement = mMouseController.getElement();
 
-            if (event.keyCode == 65 && mMouseController.getAttrValueElement(HAS_BACKGROUND_IMAGE)) { //ALT-a
+            if (event.keyCode == 65 && hoveredElement.tagName !== 'IMG') { //ALT-a
 
-                showElement(mMouseController.getElement());
+                showElement(hoveredElement);
                 mEye.hide();
 
-            } else if (event.keyCode == 90 && !mMouseController.getAttrValueElement(HAS_BACKGROUND_IMAGE)) { //ALT-z
+            } else if (event.keyCode == 90 && hoveredElement.tagName === 'IMG') { //ALT-z
 
-                doElement.call(mMouseController.getElement());
+                showElement(hoveredElement);
                 mEye.hide();
 
             }
@@ -529,8 +533,9 @@ function ProcessWin(win, winContentLoaded) {
 
                 addRandomWizUuid(this);
                 addCssClass(this, "wiz-to-process");
-                mSuspects.addSuspect(this);
             }
+
+            mSuspects.addSuspect(this);
 
             if (typeof this.src !== 'undefined' && this.src.startsWith('blob')) {
                 //For some reason, blob URL's dont fire a load event.
@@ -613,6 +618,13 @@ function ProcessWin(win, winContentLoaded) {
                         }
                     });
                 }
+
+                if (this.src !== '') {
+                    // Already-loaded images need an immediate pass because no load event will fire now.
+                    handleLoadProcessImageListener(this, processImage, false);
+                    handleLoadEventListener(this, doElement, false);
+                    processDomImage(this, mDoc.getElementById(CANVAS_GLOBAL_ID));
+                }
                 //this.src = blankImg;
             }
             // Small images are simply hidden.
@@ -665,6 +677,7 @@ function ProcessWin(win, winContentLoaded) {
                 if (bgImg.indexOf(', ') != -1) {
                     bgImgSuffix = bgImg.substring(bgImg.indexOf(", ") + 1).slice(0,-1);
                 }
+                this[ATTR_ORIGINAL_BACKGROUND_IMAGE] = bgImg;
                 // Avoids quick display of original image
                 withManagedBackgroundMutation(this, () => {
                     this.style.backgroundImage = "url('')";
@@ -790,6 +803,10 @@ function ProcessWin(win, winContentLoaded) {
                     }
                 });
             }
+        }
+
+        if (domElement.tagName !== 'IMG') {
+            restoreOriginalBackgroundImage(domElement);
         }
 
         handleBackgroundForElement(domElement, false);
@@ -955,6 +972,8 @@ function ProcessWin(win, winContentLoaded) {
      * @param {object} [options]
      */
     function cleanup(options) {
+        const shouldResetForReprocess = options && options.reason === 'reprocess';
+
         if (mMouseIntervalId !== null) {
             clearInterval(mMouseIntervalId);
             mMouseIntervalId = null;
@@ -994,9 +1013,29 @@ function ProcessWin(win, winContentLoaded) {
             }
         });
 
-        // Clear IS_REVEALED flags from all suspects during cleanup
+        // Reset suspects back to their original sources before a fresh pass starts.
         mSuspects.applyCallback(element => {
-            if (element[IS_REVEALED]) {
+            if (shouldResetForReprocess) {
+                hideElement(element, false);
+                element[IS_REVEALED] = false;
+                element[IS_PROCESSED] = false;
+                element.removeAttribute(IS_PROCESSED);
+
+                if (element.tagName === 'IMG') {
+                    restoreOriginalSourceOfImage(element);
+                    if (element.parentElement && element.parentElement.tagName === 'PICTURE') {
+                        element.parentElement.childNodes.forEach(node => {
+                            if (node.tagName === 'SOURCE') {
+                                restoreOriginalSourceOfImage(node);
+                            }
+                        });
+                    }
+                } else {
+                    restoreOriginalBackgroundImage(element);
+                }
+
+                handleBackgroundForElement(element, false);
+            } else if (element[IS_REVEALED]) {
                 element[IS_REVEALED] = false;
             }
         });

@@ -1,3 +1,5 @@
+'use strict';
+
 /**
  * Factory function to create the eye
  * that allows to display the original filtered images.

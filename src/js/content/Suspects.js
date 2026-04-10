@@ -1,14 +1,20 @@
+'use strict';
+
 /**
  * Factory function to handle a list of potential elements.
  */
 function Suspects() {
     let mList = [];
+    const mSet = new WeakSet();
 
     function pruneDisconnected() {
         mList = mList.filter(suspect => {
             if (!suspect || !suspect.isConnected) {
                 if (suspect && typeof releaseFilteredResources === 'function') {
                     releaseFilteredResources(suspect);
+                }
+                if (suspect) {
+                    mSet.delete(suspect);
                 }
                 return false;
             }
@@ -36,7 +42,8 @@ function Suspects() {
         if (!domElement || !domElement.isConnected) {
             return;
         }
-        if (mList.indexOf(domElement) === -1) {
+        if (!mSet.has(domElement)) {
+            mSet.add(domElement);
             mList.push(domElement);
             domElement[ATTR_RECTANGLE] = domElement.getBoundingClientRect();
         }

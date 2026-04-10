@@ -1,3 +1,5 @@
+'use strict';
+
 /**
  * Factory function to handle the visibility of images in a window and its iframes.
  */
@@ -55,14 +57,18 @@ function ImagesDisplayer() {
 
         mShowAll = true;
 
-        if (window === top) {
-            chrome.runtime.sendMessage({
-                r: 'setColorIcon',
-                toggle: false
-            });
+        try {
+            if (window === top) {
+                chrome.runtime.sendMessage({
+                    r: 'setColorIcon',
+                    toggle: false
+                });
+            }
+        } catch (error) {
+            // Cross-origin frame, skip icon update.
         }
 
-        if (window.skfShowImages !== null) {
+        if (typeof window.skfShowImages === 'function') {
             window.skfShowImages();
         }
 

@@ -1,3 +1,5 @@
+'use strict';
+
 /**
  * Factory function to handle the movement of a mouse.
  */

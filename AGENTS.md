@@ -11,6 +11,8 @@ This repository contains **FitnaFilter**, a Chrome extension (Manifest V3) that 
 
 ### Image Processing Pipeline
 - **Algorithm**: Multi-color space approach (YCbCr + HSV) for skin detection
+  - **YCbCr color space**: Cb (85-128) and Cr (142-180) ranges for skin detection
+  - **HSV color space**: Hue (0-32°) and Saturation (>15%) ranges for additional validation
 - **Processing**: Canvas-based pixel analysis with configurable filter colors
 - **Cross-Origin**: Background service worker handles CORS restrictions
 - **Performance**: Lazy processing, MutationObserver for dynamic content
@@ -53,6 +55,12 @@ Categories: **Vice** (always enabled), **Hazard** (configurable), **Distraction*
 2. Background worker fetches image and returns base64 data
 3. Content script creates blob URL for Canvas processing
 
+## User Controls
+
+- **Global shortcuts**: Alt+P (pause), Alt+Z (reveal images), Alt+A (reveal backgrounds)
+- **Per-tab exclusions**: Temporary or permanent domain/URL whitelisting
+- **Filter customization**: Color selection, sensitivity settings, auto-unpause timers
+
 ## Repository Layout
 
 - `src/` contains extension code:
@@ -60,6 +68,7 @@ Categories: **Vice** (always enabled), **Hazard** (configurable), **Distraction*
   - `css/` and `images/` for styling and UI assets
   - `blocklists/` for domain lists (one domain per line)
   - `manifest.json` for extension configuration (V3)
+  - `js/content/constants.js` for shared constants and feature flags
 - `download_blocklists.py` retrieves latest blocklist files from remote sources
 
 ## Development Workflow
@@ -83,17 +92,19 @@ No automated tests provided. Manual verification required:
 4. Check popup and options page functionality
 5. Test cross-origin image handling
 6. Verify user controls (Alt+P pause, Alt+Z reveal, etc.)
+7. Test exclusion system with domains and URLs
+8. Verify auto-unpause functionality
 
 ## Recent Agent Notes (2025-12-07)
 
 - Background `getSettings` now reads fresh sync/local storage on every call, so consumers immediately see toggled values; retain the mirror in `storedSettings`.
 - Popup initialization no longer fires redundant `setFilterColor` messages; only actual colour changes trigger a reprocess.
 - Content script revokes blob URLs once filtered assets finish loading to prevent session-long memory growth.
-- DOM/style bootstrapping, hover polling, rectangle refresh, and iframe readiness all reference the constants declared at the top of `src/js/content/js.js` (`STYLE_POLL_INTERVAL_MS`, `HOVER_POLL_INTERVAL_MS`, `RECT_UPDATE_INTERVAL_MS`, `RECT_TIMEOUT_BASE_MS`, `RECT_TIMEOUT_REPEAT_COUNT`, `IFRAME_POLL_INTERVAL_MS`, `IFRAME_POLL_MAX_ATTEMPTS`, `PATTERN_VARIATIONS`). Adjust those values instead of sprinkling new literals.
+- DOM/style bootstrapping, hover polling, rectangle refresh, iframe readiness, and hover-visual timeout all reference the constants declared at the top of `src/js/content/js.js` (`STYLE_POLL_INTERVAL_MS`, `HOVER_POLL_INTERVAL_MS`, `RECT_UPDATE_INTERVAL_MS`, `RECT_TIMEOUT_BASE_MS`, `RECT_TIMEOUT_REPEAT_COUNT`, `IFRAME_POLL_INTERVAL_MS`, `IFRAME_POLL_MAX_ATTEMPTS`, `HOVER_VISUAL_CLEAR_TIMEOUT_MS`). Adjust those values instead of sprinkling new literals.
 - Style injection now uses a 32 ms poll; if you pursue an event-driven approach, remove the corresponding `setInterval` and clear logic.
 
 - **Eye toggle functionality**: The Eye component now supports reveal/undo toggle mode via `setAnchor()`. Clicking the eye reveals the original image, then clicking again re-applies the filter. The `mCurrentMode` state tracks whether to reveal or filter.
-- **Canvas error handling**: `filterSkinColor()` in `ImageProcessing.js` now has proper try-catch error handling with fallback to the original image source and canvas cleanup on failure.
+- **Canvas error handling**: `filterSkinColor()` in `ImageProcessing.js` now resets its working canvas on failure and lets callers decide whether to fall back to the background fetch path or restore the original source.
 
 ## AI Agent Development Patterns
 

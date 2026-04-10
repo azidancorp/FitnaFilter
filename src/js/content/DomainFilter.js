@@ -297,26 +297,37 @@ async function processBlocklist(url, blocklistName, blockedDomains, domainToBloc
  * @param {Set} blockedDomains - Set to store blocked domains
  * @param {Map} domainToBlocklistMap - Map to track domain to blocklist mapping
  */
-async function fetchAndProcessBlocklist(blockedDomains, domainToBlocklistMap) {
+async function fetchAndProcessBlocklist() {
+    const nextBlockedDomains = new Set();
+    const nextDomainToBlocklistMap = new Map();
+
     try {
-        // Clear existing blocklist
-        blockedDomains.clear();
-        domainToBlocklistMap.clear();
-        
         let totalDomains = 0;
         const enabledLists = [];
-        
-        // Process each enabled blocklist
+
         for (const [key, blocklist] of Object.entries(BLOCKLISTS)) {
             if (blocklist.enabled) {
                 enabledLists.push(key);
-                const addedCount = await processBlocklist(blocklist.url, key, blockedDomains, domainToBlocklistMap);
+                const addedCount = await processBlocklist(
+                    blocklist.url,
+                    key,
+                    nextBlockedDomains,
+                    nextDomainToBlocklistMap
+                );
                 totalDomains += addedCount;
             }
         }
-        
+
         console.log(`Loaded ${totalDomains} domains from blocklists: ${enabledLists.join(', ') || 'none'}`);
+
+        return {
+            blockedDomains: nextBlockedDomains,
+            domainToBlocklistMap: nextDomainToBlocklistMap,
+            totalDomains,
+            enabledLists
+        };
     } catch (error) {
         console.error("Error fetching or processing blocklists:", error);
+        throw error;
     }
 }

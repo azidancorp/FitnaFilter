@@ -47,8 +47,6 @@
     ],
     "web_accessible_resources": [
         {"resources": ["images/eye.png", "images/undo.png"],
-        "matches" : ["<all_urls>"]},
-        {"resources": ["blocklists/*.txt"],
         "matches" : ["<all_urls>"]}
     ]
 }

@@ -22,6 +22,263 @@ importScripts('content/DomainFilter.js');
 // Blocklist feature variables
 let blockedDomains = new Set();
 let domainToBlocklistMap = new Map(); // Maps domain to blocklist name for contextual redirects
+let blocklistLoadPromise = null;
+let hasLoadedBlocklists = false;
+let blocklistRetryTimerId = null;
+const BLOCKLIST_RETRY_DELAY_MS = 30000;
+
+function safeParseJson(value, fallbackValue) {
+    if (typeof value !== 'string' || !value) {
+        return fallbackValue;
+    }
+
+    try {
+        return JSON.parse(value);
+    } catch (error) {
+        console.warn('FitnaFilter: failed to parse stored JSON value', error);
+        return fallbackValue;
+    }
+}
+
+function normalizeUrlListEntry(value, domainOnly) {
+    if (typeof value !== 'string') {
+        return null;
+    }
+
+    const normalizedValue = value.trim().toLowerCase();
+    if (!normalizedValue) {
+        return null;
+    }
+
+    if (domainOnly) {
+        return getDomain(normalizedValue);
+    }
+
+    if (normalizedValue.length < 3 || /\s/.test(normalizedValue)) {
+        return null;
+    }
+
+    return normalizedValue;
+}
+
+function dedupeStringList(list) {
+    const seen = new Set();
+    const deduped = [];
+
+    list.forEach(item => {
+        if (typeof item === 'string' && !seen.has(item)) {
+            seen.add(item);
+            deduped.push(item);
+        }
+    });
+
+    return deduped;
+}
+
+function isUrlInUserList(url, urlList) {
+    if (typeof url !== 'string') {
+        return false;
+    }
+
+    const lowerUrl = url.toLowerCase();
+    for (let index = 0; index < urlList.length; index++) {
+        if (lowerUrl.indexOf(urlList[index]) !== -1) {
+            return true;
+        }
+    }
+
+    return false;
+}
+
+function maybeAutoUnpause(settings) {
+    if (!settings || typeof settings.pausedTime !== 'number' || !settings.autoUnpause) {
+        return;
+    }
+
+    if (settings.pausedTime + (settings.autoUnpauseTimeout * 60) >= (Date.now() / 1000)) {
+        return;
+    }
+
+    chrome.storage.local.set({ isPaused: 0, pausedTime: null });
+    settings.isPaused = false;
+    settings.pausedTime = null;
+    storedSettings.isPaused = false;
+    storedSettings.pausedTime = null;
+}
+
+function getTabOverrideState(tabId, url) {
+    const state = {
+        isPausedForTab: false,
+        isExcludedForTab: false
+    };
+
+    if (typeof tabId === 'number' && pauseForTabList.indexOf(tabId) !== -1) {
+        state.isPausedForTab = true;
+    }
+
+    if (typeof tabId === 'number' && typeof url === 'string') {
+        const domain = getDomain(url);
+        if (domain) {
+            state.isExcludedForTab = excludeForTabList.some(entry => entry.tabId === tabId && entry.domain === domain);
+        }
+    }
+
+    return state;
+}
+
+function getExclusionState(url, settings) {
+    const exclusionState = {
+        isExcluded: false,
+        isExcludedByLocalhost: false,
+        isExcludedByUserList: false,
+        isInUserList: false
+    };
+
+    if (!settings || typeof url !== 'string') {
+        return exclusionState;
+    }
+
+    const hostname = getHostname(url);
+    exclusionState.isExcludedByLocalhost = settings.excludeLocalhost &&
+        (isLocalhostHostname(hostname) || isLocalFileUrl(url));
+
+    const urlList = Array.isArray(settings.urlList) ? settings.urlList : [];
+    exclusionState.isInUserList = isUrlInUserList(url, urlList);
+    exclusionState.isExcludedByUserList = settings.isBlackList ? !exclusionState.isInUserList : exclusionState.isInUserList;
+    exclusionState.isExcluded = exclusionState.isExcludedByLocalhost || exclusionState.isExcludedByUserList;
+
+    return exclusionState;
+}
+
+function getComputedTabState(tab, settings) {
+    const computedState = {
+        isPaused: !!settings.isPaused,
+        pausedTime: settings.pausedTime,
+        autoUnpause: !!settings.autoUnpause,
+        autoUnpauseTimeout: settings.autoUnpauseTimeout,
+        isNoEye: !!settings.isNoEye,
+        isNoFaceFeatures: !!settings.isNoFaceFeatures,
+        maxSafe: settings.maxSafe,
+        filterColor: settings.filterColor,
+        isBlackList: !!settings.isBlackList,
+        excludeLocalhost: settings.excludeLocalhost,
+        isPausedForTab: false,
+        isExcludedForTab: false,
+        isExcluded: false
+    };
+
+    if (!tab) {
+        return computedState;
+    }
+
+    const overrideState = getTabOverrideState(tab.id, tab.url);
+    computedState.isPausedForTab = overrideState.isPausedForTab;
+    computedState.isExcludedForTab = overrideState.isExcludedForTab;
+
+    if (tab.url) {
+        computedState.isExcluded = getExclusionState(tab.url, settings).isExcluded;
+    }
+
+    return computedState;
+}
+
+async function refreshBlocklists() {
+    if (blocklistRetryTimerId !== null) {
+        clearTimeout(blocklistRetryTimerId);
+        blocklistRetryTimerId = null;
+    }
+
+    const currentLoad = fetchAndProcessBlocklist();
+    blocklistLoadPromise = currentLoad;
+
+    try {
+        const nextBlocklists = await currentLoad;
+        if (blocklistLoadPromise !== currentLoad) {
+            return false;
+        }
+
+        blockedDomains = nextBlocklists.blockedDomains;
+        domainToBlocklistMap = nextBlocklists.domainToBlocklistMap;
+        hasLoadedBlocklists = true;
+        blocklistLoadPromise = null;
+        return true;
+    } catch (error) {
+        if (blocklistLoadPromise === currentLoad) {
+            console.error('FitnaFilter: failed to refresh blocklists', error);
+            blocklistLoadPromise = null;
+            if (!hasLoadedBlocklists && blocklistRetryTimerId === null) {
+                // Retry the initial warm-up after a short delay in case startup timing caused the failure.
+                blocklistRetryTimerId = setTimeout(() => {
+                    blocklistRetryTimerId = null;
+                    if (!hasLoadedBlocklists && !blocklistLoadPromise) {
+                        refreshBlocklists();
+                    }
+                }, BLOCKLIST_RETRY_DELAY_MS);
+            }
+        }
+        return false;
+    }
+}
+
+function isPrivateNetworkHostname(hostname) {
+    if (!hostname) {
+        return false;
+    }
+
+    if (isLocalhostHostname(hostname)) {
+        return true;
+    }
+
+    if (/^\d{1,3}(?:\.\d{1,3}){3}$/.test(hostname)) {
+        const octets = hostname.split('.').map(Number);
+        if (octets.some(octet => Number.isNaN(octet) || octet < 0 || octet > 255)) {
+            return false;
+        }
+
+        return octets[0] === 10 ||
+            octets[0] === 127 ||
+            (octets[0] === 169 && octets[1] === 254) ||
+            (octets[0] === 172 && octets[1] >= 16 && octets[1] <= 31) ||
+            (octets[0] === 192 && octets[1] === 168);
+    }
+
+    const normalizedHostname = hostname.toLowerCase();
+    return normalizedHostname === '::1' ||
+        normalizedHostname.startsWith('fc') ||
+        normalizedHostname.startsWith('fd') ||
+        normalizedHostname.startsWith('fe80:');
+}
+
+function canRequesterAccessPrivateImage(requestUrl, senderTabUrl) {
+    if (typeof requestUrl !== 'string' || !requestUrl) {
+        return false;
+    }
+
+    try {
+        const parsedRequestUrl = new URL(requestUrl);
+        if (parsedRequestUrl.protocol !== 'http:' && parsedRequestUrl.protocol !== 'https:') {
+            return false;
+        }
+
+        if (!isPrivateNetworkHostname(parsedRequestUrl.hostname)) {
+            return true;
+        }
+
+        if (typeof senderTabUrl !== 'string' || !senderTabUrl) {
+            return false;
+        }
+
+        const senderProtocol = getUrlProtocol(senderTabUrl);
+        if (senderProtocol === 'file:' || senderProtocol === 'filesystem:') {
+            return true;
+        }
+
+        const senderHostname = getHostname(senderTabUrl);
+        return isPrivateNetworkHostname(senderHostname);
+    } catch (error) {
+        return false;
+    }
+}
 
 
 async function getSettings() {
@@ -38,18 +295,22 @@ async function getSettings() {
     });
 
     const nextSettings = { ...DEFAULT_SETTINGS };
-    nextSettings.urlList = syncResult.urlList ? JSON.parse(syncResult.urlList) : [];
+    nextSettings.urlList = dedupeStringList(safeParseJson(syncResult.urlList, []));
     nextSettings.isNoEye = syncResult.isNoEye == 1;
     nextSettings.isNoFaceFeatures = syncResult.isNoFaceFeatures == 1;
     nextSettings.maxSafe = +syncResult.maxSafe || DEFAULT_SETTINGS.maxSafe;
     nextSettings.autoUnpause = syncResult.autoUnpause !== null ? syncResult.autoUnpause == 1 : DEFAULT_SETTINGS.autoUnpause;
-    nextSettings.autoUnpauseTimeout = +syncResult.autoUnpauseTimeout || DEFAULT_SETTINGS.autoUnpauseTimeout;
+    nextSettings.autoUnpauseTimeout = syncResult.autoUnpauseTimeout !== null &&
+        syncResult.autoUnpauseTimeout !== undefined ? (+syncResult.autoUnpauseTimeout || 0) : DEFAULT_SETTINGS.autoUnpauseTimeout;
+    if (nextSettings.autoUnpauseTimeout < 1 || nextSettings.autoUnpauseTimeout > 1000) {
+        nextSettings.autoUnpauseTimeout = DEFAULT_SETTINGS.autoUnpauseTimeout;
+    }
     nextSettings.filterColor = ['white', 'black', 'grey'].includes(syncResult.filterColor) ? syncResult.filterColor : DEFAULT_SETTINGS.filterColor;
     nextSettings.excludeLocalhost = syncResult.excludeLocalhost !== null ? syncResult.excludeLocalhost == 1 : DEFAULT_SETTINGS.excludeLocalhost;
 
     // Load blocklist settings
     if (syncResult.blocklistSettings) {
-        const savedBlocklists = JSON.parse(syncResult.blocklistSettings);
+        const savedBlocklists = safeParseJson(syncResult.blocklistSettings, {});
         for (const [key, value] of Object.entries(savedBlocklists)) {
             if (BLOCKLISTS[key]) {
                 BLOCKLISTS[key].enabled = value;
@@ -60,6 +321,7 @@ async function getSettings() {
     const localResult = await chrome.storage.local.get({ 'isPaused': null, 'pausedTime': null });
     nextSettings.isPaused = localResult.isPaused == 1;
     nextSettings.pausedTime = typeof localResult.pausedTime === 'number' ? localResult.pausedTime : null;
+    maybeAutoUnpause(nextSettings);
 
     // Preserve blacklist mode if ever set elsewhere
     if (typeof storedSettings.isBlackList === 'boolean') {
@@ -76,7 +338,7 @@ getSettings()
     storedSettings = onSuccess;
     console.log("Startup storedSettings: " + JSON.stringify(storedSettings));
     // Start blocklist processing after initial settings load
-    fetchAndProcessBlocklist(blockedDomains, domainToBlocklistMap);
+    refreshBlocklists();
 });
 
 /**
@@ -188,65 +450,8 @@ chrome.runtime.onMessage.addListener(
             case 'getSettings': {
                 getSettings()
                     .then(freshSettings => {
-                        const settings = {
-                            isPaused: freshSettings.isPaused,
-                            pausedTime: freshSettings.pausedTime,
-                            autoUnpause: freshSettings.autoUnpause,
-                            autoUnpauseTimeout: freshSettings.autoUnpauseTimeout,
-                            isNoEye: freshSettings.isNoEye,
-                            isNoFaceFeatures: freshSettings.isNoFaceFeatures,
-                            maxSafe: freshSettings.maxSafe,
-                            filterColor: freshSettings.filterColor,
-                            isBlackList: !!freshSettings.isBlackList,
-                            excludeLocalhost: freshSettings.excludeLocalhost
-                        };
-
                         const tab = request.tab || sender.tab;
-                        if (tab) {
-                            if (pauseForTabList.indexOf(tab.id) !== -1) {
-                                settings.isPausedForTab = true;
-                            }
-                            if (tab.url) {
-                                const domain = getDomain(tab.url);
-                                if (domain) {
-                                    for (let i = 0; i < excludeForTabList.length; i++) {
-                                        const entry = excludeForTabList[i];
-                                        if (entry.tabId === tab.id && entry.domain === domain) {
-                                            settings.isExcludedForTab = true;
-                                            break;
-                                        }
-                                    }
-                                }
-
-                                const hostname = getHostname(tab.url);
-                                const isExcludedByLocalhost = freshSettings.excludeLocalhost &&
-                                    (isLocalhostHostname(hostname) || isLocalFileUrl(tab.url));
-
-                                const lowerUrl = tab.url.toLowerCase();
-                                const list = Array.isArray(freshSettings.urlList) ? freshSettings.urlList : [];
-                                let isInUserList = false;
-                                for (let i = 0; i < list.length; i++) {
-                                    if (lowerUrl.indexOf(list[i]) !== -1) {
-                                        isInUserList = true;
-                                        break;
-                                    }
-                                }
-
-                                // Apply blacklist inversion to user-list only; localhost exclusion always wins.
-                                const isExcludedByUserList = settings.isBlackList ? !isInUserList : isInUserList;
-                                settings.isExcluded = isExcludedByLocalhost || isExcludedByUserList;
-                            }
-                        }
-
-                        if (typeof settings.pausedTime === 'number' && settings.autoUnpause &&
-                            (settings.pausedTime + (settings.autoUnpauseTimeout * 60) < (Date.now() / 1000))) {
-                            // Timeout reached, turn off pause
-                            chrome.storage.local.set({ "isPaused": 0, "pausedTime": null });
-                            settings.isPaused = false;
-                            storedSettings.isPaused = false;
-                            storedSettings.pausedTime = null;
-                        }
-
+                        const settings = getComputedTabState(tab, freshSettings);
                         sendResponse(settings);
                     })
                     .catch(error => {
@@ -259,15 +464,17 @@ chrome.runtime.onMessage.addListener(
                 chrome.action.setIcon({ path: request.toggle ? '../images/icon.png' : '../images/icon-d.png', tabId: sender.tab.id });
                 break;
             case 'urlListAdd': {
-                const url = request.domainOnly ? getDomain(request.url) : request.url.toLowerCase();
+                const url = normalizeUrlListEntry(request.url, !!request.domainOnly);
                 if (!url) {
                     sendResponse(false);
                     break;
                 }
                 chrome.storage.sync.get({ urlList: '[]' })
                     .then(result => {
-                        const list = JSON.parse(result.urlList);
-                        list.push(url);
+                        const list = dedupeStringList(safeParseJson(result.urlList, []));
+                        if (list.indexOf(url) === -1) {
+                            list.push(url);
+                        }
                         return chrome.storage.sync.set({ urlList: JSON.stringify(list) })
                             .then(() => list);
                     })
@@ -285,10 +492,17 @@ chrome.runtime.onMessage.addListener(
             case 'urlListRemove': {
                 chrome.storage.sync.get({ urlList: '[]' })
                     .then(result => {
-                        let list = JSON.parse(result.urlList);
-                        if (request.url) {
-                            const lowerUrl = request.url.toLowerCase();
-                            list = list.filter(item => lowerUrl.indexOf(item) === -1);
+                        let list = dedupeStringList(safeParseJson(result.urlList, []));
+                        if (request.exactUrl || request.domainOnly) {
+                            const exactUrl = normalizeUrlListEntry(request.exactUrl || request.url, !!request.domainOnly);
+                            if (exactUrl) {
+                                list = list.filter(item => item !== exactUrl);
+                            }
+                        } else if (request.url) {
+                            const normalizedRequestUrl = normalizeUrlListEntry(request.url, false);
+                            if (normalizedRequestUrl) {
+                                list = list.filter(item => item !== normalizedRequestUrl);
+                            }
                         } else if (typeof request.index === 'number' && request.index >= 0 && request.index < list.length) {
                             list.splice(request.index, 1);
                         }
@@ -297,6 +511,7 @@ chrome.runtime.onMessage.addListener(
                     })
                     .then(list => {
                         storedSettings.urlList = list;
+                        chrome.runtime.sendMessage({ r: 'urlListModified' });
                         sendResponse(true);
                     })
                     .catch(error => {
@@ -308,7 +523,7 @@ chrome.runtime.onMessage.addListener(
             case 'getUrlList': {
                 chrome.storage.sync.get({ urlList: '[]' })
                     .then(result => {
-                        const list = JSON.parse(result.urlList);
+                        const list = dedupeStringList(safeParseJson(result.urlList, []));
                         storedSettings.urlList = list;
                         sendResponse(list);
                     })
@@ -323,10 +538,13 @@ chrome.runtime.onMessage.addListener(
                     sendResponse(false);
                     break;
                 }
-                const list = request.urlList.slice();
+                const list = dedupeStringList(request.urlList
+                    .map(item => normalizeUrlListEntry(item, false))
+                    .filter(item => !!item));
                 chrome.storage.sync.set({ urlList: JSON.stringify(list) })
                     .then(() => {
                         storedSettings.urlList = list;
+                        chrome.runtime.sendMessage({ r: 'urlListModified' });
                         sendResponse(true);
                     })
                     .catch(error => {
@@ -348,8 +566,12 @@ chrome.runtime.onMessage.addListener(
                         excludeForTabList.push({ tabId: request.tab.id, domain: domain });
                     }
                 } else {
-                    for (var i = 0; i < excludeForTabList.length; i++)
-                        if (excludeForTabList[i].tabId == request.tab.id && excludeForTabList[i].domain == domain) { excludeForTabList.splice(i, 1); break; }
+                    for (let i = 0; i < excludeForTabList.length; i++) {
+                        if (excludeForTabList[i].tabId === request.tab.id && excludeForTabList[i].domain === domain) {
+                            excludeForTabList.splice(i, 1);
+                            break;
+                        }
+                    }
                 }
                 sendResponse(true);
                 break;
@@ -368,8 +590,12 @@ chrome.runtime.onMessage.addListener(
                         pauseForTabList.push(request.tabId);
                     }
                 } else {
-                    for (var i = 0; i < pauseForTabList.length; i++)
-                        if (pauseForTabList[i] == request.tabId) { pauseForTabList.splice(i, 1); break; }
+                    for (let i = 0; i < pauseForTabList.length; i++) {
+                        if (pauseForTabList[i] === request.tabId) {
+                            pauseForTabList.splice(i, 1);
+                            break;
+                        }
+                    }
                 }
                 sendResponse(true);
                 break;
@@ -444,9 +670,14 @@ chrome.runtime.onMessage.addListener(
                 if (request.name && BLOCKLISTS[request.name]) {
                     BLOCKLISTS[request.name].enabled = request.enabled;
                     saveBlocklistSettings();
-                    // Refresh the blocklist when settings change
-                    fetchAndProcessBlocklist(blockedDomains, domainToBlocklistMap);
-                    sendResponse(true);
+                    refreshBlocklists()
+                        .then(success => {
+                            sendResponse(success);
+                        })
+                        .catch(error => {
+                            console.error('Error toggling blocklist:', error);
+                            sendResponse(false);
+                        });
                 } else {
                     sendResponse(false);
                 }
@@ -459,6 +690,11 @@ chrome.runtime.onMessage.addListener(
 
                 if (!request.url) {
                     respondWithError('Missing image URL');
+                    break;
+                }
+
+                if (!canRequesterAccessPrivateImage(request.url, sender.tab && sender.tab.url)) {
+                    respondWithError('URL not allowed');
                     break;
                 }
 
@@ -516,7 +752,19 @@ chrome.webNavigation.onBeforeNavigate.addListener(
             const url = new URL(details.url);
             const hostname = url.hostname;
             
-            // Check if hostname is in our blocklist
+            maybeAutoUnpause(storedSettings);
+
+            const computedState = getComputedTabState({ id: details.tabId, url: details.url }, storedSettings);
+            if (computedState.isPaused || computedState.isPausedForTab ||
+                computedState.isExcluded || computedState.isExcludedForTab) {
+                return;
+            }
+
+            if (!hasLoadedBlocklists && blocklistLoadPromise) {
+                console.log('FitnaFilter: skipping navigation block while blocklists are warming up');
+                return;
+            }
+
             const matchedDomain = findMatchingBlockedDomain(hostname);
             if (matchedDomain) {
                 const blocklistName = domainToBlocklistMap.get(matchedDomain);

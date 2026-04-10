@@ -1,0 +1,103 @@
+{
+  "generatedAt": "2026-04-10T17:06:36.550Z",
+  "manifestVersion": "1.2.1",
+  "fixtureUrl": "http://127.0.0.1:8123/index.html",
+  "crossOriginFixtureUrl": "http://127.0.0.1:8124/skin.svg",
+  "extensionId": "ibbclabbgpehicmpaebdhpipplcimmkf",
+  "checks": [
+    {
+      "id": "content-inline-filter",
+      "status": "pass",
+      "evidence": [
+        "content-inline-filtered.png"
+      ],
+      "note": "Inline image center pixel grey50"
+    },
+    {
+      "id": "content-cross-filter",
+      "status": "pass",
+      "evidence": [
+        "content-cross-filtered.png"
+      ],
+      "note": "Cross-origin image center pixel grey50"
+    },
+    {
+      "id": "content-lazy-filter",
+      "status": "pass",
+      "evidence": [
+        "content-lazy-filtered.png"
+      ],
+      "note": "Lazy image center pixel grey50 after insertion"
+    },
+    {
+      "id": "content-eye-toggle",
+      "status": "pass",
+      "evidence": [
+        "content-inline-restored.png",
+        "content-inline-refiltered.png"
+      ],
+      "note": "Eye reveals original; undo re-applies filter"
+    },
+    {
+      "id": "content-shortcuts",
+      "status": "mixed",
+      "evidence": [
+        "content-alt-p-paused.png",
+        "content-alt-z-after.png",
+        "content-alt-a-after.png"
+      ],
+      "note": "Alt+P works; Alt+Z and Alt+A fail to reveal as expected"
+    },
+    {
+      "id": "options-settings",
+      "status": "pass",
+      "evidence": [
+        "options-settings.png",
+        "options-exceptions-free-text.png"
+      ],
+      "note": "Settings persisted across reload"
+    },
+    {
+      "id": "popup-actions",
+      "status": "pass",
+      "evidence": [
+        "popup-initial.png",
+        "popup-grab-url.png",
+        "popup-exclusions-on.png",
+        "popup-show-images.png"
+      ],
+      "note": "Popup actions target active fixture tab via harness"
+    },
+    {
+      "id": "popup-refresh-regression",
+      "status": "fail",
+      "evidence": [
+        "popup-filter-white-ui.png",
+        "popup-filter-white-failure.png",
+        "popup-unpause-failure.png"
+      ],
+      "note": "Current tab does not re-filter after color change or unpause"
+    },
+    {
+      "id": "background-bugs",
+      "status": "fail",
+      "evidence": [
+        "background-svg-control.png",
+        "background-svg-failure.png",
+        "background-png-control.png",
+        "background-png-failure.png"
+      ],
+      "note": "Backgrounds turn white instead of preserved/filtered skin tone"
+    },
+    {
+      "id": "blocklist-redirects",
+      "status": "pass",
+      "evidence": [
+        "blocklist-vice-redirect.png",
+        "blocklist-hazard-redirect.png",
+        "blocklist-distraction-redirect.png"
+      ],
+      "note": "Vice always redirects; hazard/distraction redirect only when enabled"
+    }
+  ]
+}

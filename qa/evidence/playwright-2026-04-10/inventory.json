@@ -1,0 +1,98 @@
+{
+  "generatedAt": "2026-04-10T16:58:52.065Z",
+  "manifestVersion": "1.2.1",
+  "inventory": [
+    {
+      "id": "content-inline-filter",
+      "area": "content",
+      "claim": "Inline images are filtered on load",
+      "evidence": [
+        "content-inline-filtered.png",
+        "content-inline-restored.png"
+      ]
+    },
+    {
+      "id": "content-cross-filter",
+      "area": "content",
+      "claim": "Cross-origin images are filtered on load",
+      "evidence": [
+        "content-cross-filtered.png"
+      ]
+    },
+    {
+      "id": "content-lazy-filter",
+      "area": "content",
+      "claim": "Lazy-inserted images are filtered after mutation",
+      "evidence": [
+        "content-lazy-filtered.png"
+      ]
+    },
+    {
+      "id": "content-eye-toggle",
+      "area": "content",
+      "claim": "Eye toggle reveals and re-filters inline images",
+      "evidence": [
+        "content-inline-restored.png",
+        "content-inline-refiltered.png"
+      ]
+    },
+    {
+      "id": "content-shortcuts",
+      "area": "content",
+      "claim": "Alt+P, Alt+Z, and Alt+A shortcuts behave correctly",
+      "evidence": [
+        "content-alt-p-paused.png",
+        "content-alt-z-after.png",
+        "content-alt-a-after.png"
+      ]
+    },
+    {
+      "id": "options-settings",
+      "area": "options",
+      "claim": "Options settings persist and render expected controls",
+      "evidence": [
+        "options-settings.png",
+        "options-exceptions-free-text.png"
+      ]
+    },
+    {
+      "id": "popup-actions",
+      "area": "popup",
+      "claim": "Popup actions and toggles target the active tab",
+      "evidence": [
+        "popup-initial.png",
+        "popup-show-images.png",
+        "popup-grab-url.png",
+        "popup-exclusions-on.png"
+      ]
+    },
+    {
+      "id": "popup-refresh-regression",
+      "area": "popup",
+      "claim": "Current-tab refresh actions reapply filtering without reload",
+      "evidence": [
+        "popup-filter-white-failure.png",
+        "popup-unpause-failure.png"
+      ]
+    },
+    {
+      "id": "blocklist-redirects",
+      "area": "blocklists",
+      "claim": "Vice, hazard, and distraction redirects behave according to toggle state",
+      "evidence": [
+        "blocklist-vice-redirect.png",
+        "blocklist-hazard-redirect.png",
+        "blocklist-distraction-redirect.png"
+      ]
+    },
+    {
+      "id": "background-bugs",
+      "area": "background",
+      "claim": "CSS background filtering and reveal behave correctly",
+      "evidence": [
+        "background-svg-failure.png",
+        "background-png-failure.png"
+      ]
+    }
+  ]
+}

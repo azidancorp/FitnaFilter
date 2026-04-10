@@ -1,0 +1,11 @@
+qa/evidence/playwright-2026-04-10/screenshots/content-inline-control.png	0,0: (244,210,192)  #F4D2C0  srgb(244,210,192)
+qa/evidence/playwright-2026-04-10/screenshots/content-inline-filtered.png	0,0: (127,127,127)  #7F7F7F  grey50
+qa/evidence/playwright-2026-04-10/screenshots/content-inline-restored.png	0,0: (244,210,192)  #F4D2C0  srgb(244,210,192)
+qa/evidence/playwright-2026-04-10/screenshots/content-inline-refiltered.png	0,0: (127,127,127)  #7F7F7F  grey50
+qa/evidence/playwright-2026-04-10/screenshots/popup-show-images.png	0,0: (244,210,192)  #F4D2C0  srgb(244,210,192)
+qa/evidence/playwright-2026-04-10/screenshots/popup-filter-white-failure.png	0,0: (127,127,127)  #7F7F7F  grey50
+qa/evidence/playwright-2026-04-10/screenshots/popup-unpause-failure.png	0,0: (244,210,192)  #F4D2C0  srgb(244,210,192)
+qa/evidence/playwright-2026-04-10/screenshots/background-svg-control.png	0,0: (244,210,192)  #F4D2C0  srgb(244,210,192)
+qa/evidence/playwright-2026-04-10/screenshots/background-svg-failure.png	0,0: (255,255,255)  #FFFFFF  white
+qa/evidence/playwright-2026-04-10/screenshots/background-png-control.png	0,0: (244,210,192)  #F4D2C0  srgb(244,210,192)
+qa/evidence/playwright-2026-04-10/screenshots/background-png-failure.png	0,0: (255,255,255)  #FFFFFF  white

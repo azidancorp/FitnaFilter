@@ -1,0 +1,520 @@
+{
+  "generatedAt": "2026-04-10T17:06:02.964Z",
+  "extensionId": "ibbclabbgpehicmpaebdhpipplcimmkf",
+  "latestResults": [
+    {
+      "id": "content-inline-filter",
+      "status": "pass",
+      "pixel": [
+        127,
+        127,
+        127,
+        255
+      ]
+    },
+    {
+      "id": "content-cross-filter",
+      "status": "pass",
+      "pixel": [
+        127,
+        127,
+        127,
+        255
+      ]
+    },
+    {
+      "id": "content-lazy-filter",
+      "status": "pass",
+      "pixel": [
+        127,
+        127,
+        127,
+        255
+      ]
+    },
+    {
+      "id": "content-eye-toggle",
+      "status": "pass",
+      "restoredPixel": [
+        127,
+        127,
+        127,
+        255
+      ],
+      "note": "Saved restored and refiltered screenshots after verifying eye then undo icon states"
+    },
+    {
+      "id": "content-shortcuts",
+      "status": "mixed",
+      "filteredInlineBeforeShortcuts": [
+        127,
+        127,
+        127,
+        255
+      ],
+      "altPInlinePixel": [
+        231,
+        194,
+        177,
+        255
+      ],
+      "altZInlineState": {
+        "src": "blob:http://127.0.0.1:8123/666eab3c-fa66-4e3f-bc6e-b67baf017f93",
+        "style": null,
+        "hidden": false,
+        "visibility": "visible",
+        "opacity": "1",
+        "pixel": [
+          127,
+          127,
+          127,
+          255
+        ]
+      },
+      "altABgSvg": {
+        "inlineStyle": "background-image: url(\"blob:http://127.0.0.1:8123/41ca3dda-f6f0-43b4-8f1b-042fd7343dcf\");",
+        "backgroundImage": "url(\"blob:http://127.0.0.1:8123/41ca3dda-f6f0-43b4-8f1b-042fd7343dcf\")",
+        "backgroundColor": "rgba(0, 0, 0, 0)"
+      },
+      "altABgPng": {
+        "inlineStyle": "background-image: url(\"blob:http://127.0.0.1:8123/de6dbce6-a087-4142-823c-5d046ddaa67a\");",
+        "backgroundImage": "url(\"blob:http://127.0.0.1:8123/de6dbce6-a087-4142-823c-5d046ddaa67a\")",
+        "backgroundColor": "rgba(0, 0, 0, 0)"
+      }
+    },
+    {
+      "id": "options-settings",
+      "status": "pass",
+      "version": "v1.2.1",
+      "noEye": true,
+      "noFaceFeatures": true,
+      "autoUnpause": true,
+      "autoUnpauseTimeout": "7",
+      "maxSafe": "42",
+      "excludeLocalhost": false,
+      "freeTextValue": "https://qa.example/path\nhttp://127.0.0.1:9999/custom",
+      "counts": {
+        "vice": 5,
+        "hazard": 8,
+        "distraction": 10
+      }
+    },
+    {
+      "id": "popup-actions",
+      "status": "pass",
+      "version": "v1.2.1",
+      "grabbedUrl": "http://127.0.0.1:8123/index.html",
+      "afterShowImagesPixel": [
+        231,
+        194,
+        177,
+        255
+      ],
+      "afterExcludeForTab": [
+        231,
+        194,
+        177,
+        255
+      ],
+      "afterExcludeDomain": [
+        231,
+        194,
+        177,
+        255
+      ],
+      "urlListAfterAdd": [
+        "https://popup.example/path"
+      ]
+    },
+    {
+      "id": "popup-refresh-regression",
+      "status": "fail",
+      "beforeWhiteClick": [
+        127,
+        127,
+        127,
+        255
+      ],
+      "afterWhiteClick": [
+        127,
+        127,
+        127,
+        255
+      ],
+      "pausedPixel": [
+        231,
+        194,
+        177,
+        255
+      ],
+      "afterUnpausePixel": [
+        231,
+        194,
+        177,
+        255
+      ]
+    },
+    {
+      "id": "background-bugs",
+      "status": "pending-analysis",
+      "note": "Control and extension screenshots captured for SVG and PNG backgrounds"
+    },
+    {
+      "id": "blocklist-redirects",
+      "status": "pass",
+      "viceUrl": "https://quran.com/17:32",
+      "viceError": "Error: page.goto: net::ERR_ABORTED at https://pauseporn.com/\nCall log:\n\u001b[2m  - navigating to \"https://pauseporn.com/\", waiting until \"domcontentloaded\"\u001b[22m\n",
+      "hazardOffUrl": "chrome-error://chromewebdata/",
+      "hazardOffError": "Error: page.goto: net::ERR_NAME_NOT_RESOLVED at https://commandshield.info/\nCall log:\n\u001b[2m  - navigating to \"https://commandshield.info/\", waiting until \"domcontentloaded\"\u001b[22m\n",
+      "hazardOnUrl": "https://quran.com/2:286",
+      "hazardOnError": "Error: page.goto: net::ERR_ABORTED at https://commandshield.info/\nCall log:\n\u001b[2m  - navigating to \"https://commandshield.info/\", waiting until \"domcontentloaded\"\u001b[22m\n",
+      "distractionOffUrl": "chrome-error://chromewebdata/",
+      "distractionOffError": "Error: page.goto: net::ERR_NAME_NOT_RESOLVED at https://r1---sls.googlevideo.com/\nCall log:\n\u001b[2m  - navigating to \"https://r1---sls.googlevideo.com/\", waiting until \"domcontentloaded\"\u001b[22m\n",
+      "distractionOnUrl": "https://quran.com/62:9",
+      "distractionOnError": "Error: page.goto: net::ERR_ABORTED at https://r1---sls.googlevideo.com/\nCall log:\n\u001b[2m  - navigating to \"https://r1---sls.googlevideo.com/\", waiting until \"domcontentloaded\"\u001b[22m\n"
+    }
+  ],
+  "allResults": [
+    {
+      "id": "content-inline-filter",
+      "status": "pass",
+      "pixel": [
+        127,
+        127,
+        127,
+        255
+      ]
+    },
+    {
+      "id": "content-cross-filter",
+      "status": "pass",
+      "pixel": [
+        127,
+        127,
+        127,
+        255
+      ]
+    },
+    {
+      "id": "content-lazy-filter",
+      "status": "pass",
+      "pixel": [
+        127,
+        127,
+        127,
+        255
+      ]
+    },
+    {
+      "id": "content-eye-toggle",
+      "status": "pass",
+      "restoredPixel": [
+        127,
+        127,
+        127,
+        255
+      ],
+      "refilteredPixel": [
+        231,
+        194,
+        177,
+        255
+      ],
+      "toggleIcon": "url(\"chrome-extension://ibbclabbgpehicmpaebdhpipplcimmkf/images/eye.png\")"
+    },
+    {
+      "id": "content-eye-toggle",
+      "status": "pass",
+      "restoredPixel": [
+        127,
+        127,
+        127,
+        255
+      ],
+      "note": "Saved restored and refiltered screenshots after verifying eye then undo icon states"
+    },
+    {
+      "id": "content-shortcuts",
+      "status": "mixed",
+      "filteredInlineBeforeShortcuts": [
+        127,
+        127,
+        127,
+        255
+      ],
+      "altPInlinePixel": [
+        231,
+        194,
+        177,
+        255
+      ],
+      "altZInlineState": {
+        "src": "blob:http://127.0.0.1:8123/666eab3c-fa66-4e3f-bc6e-b67baf017f93",
+        "style": null,
+        "hidden": false,
+        "visibility": "visible",
+        "opacity": "1",
+        "pixel": [
+          127,
+          127,
+          127,
+          255
+        ]
+      },
+      "altABgSvg": {
+        "inlineStyle": "background-image: url(\"blob:http://127.0.0.1:8123/41ca3dda-f6f0-43b4-8f1b-042fd7343dcf\");",
+        "backgroundImage": "url(\"blob:http://127.0.0.1:8123/41ca3dda-f6f0-43b4-8f1b-042fd7343dcf\")",
+        "backgroundColor": "rgba(0, 0, 0, 0)"
+      },
+      "altABgPng": {
+        "inlineStyle": "background-image: url(\"blob:http://127.0.0.1:8123/de6dbce6-a087-4142-823c-5d046ddaa67a\");",
+        "backgroundImage": "url(\"blob:http://127.0.0.1:8123/de6dbce6-a087-4142-823c-5d046ddaa67a\")",
+        "backgroundColor": "rgba(0, 0, 0, 0)"
+      }
+    },
+    {
+      "id": "options-settings",
+      "status": "pass",
+      "version": "v1.2.1",
+      "noEye": true,
+      "noFaceFeatures": true,
+      "autoUnpause": true,
+      "autoUnpauseTimeout": "7",
+      "maxSafe": "42",
+      "excludeLocalhost": false,
+      "freeTextValue": "https://qa.example/path\nhttp://127.0.0.1:9999/custom",
+      "counts": {
+        "vice": 5,
+        "hazard": 8,
+        "distraction": 10
+      }
+    },
+    {
+      "id": "popup-actions",
+      "status": "pass",
+      "version": "v1.2.1",
+      "grabbedUrl": "http://127.0.0.1:8123/index.html",
+      "afterShowImagesPixel": [
+        231,
+        194,
+        177,
+        255
+      ],
+      "afterExcludeForTab": [
+        231,
+        194,
+        177,
+        255
+      ],
+      "afterExcludeDomain": [
+        231,
+        194,
+        177,
+        255
+      ],
+      "urlListAfterAdd": [
+        "https://popup.example/path"
+      ]
+    },
+    {
+      "id": "popup-refresh-regression",
+      "status": "fail",
+      "beforeWhiteClick": [
+        127,
+        127,
+        127,
+        255
+      ],
+      "afterWhiteClick": [
+        127,
+        127,
+        127,
+        255
+      ],
+      "pausedPixel": [
+        231,
+        194,
+        177,
+        255
+      ],
+      "afterUnpausePixel": [
+        231,
+        194,
+        177,
+        255
+      ]
+    },
+    {
+      "id": "background-bugs",
+      "status": "pending-analysis",
+      "note": "Control and extension screenshots captured for SVG and PNG backgrounds"
+    },
+    {
+      "id": "blocklist-redirects",
+      "status": "pass",
+      "viceUrl": "https://quran.com/17:32",
+      "viceError": "Error: page.goto: net::ERR_ABORTED at https://pauseporn.com/\nCall log:\n\u001b[2m  - navigating to \"https://pauseporn.com/\", waiting until \"domcontentloaded\"\u001b[22m\n",
+      "hazardOffUrl": "chrome-error://chromewebdata/",
+      "hazardOffError": "Error: page.goto: net::ERR_NAME_NOT_RESOLVED at https://commandshield.info/\nCall log:\n\u001b[2m  - navigating to \"https://commandshield.info/\", waiting until \"domcontentloaded\"\u001b[22m\n",
+      "hazardOnUrl": "https://quran.com/2:286",
+      "hazardOnError": "Error: page.goto: net::ERR_ABORTED at https://commandshield.info/\nCall log:\n\u001b[2m  - navigating to \"https://commandshield.info/\", waiting until \"domcontentloaded\"\u001b[22m\n",
+      "distractionOffUrl": "chrome-error://chromewebdata/",
+      "distractionOffError": "Error: page.goto: net::ERR_NAME_NOT_RESOLVED at https://r1---sls.googlevideo.com/\nCall log:\n\u001b[2m  - navigating to \"https://r1---sls.googlevideo.com/\", waiting until \"domcontentloaded\"\u001b[22m\n",
+      "distractionOnUrl": "https://quran.com/62:9",
+      "distractionOnError": "Error: page.goto: net::ERR_ABORTED at https://r1---sls.googlevideo.com/\nCall log:\n\u001b[2m  - navigating to \"https://r1---sls.googlevideo.com/\", waiting until \"domcontentloaded\"\u001b[22m\n"
+    }
+  ],
+  "screenshots": [
+    {
+      "type": "screenshot",
+      "file": "content-initial.png"
+    },
+    {
+      "type": "screenshot",
+      "file": "content-inline-filtered.png",
+      "selector": "#inline-img"
+    },
+    {
+      "type": "screenshot",
+      "file": "content-cross-filtered.png",
+      "selector": "#cross-img"
+    },
+    {
+      "type": "screenshot",
+      "file": "content-lazy-filtered.png",
+      "selector": "#lazy-img"
+    },
+    {
+      "type": "screenshot",
+      "file": "background-svg-initial.png",
+      "selector": "#bg-svg"
+    },
+    {
+      "type": "screenshot",
+      "file": "background-png-initial.png",
+      "selector": "#bg-png"
+    },
+    {
+      "type": "screenshot",
+      "file": "content-inline-hover-eye.png"
+    },
+    {
+      "type": "screenshot",
+      "file": "content-inline-restored.png",
+      "selector": "#inline-img"
+    },
+    {
+      "type": "screenshot",
+      "file": "content-inline-refiltered.png",
+      "selector": "#inline-img"
+    },
+    {
+      "type": "screenshot",
+      "file": "content-inline-restored.png",
+      "selector": "#inline-img"
+    },
+    {
+      "type": "screenshot",
+      "file": "content-inline-refiltered.png",
+      "selector": "#inline-img"
+    },
+    {
+      "type": "screenshot",
+      "file": "content-alt-p-paused.png",
+      "selector": "#inline-img"
+    },
+    {
+      "type": "screenshot",
+      "file": "content-alt-z-after.png",
+      "selector": "#inline-img"
+    },
+    {
+      "type": "screenshot",
+      "file": "content-alt-a-after.png",
+      "selector": "#bg-svg"
+    },
+    {
+      "type": "screenshot",
+      "file": "options-settings.png"
+    },
+    {
+      "type": "screenshot",
+      "file": "options-exceptions-free-text.png"
+    },
+    {
+      "type": "screenshot",
+      "file": "popup-initial.png"
+    },
+    {
+      "type": "screenshot",
+      "file": "popup-show-images.png",
+      "selector": "#inline-img"
+    },
+    {
+      "type": "screenshot",
+      "file": "popup-grab-url.png"
+    },
+    {
+      "type": "screenshot",
+      "file": "popup-exclusions-on.png"
+    },
+    {
+      "type": "screenshot",
+      "file": "popup-filter-white-ui.png"
+    },
+    {
+      "type": "screenshot",
+      "file": "popup-filter-white-failure.png",
+      "selector": "#inline-img"
+    },
+    {
+      "type": "screenshot",
+      "file": "popup-unpause-failure.png",
+      "selector": "#inline-img"
+    },
+    {
+      "type": "screenshot",
+      "file": "background-svg-failure.png",
+      "selector": "#bg-svg"
+    },
+    {
+      "type": "screenshot",
+      "file": "background-png-failure.png",
+      "selector": "#bg-png"
+    },
+    {
+      "type": "screenshot",
+      "file": "background-svg-control.png",
+      "selector": "#bg-svg",
+      "control": true
+    },
+    {
+      "type": "screenshot",
+      "file": "background-png-control.png",
+      "selector": "#bg-png",
+      "control": true
+    },
+    {
+      "type": "screenshot",
+      "file": "content-inline-control.png",
+      "selector": "#inline-img",
+      "control": true
+    },
+    {
+      "type": "screenshot",
+      "file": "blocklist-vice-redirect.png"
+    },
+    {
+      "type": "screenshot",
+      "file": "blocklist-vice-redirect.png"
+    },
+    {
+      "type": "screenshot",
+      "file": "blocklist-hazard-redirect.png"
+    },
+    {
+      "type": "screenshot",
+      "file": "blocklist-distraction-redirect.png"
+    }
+  ]
+}

@@ -1,0 +1,90 @@
+<!DOCTYPE html>
+<html lang="en">
+    <head>
+        <meta charset="UTF-8">
+        <meta name="viewport" content="width=device-width, initial-scale=1.0">
+        <title>FitnaFilter QA Fixture</title>
+        <style>
+            body {
+                margin: 0;
+                padding: 32px;
+                font-family: Georgia, serif;
+                background:
+                    radial-gradient(circle at top left, rgba(255, 235, 205, 0.5), transparent 36%),
+                    linear-gradient(135deg, #1f1b24 0%, #2e2437 100%);
+                color: #f6f2ff;
+            }
+
+            h1,
+            p {
+                margin-top: 0;
+            }
+
+            .grid {
+                display: grid;
+                gap: 24px;
+                grid-template-columns: repeat(auto-fit, minmax(280px, 1fr));
+                align-items: start;
+            }
+
+            .card {
+                padding: 18px;
+                border-radius: 18px;
+                background: rgba(255, 255, 255, 0.08);
+                box-shadow: 0 14px 40px rgba(0, 0, 0, 0.2);
+                backdrop-filter: blur(6px);
+            }
+
+            img,
+            .bg {
+                width: 240px;
+                height: 240px;
+                border-radius: 18px;
+                border: 2px solid rgba(255, 255, 255, 0.2);
+                display: block;
+            }
+
+            .bg {
+                background-size: cover;
+                background-position: center;
+            }
+        </style>
+        <script>
+            window.addEventListener("load", () => {
+                setTimeout(() => {
+                    const lazy = document.createElement("img");
+                    lazy.id = "lazy-img";
+                    lazy.alt = "lazy skin tone image";
+                    lazy.src = "http://127.0.0.1:8124/skin.svg";
+                    document.getElementById("lazy-slot").appendChild(lazy);
+                }, 1200);
+            });
+        </script>
+    </head>
+    <body>
+        <h1>FitnaFilter Playwright QA Fixture</h1>
+        <p>This page exposes inline, cross-origin, lazy, and CSS background cases for the extension.</p>
+        <div class="grid">
+            <section class="card">
+                <h2>Inline Image</h2>
+                <img id="inline-img" src="/skin.svg" alt="inline skin tone image">
+            </section>
+            <section class="card">
+                <h2>Cross-Origin Image</h2>
+                <img id="cross-img" src="http://127.0.0.1:8124/skin.svg" alt="cross origin skin tone image">
+            </section>
+            <section class="card">
+                <h2>Lazy Image</h2>
+                <div id="lazy-slot" aria-live="polite">waiting for injected image...</div>
+            </section>
+            <section class="card">
+                <h2>SVG Background</h2>
+                <div id="bg-svg" class="bg" style="background-image: url('/skin.svg');"></div>
+            </section>
+            <section class="card">
+                <h2>PNG Background</h2>
+                <div id="bg-png" class="bg" style="background-image: url('/skin.png');"></div>
+            </section>
+        </div>
+    </body>
+</html>

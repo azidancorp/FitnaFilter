@@ -1,0 +1,153 @@
+[
+  {
+    "type": "screenshot",
+    "file": "content-initial.png"
+  },
+  {
+    "type": "screenshot",
+    "file": "content-inline-filtered.png",
+    "selector": "#inline-img"
+  },
+  {
+    "type": "screenshot",
+    "file": "content-cross-filtered.png",
+    "selector": "#cross-img"
+  },
+  {
+    "type": "screenshot",
+    "file": "content-lazy-filtered.png",
+    "selector": "#lazy-img"
+  },
+  {
+    "type": "screenshot",
+    "file": "background-svg-initial.png",
+    "selector": "#bg-svg"
+  },
+  {
+    "type": "screenshot",
+    "file": "background-png-initial.png",
+    "selector": "#bg-png"
+  },
+  {
+    "type": "screenshot",
+    "file": "content-inline-hover-eye.png"
+  },
+  {
+    "type": "screenshot",
+    "file": "content-inline-restored.png",
+    "selector": "#inline-img"
+  },
+  {
+    "type": "screenshot",
+    "file": "content-inline-refiltered.png",
+    "selector": "#inline-img"
+  },
+  {
+    "type": "screenshot",
+    "file": "content-inline-restored.png",
+    "selector": "#inline-img"
+  },
+  {
+    "type": "screenshot",
+    "file": "content-inline-refiltered.png",
+    "selector": "#inline-img"
+  },
+  {
+    "type": "screenshot",
+    "file": "content-alt-p-paused.png",
+    "selector": "#inline-img"
+  },
+  {
+    "type": "screenshot",
+    "file": "content-alt-z-after.png",
+    "selector": "#inline-img"
+  },
+  {
+    "type": "screenshot",
+    "file": "content-alt-a-after.png",
+    "selector": "#bg-svg"
+  },
+  {
+    "type": "screenshot",
+    "file": "options-settings.png"
+  },
+  {
+    "type": "screenshot",
+    "file": "options-exceptions-free-text.png"
+  },
+  {
+    "type": "screenshot",
+    "file": "popup-initial.png"
+  },
+  {
+    "type": "screenshot",
+    "file": "popup-show-images.png",
+    "selector": "#inline-img"
+  },
+  {
+    "type": "screenshot",
+    "file": "popup-grab-url.png"
+  },
+  {
+    "type": "screenshot",
+    "file": "popup-exclusions-on.png"
+  },
+  {
+    "type": "screenshot",
+    "file": "popup-filter-white-ui.png"
+  },
+  {
+    "type": "screenshot",
+    "file": "popup-filter-white-failure.png",
+    "selector": "#inline-img"
+  },
+  {
+    "type": "screenshot",
+    "file": "popup-unpause-failure.png",
+    "selector": "#inline-img"
+  },
+  {
+    "type": "screenshot",
+    "file": "background-svg-failure.png",
+    "selector": "#bg-svg"
+  },
+  {
+    "type": "screenshot",
+    "file": "background-png-failure.png",
+    "selector": "#bg-png"
+  },
+  {
+    "type": "screenshot",
+    "file": "background-svg-control.png",
+    "selector": "#bg-svg",
+    "control": true
+  },
+  {
+    "type": "screenshot",
+    "file": "background-png-control.png",
+    "selector": "#bg-png",
+    "control": true
+  },
+  {
+    "type": "screenshot",
+    "file": "content-inline-control.png",
+    "selector": "#inline-img",
+    "control": true
+  },
+  {
+    "type": "screenshot",
+    "file": "blocklist-vice-redirect.png"
+  },
+  {
+    "type": "screenshot",
+    "file": "blocklist-vice-redirect.png"
+  },
+  {
+    "type": "screenshot",
+    "file": "blocklist-hazard-redirect.png"
+  },
+  {
+    "type": "screenshot",
+    "file": "blocklist-distraction-redirect.png"
+  }
+]

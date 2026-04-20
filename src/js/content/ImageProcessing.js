@@ -5,10 +5,22 @@
 
 'use strict';
 
-const HUE_MIN = 0, HUE_MAX = 32;
+const HUE_MIN = 0, HUE_MAX = 38;
 const SAT_MIN = 15;
 const CB_MIN = 85, CB_MAX = 128;
 const CR_MIN = 142, CR_MAX = 180;
+
+const HIGHLIGHT_HUE_MIN = 18, HIGHLIGHT_HUE_MAX = 42;
+const HIGHLIGHT_SAT_MIN = 8, HIGHLIGHT_SAT_MAX = 30;
+const HIGHLIGHT_Y_MIN = 200;
+const HIGHLIGHT_CB_MIN = 105, HIGHLIGHT_CB_MAX = 125;
+const HIGHLIGHT_CR_MIN = 132, HIGHLIGHT_CR_MAX = 146;
+const HIGHLIGHT_RED_MIN = 221;
+const HIGHLIGHT_GREEN_MIN = 190;
+const HIGHLIGHT_BLUE_MIN = 160;
+const HIGHLIGHT_CHANNEL_TOLERANCE = 4;
+const HIGHLIGHT_RED_BLUE_GAP_MIN = 20;
+const HIGHLIGHT_RED_GREEN_GAP_MAX = 36;
 
 /**
  * Convert RGB to YCbCr color space.
@@ -21,7 +33,7 @@ function rgbToYCbCr(r, g, b) {
     const y = (0.299 * r) + (0.587 * g) + (0.114 * b);
     const cb = 128 + (-0.169 * r) + (-0.331 * g) + (0.5 * b);
     const cr = 128 + (0.5 * r) + (-0.419 * g) + (-0.081 * b);
-    
+
     return { y, cb, cr };
 }
 
@@ -83,16 +95,38 @@ function rgbToHsv(r, g, b) {
  * @param {number} b
  * @param {number} hue
  * @param {number} saturation
+ * @param {number} y
  * @param {number} cb
  * @param {number} cr
  * @returns {boolean}
  */
-function isSkinPixel(r, g, b, hue, saturation, cb, cr, isNoFaceFeatures) {
-    return hue >= HUE_MIN && hue <= HUE_MAX &&
-           saturation >= SAT_MIN &&
-           cb >= CB_MIN && cb <= CB_MAX &&
-           cr >= CR_MIN && cr < CR_MAX &&
-           (isNoFaceFeatures || (r > 95 && g > 40 && b > 20));
+function isSkinPixel(r, g, b, hue, saturation, y, cb, cr, isNoFaceFeatures) {
+    const hasSkinRgbBaseline = isNoFaceFeatures || (r > 95 && g > 40 && b > 20);
+    if (!hasSkinRgbBaseline) {
+        return false;
+    }
+
+    const isStandardSkinTone =
+        hue >= HUE_MIN && hue <= HUE_MAX &&
+        saturation >= SAT_MIN &&
+        cb >= CB_MIN && cb <= CB_MAX &&
+        cr >= CR_MIN && cr < CR_MAX;
+
+    const isBrightWarmHighlight =
+        y >= HIGHLIGHT_Y_MIN &&
+        hue >= HIGHLIGHT_HUE_MIN && hue <= HIGHLIGHT_HUE_MAX &&
+        saturation >= HIGHLIGHT_SAT_MIN && saturation <= HIGHLIGHT_SAT_MAX &&
+        cb >= HIGHLIGHT_CB_MIN && cb <= HIGHLIGHT_CB_MAX &&
+        cr >= HIGHLIGHT_CR_MIN && cr <= HIGHLIGHT_CR_MAX &&
+        r >= HIGHLIGHT_RED_MIN &&
+        g >= HIGHLIGHT_GREEN_MIN &&
+        b >= HIGHLIGHT_BLUE_MIN &&
+        r >= g - HIGHLIGHT_CHANNEL_TOLERANCE &&
+        g >= b &&
+        r - b >= HIGHLIGHT_RED_BLUE_GAP_MIN &&
+        r - g <= HIGHLIGHT_RED_GREEN_GAP_MAX;
+
+    return isStandardSkinTone || isBrightWarmHighlight;
 }
 
 function getReplacementRgb(filterColor) {
@@ -162,10 +196,15 @@ async function filterSkinColor(imgElement, uuid, canvas, filterColor, isNoFaceFe
             const greenValue = pixelData[greenIndex];
             const blueValue = pixelData[blueIndex];
 
-            //Djamila Dahmani, Mehdi Cheref, Slimane Larabi, Zero-sum game theory model for segmenting skin regions
-            //Image and Vision Computing, Volume 99, 2020, 103925,ISSN 0262-8856, https://doi.org/10.1016/j.imavis.2020.103925.
+            // Djamila Dahmani, Mehdi Cheref, Slimane Larabi, Zero-sum game theory model for segmenting
+            // skin regions, Image and Vision Computing, Volume 99, 2020, 103925.
+            // https://doi.org/10.1016/j.imavis.2020.103925.
 
-            const { cb: blueChrominance, cr: redChrominance } = rgbToYCbCr(redValue, greenValue, blueValue);
+            const {
+                y: luminance,
+                cb: blueChrominance,
+                cr: redChrominance
+            } = rgbToYCbCr(redValue, greenValue, blueValue);
             const { h: hue, s: saturation } = rgbToHsv(redValue, greenValue, blueValue);
 
             if (isSkinPixel(
@@ -174,6 +213,7 @@ async function filterSkinColor(imgElement, uuid, canvas, filterColor, isNoFaceFe
                 blueValue,
                 hue,
                 saturation,
+                luminance,
                 blueChrominance,
                 redChrominance,
                 shouldRemoveFaceFeatures

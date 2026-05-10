@@ -354,27 +354,6 @@ files, exact message shapes, exact settings keys) matching the current code styl
 
 ## High-Severity Issues
 
-### 2. Per-Pixel Object Allocation in Hot Loop
-
-- **File**: `src/js/content/ImageProcessing.js:155-180`
-- **Impact**: ~4M short-lived objects created per 1080p image, causing GC pressure and jank
-- **Root Cause**: `rgbToYCbCr()` and `rgbToHsv()` return new objects per pixel
-- **Fix**: Inline the math directly in the loop, computing only needed components:
-
-```js
-for (let i = 0; i < pixelData.length; i += 4) {
-    const r = pixelData[i], g = pixelData[i + 1], b = pixelData[i + 2];
-
-    const cb = 128 + (-0.169 * r) + (-0.331 * g) + (0.5 * b);
-    const cr = 128 + (0.5 * r) + (-0.419 * g) + (-0.081 * b);
-
-    if (cb < CB_MIN || cb > CB_MAX || cr < CR_MIN || cr >= CR_MAX) continue;
-
-    // Only compute HSV if YCbCr passes.
-    // ... inline HSV computation ...
-}
-```
-
 ### 3. Double Blob URL Revocation
 
 - **File**: `src/js/content/domManipulation.js:672-714, 770-785`

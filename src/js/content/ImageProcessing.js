@@ -185,43 +185,102 @@ async function filterSkinColor(imgElement, uuid, canvas, filterColor, isNoFaceFe
 
         const imageData = context.getImageData(0, 0, width, height);
         const pixelData = imageData.data;
+        const replacementRed = replacement.red;
+        const replacementGreen = replacement.green;
+        const replacementBlue = replacement.blue;
 
+        // Skin classification reference: Djamila Dahmani, Mehdi Cheref, Slimane Larabi,
+        // "Zero-sum game theory model for segmenting skin regions," Image and Vision Computing,
+        // Volume 99, 2020, 103925. https://doi.org/10.1016/j.imavis.2020.103925.
+        // Math is inlined and gated by cheap RGB/YCbCr early-exits before HSV to avoid per-pixel
+        // object allocation in this hot loop (~4M pixels for a 1080p image).
         for (let pixelIndex = 0; pixelIndex < pixelData.length; pixelIndex += 4) {
-            const redIndex = pixelIndex;
-            const greenIndex = pixelIndex + 1;
-            const blueIndex = pixelIndex + 2;
-            const alphaIndex = pixelIndex + 3;
+            const r = pixelData[pixelIndex];
+            const g = pixelData[pixelIndex + 1];
+            const b = pixelData[pixelIndex + 2];
 
-            const redValue = pixelData[redIndex];
-            const greenValue = pixelData[greenIndex];
-            const blueValue = pixelData[blueIndex];
+            if (!shouldRemoveFaceFeatures && !(r > 95 && g > 40 && b > 20)) {
+                continue;
+            }
 
-            // Djamila Dahmani, Mehdi Cheref, Slimane Larabi, Zero-sum game theory model for segmenting
-            // skin regions, Image and Vision Computing, Volume 99, 2020, 103925.
-            // https://doi.org/10.1016/j.imavis.2020.103925.
+            const cb = 128 + (-0.169 * r) + (-0.331 * g) + (0.5 * b);
+            const cr = 128 + (0.5 * r) + (-0.419 * g) + (-0.081 * b);
 
-            const {
-                y: luminance,
-                cb: blueChrominance,
-                cr: redChrominance
-            } = rgbToYCbCr(redValue, greenValue, blueValue);
-            const { h: hue, s: saturation } = rgbToHsv(redValue, greenValue, blueValue);
+            const inStandardCbCr =
+                cb >= CB_MIN && cb <= CB_MAX &&
+                cr >= CR_MIN && cr < CR_MAX;
+            const inHighlightCbCr =
+                cb >= HIGHLIGHT_CB_MIN && cb <= HIGHLIGHT_CB_MAX &&
+                cr >= HIGHLIGHT_CR_MIN && cr <= HIGHLIGHT_CR_MAX;
 
-            if (isSkinPixel(
-                redValue,
-                greenValue,
-                blueValue,
-                hue,
-                saturation,
-                luminance,
-                blueChrominance,
-                redChrominance,
-                shouldRemoveFaceFeatures
-            )) {
-                pixelData[redIndex] = replacement.red;
-                pixelData[greenIndex] = replacement.green;
-                pixelData[blueIndex] = replacement.blue;
-                pixelData[alphaIndex] = 255;
+            if (!inStandardCbCr && !inHighlightCbCr) {
+                continue;
+            }
+
+            const luminance = (0.299 * r) + (0.587 * g) + (0.114 * b);
+            const highlightCandidate =
+                inHighlightCbCr &&
+                luminance >= HIGHLIGHT_Y_MIN &&
+                r >= HIGHLIGHT_RED_MIN &&
+                g >= HIGHLIGHT_GREEN_MIN &&
+                b >= HIGHLIGHT_BLUE_MIN &&
+                r >= g - HIGHLIGHT_CHANNEL_TOLERANCE &&
+                g >= b &&
+                r - b >= HIGHLIGHT_RED_BLUE_GAP_MIN &&
+                r - g <= HIGHLIGHT_RED_GREEN_GAP_MAX;
+
+            if (!inStandardCbCr && !highlightCandidate) {
+                continue;
+            }
+
+            const redNormalized = r / 255;
+            const greenNormalized = g / 255;
+            const blueNormalized = b / 255;
+            const maxValue = redNormalized > greenNormalized
+                ? (redNormalized > blueNormalized ? redNormalized : blueNormalized)
+                : (greenNormalized > blueNormalized ? greenNormalized : blueNormalized);
+            const minValue = redNormalized < greenNormalized
+                ? (redNormalized < blueNormalized ? redNormalized : blueNormalized)
+                : (greenNormalized < blueNormalized ? greenNormalized : blueNormalized);
+            const difference = maxValue - minValue;
+
+            let hue;
+            let saturation;
+            if (difference === 0) {
+                hue = 0;
+                saturation = 0;
+            } else {
+                saturation = Math.round((difference / maxValue) * 100 * 100) / 100;
+                let hueFraction;
+                if (redNormalized === maxValue) {
+                    hueFraction = ((maxValue - blueNormalized) - (maxValue - greenNormalized)) / 6 / difference;
+                } else if (greenNormalized === maxValue) {
+                    hueFraction = (1 / 3) + ((maxValue - redNormalized) - (maxValue - blueNormalized)) / 6 / difference;
+                } else {
+                    hueFraction = (2 / 3) + ((maxValue - greenNormalized) - (maxValue - redNormalized)) / 6 / difference;
+                }
+                if (hueFraction < 0) {
+                    hueFraction += 1;
+                } else if (hueFraction > 1) {
+                    hueFraction -= 1;
+                }
+                hue = Math.round(hueFraction * 360);
+            }
+
+            const isStandardSkinTone =
+                inStandardCbCr &&
+                hue >= HUE_MIN && hue <= HUE_MAX &&
+                saturation >= SAT_MIN;
+            const isBrightWarmHighlight =
+                highlightCandidate &&
+                hue >= HIGHLIGHT_HUE_MIN && hue <= HIGHLIGHT_HUE_MAX &&
+                saturation >= HIGHLIGHT_SAT_MIN && saturation <= HIGHLIGHT_SAT_MAX;
+
+            if (isStandardSkinTone || isBrightWarmHighlight) {
+                pixelData[pixelIndex] = replacementRed;
+                pixelData[pixelIndex + 1] = replacementGreen;
+                pixelData[pixelIndex + 2] = replacementBlue;
+                pixelData[pixelIndex + 3] = 255;
             }
         }
 

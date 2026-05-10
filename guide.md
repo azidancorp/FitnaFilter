@@ -1,6 +1,6 @@
 # FitnaFilter: Complete Technical Guide
 
-> **Version**: 1.2.1 | **Platform**: Chrome Extension (Manifest V3)
+> **Version**: 1.3.0 | **Platform**: Chrome Extension (Manifest V3)
 > **Purpose**: A content-filtering browser extension that detects and masks skin-toned pixels in images, and blocks harmful/distracting websites by redirecting to Quran verses.
 
 ---

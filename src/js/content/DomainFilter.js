@@ -231,14 +231,13 @@ const BLOCKLISTS = {
 };
 
 /**
- * Process a single blocklist file and add domains to the blockedDomains set
+ * Process a single blocklist file and add domains to the domainToBlocklistMap
  * @param {string} url - URL of the blocklist (local file URL or remote URL)
  * @param {string} blocklistName - Name of the blocklist for contextual mapping
- * @param {Set} blockedDomains - Set to add domains to
  * @param {Map} domainToBlocklistMap - Map to track domain to blocklist mapping
  * @returns {Promise<number>} - Number of domains added
  */
-async function processBlocklist(url, blocklistName, blockedDomains, domainToBlocklistMap) {
+async function processBlocklist(url, blocklistName, domainToBlocklistMap) {
     try {
         console.log("Loading blocklist from: " + url);
         const response = await fetch(url);
@@ -270,11 +269,10 @@ async function processBlocklist(url, blocklistName, blockedDomains, domainToBloc
                 domain = trimmedLine;
             }
             
-            // Add to our Set if it's a valid domain
+            // Add to our Map if it's a valid domain
             if (domain && domain.includes('.')) {
                 const normalizedDomain = domain.toLowerCase();
-                blockedDomains.add(normalizedDomain);
-                domainToBlocklistMap.set(normalizedDomain, blocklistName); // Track which blocklist this domain belongs to
+                domainToBlocklistMap.set(normalizedDomain, blocklistName);
                 addedCount++;
             }
 
@@ -293,12 +291,9 @@ async function processBlocklist(url, blocklistName, blockedDomains, domainToBloc
 }
 
 /**
- * Fetches all enabled blocklists and processes them
- * @param {Set} blockedDomains - Set to store blocked domains
- * @param {Map} domainToBlocklistMap - Map to track domain to blocklist mapping
+ * Fetches all enabled blocklists and processes them.
  */
 async function fetchAndProcessBlocklist() {
-    const nextBlockedDomains = new Set();
     const nextDomainToBlocklistMap = new Map();
 
     try {
@@ -311,7 +306,6 @@ async function fetchAndProcessBlocklist() {
                 const addedCount = await processBlocklist(
                     blocklist.url,
                     key,
-                    nextBlockedDomains,
                     nextDomainToBlocklistMap
                 );
                 totalDomains += addedCount;
@@ -321,7 +315,6 @@ async function fetchAndProcessBlocklist() {
         console.log(`Loaded ${totalDomains} domains from blocklists: ${enabledLists.join(', ') || 'none'}`);
 
         return {
-            blockedDomains: nextBlockedDomains,
             domainToBlocklistMap: nextDomainToBlocklistMap,
             totalDomains,
             enabledLists

@@ -554,7 +554,7 @@ async function processDomImage(domElement, canvas) {
  *
  * processBackgroundImage(element, url, canvas);
  */
-function processBackgroundImage(domElement, url, suffix, canvas) {
+async function processBackgroundImage(domElement, url, suffix, canvas) {
     const uuid = domElement.getAttribute(ATTR_UUID);
 
     if (!url) {
@@ -564,14 +564,15 @@ function processBackgroundImage(domElement, url, suffix, canvas) {
         return;
     }
 
-    fetchAndReadImage(url).then(image => {
-        return filterImageElementAsBackground(image, uuid, canvas, suffix);
-    }).catch(error => {
+    try {
+        const image = await fetchAndReadImage(url);
+        await filterImageElementAsBackground(image, uuid, canvas, suffix);
+    } catch (error) {
         console.error('FitnaFilter: failed to process background image', error);
         restoreOriginalBackgroundImage(domElement);
         handleBackgroundForElement(domElement, false);
         hideElement(domElement, false);
-    });
+    }
 }
 /**
  * Fetch and read an image from an url.

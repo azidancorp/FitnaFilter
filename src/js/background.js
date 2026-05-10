@@ -20,8 +20,7 @@ const DEFAULT_SETTINGS = {
 importScripts('content/DomainFilter.js');
 
 // Blocklist feature variables
-let blockedDomains = new Set();
-let domainToBlocklistMap = new Map(); // Maps domain to blocklist name for contextual redirects
+let domainToBlocklistMap = new Map(); // Maps domain to blocklist name; lookup via .has()
 let blocklistLoadPromise = null;
 let hasLoadedBlocklists = false;
 let blocklistRetryTimerId = null;
@@ -197,7 +196,6 @@ async function refreshBlocklists() {
             return false;
         }
 
-        blockedDomains = nextBlocklists.blockedDomains;
         domainToBlocklistMap = nextBlocklists.domainToBlocklistMap;
         hasLoadedBlocklists = true;
         blocklistLoadPromise = null;
@@ -796,7 +794,7 @@ function findMatchingBlockedDomain(hostname) {
 
     let candidate = hostname.toLowerCase();
     while (candidate) {
-        if (blockedDomains.has(candidate)) {
+        if (domainToBlocklistMap.has(candidate)) {
             return candidate;
         }
 

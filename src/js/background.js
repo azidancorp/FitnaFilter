@@ -25,6 +25,17 @@ let blocklistLoadPromise = null;
 let hasLoadedBlocklists = false;
 let blocklistRetryTimerId = null;
 const BLOCKLIST_RETRY_DELAY_MS = 30000;
+const MAX_FETCHED_IMAGE_BYTES = 10 * 1024 * 1024;
+const FETCH_AND_READ_IMAGE_TIMEOUT_MS = 15000;
+const LOCAL_NETWORK_DNS_SUFFIXES = [
+    '.localhost',
+    '.local',
+    '.lan',
+    '.home',
+    '.internal',
+    '.localdomain',
+    '.home.arpa'
+];
 
 function safeParseJson(value, fallbackValue) {
     if (typeof value !== 'string' || !value) {
@@ -218,36 +229,85 @@ async function refreshBlocklists() {
     }
 }
 
+function normalizeHostname(hostname) {
+    if (typeof hostname !== 'string' || !hostname) {
+        return '';
+    }
+
+    let normalizedHostname = hostname.toLowerCase().replace(/\.+$/, '');
+    if (normalizedHostname.startsWith('[') && normalizedHostname.endsWith(']')) {
+        normalizedHostname = normalizedHostname.slice(1, -1);
+    }
+
+    return normalizedHostname;
+}
+
+function isPrivateIpv4Hostname(hostname) {
+    const ipv4Match = /^(\d{1,3})\.(\d{1,3})\.(\d{1,3})\.(\d{1,3})$/.exec(hostname);
+    if (!ipv4Match) {
+        return false;
+    }
+
+    const octets = ipv4Match.slice(1).map(Number);
+    if (octets.some(octet => octet < 0 || octet > 255)) {
+        return false;
+    }
+
+    const [first, second] = octets;
+    return first === 0 ||
+        first === 10 ||
+        first === 127 ||
+        (first === 100 && second >= 64 && second <= 127) ||
+        (first === 169 && second === 254) ||
+        (first === 172 && second >= 16 && second <= 31) ||
+        (first === 192 && second === 168);
+}
+
+function isPrivateIpv6Address(hostname) {
+    if (hostname.indexOf(':') === -1) {
+        return false;
+    }
+
+    if (hostname === '::' || hostname === '::1') {
+        return true;
+    }
+
+    if (hostname.startsWith('::ffff:')) {
+        return true;
+    }
+
+    const firstHextet = parseInt(hostname.split(':')[0], 16);
+    if (!Number.isFinite(firstHextet)) {
+        return false;
+    }
+
+    return (firstHextet & 0xfe00) === 0xfc00 ||
+        (firstHextet & 0xffc0) === 0xfe80;
+}
+
+function isLocalNetworkDnsName(hostname) {
+    return hostname === 'localhost' ||
+        (hostname.indexOf('.') === -1 && hostname.indexOf(':') === -1) ||
+        hostname === 'localdomain' ||
+        hostname === 'home.arpa' ||
+        LOCAL_NETWORK_DNS_SUFFIXES.some(suffix => hostname.endsWith(suffix));
+}
+
 function isPrivateNetworkHostname(hostname) {
     if (!hostname) {
         return false;
     }
 
-    if (isLocalhostHostname(hostname)) {
+    const normalizedHostname = normalizeHostname(hostname);
+    if (isLocalNetworkDnsName(normalizedHostname)) {
         return true;
     }
 
-    if (/^\d{1,3}(?:\.\d{1,3}){3}$/.test(hostname)) {
-        const octets = hostname.split('.').map(Number);
-        if (octets.some(octet => Number.isNaN(octet) || octet < 0 || octet > 255)) {
-            return false;
-        }
-
-        return octets[0] === 10 ||
-            octets[0] === 127 ||
-            (octets[0] === 169 && octets[1] === 254) ||
-            (octets[0] === 172 && octets[1] >= 16 && octets[1] <= 31) ||
-            (octets[0] === 192 && octets[1] === 168);
-    }
-
-    const normalizedHostname = hostname.toLowerCase();
-    return normalizedHostname === '::1' ||
-        normalizedHostname.startsWith('fc') ||
-        normalizedHostname.startsWith('fd') ||
-        normalizedHostname.startsWith('fe80:');
+    return isPrivateIpv4Hostname(normalizedHostname) ||
+        isPrivateIpv6Address(normalizedHostname);
 }
 
-function canRequesterAccessPrivateImage(requestUrl, senderTabUrl) {
+function canRequesterAccessPrivateImage(requestUrl, senderFrameUrl) {
     if (typeof requestUrl !== 'string' || !requestUrl) {
         return false;
     }
@@ -258,24 +318,81 @@ function canRequesterAccessPrivateImage(requestUrl, senderTabUrl) {
             return false;
         }
 
+        if (parsedRequestUrl.username || parsedRequestUrl.password) {
+            return false;
+        }
+
         if (!isPrivateNetworkHostname(parsedRequestUrl.hostname)) {
             return true;
         }
 
-        if (typeof senderTabUrl !== 'string' || !senderTabUrl) {
+        if (typeof senderFrameUrl !== 'string' || !senderFrameUrl) {
             return false;
         }
 
-        const senderProtocol = getUrlProtocol(senderTabUrl);
-        if (senderProtocol === 'file:' || senderProtocol === 'filesystem:') {
-            return true;
+        const parsedSenderUrl = new URL(senderFrameUrl);
+        if (parsedSenderUrl.protocol !== 'http:' && parsedSenderUrl.protocol !== 'https:') {
+            return false;
         }
 
-        const senderHostname = getHostname(senderTabUrl);
-        return isPrivateNetworkHostname(senderHostname);
+        return isPrivateNetworkHostname(parsedSenderUrl.hostname) &&
+            parsedSenderUrl.origin === parsedRequestUrl.origin;
     } catch (error) {
         return false;
     }
+}
+
+async function responseToLimitedBlob(response) {
+    const contentType = response.headers.get('content-type') || '';
+    if (!contentType.toLowerCase().startsWith('image/')) {
+        throw new Error('Unexpected content type');
+    }
+
+    const contentLengthHeader = response.headers.get('content-length');
+    if (contentLengthHeader) {
+        const contentLength = Number(contentLengthHeader);
+        if (!Number.isFinite(contentLength) || contentLength > MAX_FETCHED_IMAGE_BYTES) {
+            throw new Error('Image response too large');
+        }
+    }
+
+    if (!response.body || typeof response.body.getReader !== 'function') {
+        const blob = await response.blob();
+        if (blob.size > MAX_FETCHED_IMAGE_BYTES) {
+            throw new Error('Image response too large');
+        }
+        return blob;
+    }
+
+    const reader = response.body.getReader();
+    const chunks = [];
+    let receivedBytes = 0;
+
+    while (true) {
+        const { done, value } = await reader.read();
+        if (done) {
+            break;
+        }
+
+        receivedBytes += value.byteLength;
+        if (receivedBytes > MAX_FETCHED_IMAGE_BYTES) {
+            await reader.cancel();
+            throw new Error('Image response too large');
+        }
+
+        chunks.push(value);
+    }
+
+    return new Blob(chunks, { type: contentType });
+}
+
+function blobToDataUrl(blob) {
+    return new Promise((resolve, reject) => {
+        const reader = new FileReader();
+        reader.onloadend = () => resolve(reader.result);
+        reader.onerror = () => reject(new Error('Could not read fetched blob'));
+        reader.readAsDataURL(blob);
+    });
 }
 
 
@@ -691,29 +808,43 @@ chrome.runtime.onMessage.addListener(
                     break;
                 }
 
-                if (!canRequesterAccessPrivateImage(request.url, sender.tab && sender.tab.url)) {
+                const senderFrameUrl = sender.url;
+                if (typeof senderFrameUrl !== 'string' || !senderFrameUrl ||
+                    !canRequesterAccessPrivateImage(request.url, senderFrameUrl)) {
                     respondWithError('URL not allowed');
                     break;
                 }
 
-                fetch(request.url)
+                const controller = new AbortController();
+                const timeoutId = setTimeout(() => {
+                    controller.abort();
+                }, FETCH_AND_READ_IMAGE_TIMEOUT_MS);
+
+                fetch(request.url, {
+                    credentials: 'omit',
+                    cache: 'no-store',
+                    referrerPolicy: 'no-referrer',
+                    redirect: 'error',
+                    signal: controller.signal
+                })
                     .then((response) => {
                         if (!response.ok) {
                             throw new Error('Unexpected status ' + response.status);
                         }
-                        return response.blob();
+                        return responseToLimitedBlob(response);
                     })
-                    .then(rblob => new Promise((resolve, reject) => {
-                        const reader = new FileReader();
-                        reader.onloadend = () => resolve(reader.result);
-                        reader.onerror = () => reject(new Error('Could not read fetched blob'));
-                        reader.readAsDataURL(rblob);
-                    }))
+                    .then(blobToDataUrl)
                     .then(dataUrl => {
                         sendResponse({ success: true, dataUrl });
                     })
                     .catch(error => {
-                        respondWithError(error.message || 'Unknown fetch failure');
+                        const errorMessage = error && error.name === 'AbortError' ?
+                            'Image fetch timed out' :
+                            (error.message || 'Unknown fetch failure');
+                        respondWithError(errorMessage);
+                    })
+                    .finally(() => {
+                        clearTimeout(timeoutId);
                     });
                 break;
             }

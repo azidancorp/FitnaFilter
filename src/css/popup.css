@@ -455,6 +455,37 @@ body {
     color: var(--purple-lighter);
 }
 
+.mode-row {
+    display: flex;
+    flex-direction: column;
+    gap: 8px;
+}
+
+.mode-row label {
+    color: var(--text-secondary);
+    font-size: 12px;
+    font-weight: 600;
+}
+
+.mode-select {
+    width: 100%;
+    background: var(--bg-input);
+    border: 1px solid var(--border-subtle);
+    border-radius: var(--radius-sm);
+    color: var(--text-primary);
+    font-size: 12px;
+    padding: 10px 12px;
+    outline: none;
+    transition: all var(--transition-normal);
+}
+
+.mode-select:hover,
+.mode-select:focus {
+    border-color: var(--purple-primary);
+    box-shadow: 0 0 0 3px var(--purple-glow-soft), var(--shadow-sm);
+    background: var(--bg-hover);
+}
+
 /* Custom Toggle Switch - Animated */
 .toggle-switch {
     position: relative;

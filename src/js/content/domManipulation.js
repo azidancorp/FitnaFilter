@@ -254,7 +254,107 @@ function createCanvas(id) {
  * hideElement(element, false); // show
  */
 function hideElement(domElement, toggle) {
+    if (!toggle) {
+        removeProcessingPlaceholder(domElement);
+    }
     handleStyleClasses(domElement, [CSS_CLASS_HIDE], toggle, IS_HIDDEN);
+}
+
+function getPlaceholderContainer(domElement) {
+    if (!domElement || !domElement.parentElement) {
+        return null;
+    }
+
+    if (domElement.parentElement.tagName === 'PICTURE' && domElement.parentElement.parentElement) {
+        return domElement.parentElement.parentElement;
+    }
+
+    return domElement.parentElement;
+}
+
+function ensurePositionedPlaceholderContainer(container) {
+    if (!container) {
+        return;
+    }
+
+    const currentPosition = getComputedStyle(container).position;
+    if (currentPosition === 'static') {
+        if (container[ATTR_PLACEHOLDER_CONTAINER_POSITION] === undefined) {
+            container[ATTR_PLACEHOLDER_CONTAINER_POSITION] = container.style.position || '';
+        }
+        container.style.position = 'relative';
+    }
+}
+
+function updateProcessingPlaceholderPosition(domElement) {
+    const placeholder = domElement && domElement[ATTR_PLACEHOLDER_ELEMENT];
+    const container = domElement && domElement[ATTR_PLACEHOLDER_CONTAINER];
+    if (!placeholder || !container || !placeholder.isConnected || !domElement.isConnected) {
+        return;
+    }
+
+    const elementRect = domElement.getBoundingClientRect();
+    const containerRect = container.getBoundingClientRect();
+    const left = elementRect.left - containerRect.left + container.scrollLeft;
+    const top = elementRect.top - containerRect.top + container.scrollTop;
+
+    placeholder.style.left = Math.max(0, left) + 'px';
+    placeholder.style.top = Math.max(0, top) + 'px';
+    placeholder.style.width = Math.max(1, elementRect.width) + 'px';
+    placeholder.style.height = Math.max(1, elementRect.height) + 'px';
+    placeholder.style.borderRadius = getComputedStyle(domElement).borderRadius;
+}
+
+function showProcessingPlaceholder(domElement) {
+    if (!domElement || !domElement.ownerDocument || !domElement.isConnected) {
+        hideElement(domElement, true);
+        return;
+    }
+
+    const container = getPlaceholderContainer(domElement);
+    if (!container) {
+        hideElement(domElement, true);
+        return;
+    }
+
+    let placeholder = domElement[ATTR_PLACEHOLDER_ELEMENT];
+    if (!placeholder || placeholder.ownerDocument !== domElement.ownerDocument) {
+        placeholder = domElement.ownerDocument.createElement('div');
+        placeholder.className = CSS_CLASS_PLACEHOLDER;
+        placeholder.setAttribute('aria-hidden', 'true');
+        domElement[ATTR_PLACEHOLDER_ELEMENT] = placeholder;
+    }
+
+    ensurePositionedPlaceholderContainer(container);
+    if (placeholder.parentElement !== container) {
+        container.appendChild(placeholder);
+    }
+    domElement[ATTR_PLACEHOLDER_CONTAINER] = container;
+    updateProcessingPlaceholderPosition(domElement);
+    hideElement(domElement, true);
+}
+
+function removeProcessingPlaceholder(domElement) {
+    const placeholder = domElement && domElement[ATTR_PLACEHOLDER_ELEMENT];
+    const container = domElement && domElement[ATTR_PLACEHOLDER_CONTAINER];
+    if (placeholder && placeholder.parentNode) {
+        placeholder.parentNode.removeChild(placeholder);
+    }
+
+    if (container && container[ATTR_PLACEHOLDER_CONTAINER_POSITION] !== undefined &&
+        !container.querySelector('.' + CSS_CLASS_PLACEHOLDER)) {
+        if (container[ATTR_PLACEHOLDER_CONTAINER_POSITION]) {
+            container.style.position = container[ATTR_PLACEHOLDER_CONTAINER_POSITION];
+        } else {
+            container.style.removeProperty('position');
+        }
+        container[ATTR_PLACEHOLDER_CONTAINER_POSITION] = undefined;
+    }
+
+    if (domElement) {
+        domElement[ATTR_PLACEHOLDER_ELEMENT] = null;
+        domElement[ATTR_PLACEHOLDER_CONTAINER] = null;
+    }
 }
 
 /**

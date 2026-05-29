@@ -7,6 +7,12 @@ document.addEventListener("DOMContentLoaded", function () {
     const form = document.querySelector("form");
     const freeTextCheckbox = document.getElementById("free-text");
     const maxSafeInput = document.getElementById("max-safe");
+    const imageDisplayModeSelect = document.getElementById("imageDisplayMode");
+    const siteDisplayHostInput = document.getElementById("siteDisplayHost");
+    const siteDisplayModeSelect = document.getElementById("siteDisplayMode");
+    const addSiteDisplayModeButton = document.getElementById("addSiteDisplayMode");
+    const siteDisplayModeList = document.getElementById("siteDisplayModeList");
+    const builtInDisplayModeList = document.getElementById("builtInDisplayModeList");
     const autoUnpauseCheckbox = document.getElementById("autoUnpause");
     const autoUnpauseTimeoutInput =
         document.getElementById("autoUnpauseTimeout");
@@ -23,6 +29,11 @@ document.addEventListener("DOMContentLoaded", function () {
     const extensionVersionElement = document.getElementById("extensionVersion");
 
     let isFreeText = false;
+    const displayModeLabels = {
+        strict: "Strict",
+        placeholder: "Placeholder",
+        progressive: "Show while filtering"
+    };
 
     // --- Initial Setup ---
 
@@ -53,6 +64,9 @@ document.addEventListener("DOMContentLoaded", function () {
             autoUnpauseTimeoutInput.value = settings.autoUnpauseTimeout;
             maxSafeInput.value = settings.maxSafe;
             excludeLocalhostCheckbox.checked = settings.excludeLocalhost !== false;
+            if (imageDisplayModeSelect) {
+                imageDisplayModeSelect.value = settings.globalImageDisplayMode || "placeholder";
+            }
         } else {
             console.warn("Received null settings object.");
         }
@@ -66,6 +80,8 @@ document.addEventListener("DOMContentLoaded", function () {
     ) {
         if (request.r === "urlListModified") {
             createList();
+        } else if (request.r === "imageDisplayModesModified") {
+            loadImageDisplayModes();
         }
         // Keep the message channel open for asynchronous response if needed
         // return true;
@@ -108,6 +124,37 @@ document.addEventListener("DOMContentLoaded", function () {
     maxSafeInput.addEventListener("change", function () {
         chrome.runtime.sendMessage({ r: "setMaxSafe", maxSafe: this.value });
     });
+
+    if (imageDisplayModeSelect) {
+        imageDisplayModeSelect.addEventListener("change", function () {
+            chrome.runtime.sendMessage({
+                r: "setImageDisplayMode",
+                mode: this.value,
+            });
+        });
+    }
+
+    if (addSiteDisplayModeButton) {
+        addSiteDisplayModeButton.addEventListener("click", function () {
+            const host = siteDisplayHostInput.value.trim().toLowerCase();
+            if (!host) {
+                return;
+            }
+
+            chrome.runtime.sendMessage({
+                r: "setSiteImageDisplayMode",
+                host: host,
+                mode: siteDisplayModeSelect.value,
+            }, function (success) {
+                if (chrome.runtime.lastError || !success) {
+                    console.error("Error setting site image display mode:", chrome.runtime.lastError);
+                    return;
+                }
+                siteDisplayHostInput.value = "";
+                loadImageDisplayModes();
+            });
+        });
+    }
 
     // Ensure maxSafe value is potentially saved if changed just before leaving
     window.addEventListener("unload", function () {
@@ -202,6 +249,74 @@ document.addEventListener("DOMContentLoaded", function () {
                     listElement.appendChild(div);
                 });
             }
+        });
+    }
+
+    function createSiteModeEntry(host, mode, canRemove) {
+        const div = document.createElement("div");
+        div.className = "site-mode-entry";
+
+        const hostSpan = document.createElement("span");
+        hostSpan.className = "site-mode-host";
+        hostSpan.textContent = host;
+
+        const modeSpan = document.createElement("span");
+        modeSpan.className = "site-mode-value";
+        modeSpan.textContent = displayModeLabels[mode] || mode;
+
+        div.appendChild(hostSpan);
+        div.appendChild(modeSpan);
+
+        if (canRemove) {
+            const removeButton = document.createElement("button");
+            removeButton.type = "button";
+            removeButton.className = "site-mode-remove";
+            removeButton.textContent = "Remove";
+            removeButton.addEventListener("click", function () {
+                chrome.runtime.sendMessage({
+                    r: "setSiteImageDisplayMode",
+                    host: host,
+                    mode: null,
+                }, loadImageDisplayModes);
+            });
+            div.appendChild(removeButton);
+        }
+
+        return div;
+    }
+
+    function loadImageDisplayModes() {
+        if (!siteDisplayModeList || !builtInDisplayModeList) {
+            return;
+        }
+
+        chrome.runtime.sendMessage({ r: "getImageDisplayModes" }, function (config) {
+            if (chrome.runtime.lastError) {
+                console.error("Error getting image display modes:", chrome.runtime.lastError);
+                return;
+            }
+
+            const globalMode = config && config.globalImageDisplayMode ?
+                config.globalImageDisplayMode :
+                "placeholder";
+            if (imageDisplayModeSelect) {
+                imageDisplayModeSelect.value = globalMode;
+            }
+
+            siteDisplayModeList.innerHTML = "";
+            const userModes = config && config.imageDisplayModeByHost ? config.imageDisplayModeByHost : {};
+            Object.entries(userModes).sort(([a], [b]) => a.localeCompare(b)).forEach(([host, mode]) => {
+                siteDisplayModeList.appendChild(createSiteModeEntry(host, mode, true));
+            });
+
+            builtInDisplayModeList.innerHTML = "";
+            builtInDisplayModeList.className = "built-in-site-modes";
+            const builtInModes = config && config.defaultImageDisplayModeByHost ?
+                config.defaultImageDisplayModeByHost :
+                {};
+            Object.entries(builtInModes).sort(([a], [b]) => a.localeCompare(b)).forEach(([host, mode]) => {
+                builtInDisplayModeList.appendChild(createSiteModeEntry(host, mode, false));
+            });
         });
     }
 
@@ -389,5 +504,6 @@ document.addEventListener("DOMContentLoaded", function () {
 
     // --- Initial Calls ---
     createList(); // Initial population of the exception list
+    loadImageDisplayModes();
     loadBlocklists(); // Initial population of the blocklists
 });

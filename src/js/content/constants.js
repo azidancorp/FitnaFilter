@@ -41,6 +41,21 @@ const ATTR_ORIGINAL_SRC = 'skf-original-src';
 const ATTR_ORIGINAL_SRCSET = 'skf-original-srcset';
 
 /**
+ * Property that stores the active placeholder overlay for an image.
+ */
+const ATTR_PLACEHOLDER_ELEMENT = 'skf-placeholder-element';
+
+/**
+ * Property that stores the placeholder overlay container for an image.
+ */
+const ATTR_PLACEHOLDER_CONTAINER = 'skf-placeholder-container';
+
+/**
+ * Property that stores the placeholder container's original inline position.
+ */
+const ATTR_PLACEHOLDER_CONTAINER_POSITION = 'skf-placeholder-container-position';
+
+/**
  * Attribute to set the background-image value of an Element's CSS style. This attribute is set in the html tag.
  */
 const ATTR_LAST_CHECKED_SRC = 'skf-last-checked-src';
@@ -124,3 +139,12 @@ const ATTR_CLEAR_HOVER_VISUAL_TIMER = 'skf-clear-hover-visual-timer';
  * CSS class name to hide an Element.
  */
 const CSS_CLASS_HIDE = 'skf-hide';
+
+/**
+ * CSS class name for the neutral loading placeholder overlay.
+ */
+const CSS_CLASS_PLACEHOLDER = 'skf-placeholder';
+
+const IMAGE_DISPLAY_MODE_STRICT = 'strict';
+const IMAGE_DISPLAY_MODE_PLACEHOLDER = 'placeholder';
+const IMAGE_DISPLAY_MODE_PROGRESSIVE = 'progressive';

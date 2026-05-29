@@ -85,6 +85,36 @@
                                 >?</span
                             >
                         </div>
+                        <div class="input-group">
+                            <label for="imageDisplayMode">Default image loading</label>
+                            <select id="imageDisplayMode">
+                                <option value="strict">Strict</option>
+                                <option value="placeholder">Placeholder</option>
+                                <option value="progressive">Show while filtering</option>
+                            </select>
+                            <span
+                                class="info-icon"
+                                title="Strict hides originals until filtering finishes. Placeholder hides originals behind a neutral placeholder. Show while filtering keeps originals visible until the filtered image is ready."
+                                >?</span
+                            >
+                        </div>
+                        <div class="site-mode-panel">
+                            <div class="site-mode-controls">
+                                <input
+                                    type="text"
+                                    id="siteDisplayHost"
+                                    placeholder="example.com"
+                                />
+                                <select id="siteDisplayMode">
+                                    <option value="strict">Strict</option>
+                                    <option value="placeholder">Placeholder</option>
+                                    <option value="progressive">Show while filtering</option>
+                                </select>
+                                <button type="button" id="addSiteDisplayMode">Set Site</button>
+                            </div>
+                            <div id="siteDisplayModeList"></div>
+                            <div id="builtInDisplayModeList"></div>
+                        </div>
                         <div class="checkbox-group">
                             <input type="checkbox" id="autoUnpause" checked />
                             <label for="autoUnpause"

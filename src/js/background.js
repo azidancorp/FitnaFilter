@@ -13,8 +13,18 @@ const DEFAULT_SETTINGS = {
     isPaused: false,
     pausedTime: null,
     isBlackList: false,
-    excludeLocalhost: true
+    excludeLocalhost: true,
+    imageDisplayMode: 'placeholder',
+    imageDisplayModeByHost: {}
 };
+
+const IMAGE_DISPLAY_MODES = ['strict', 'placeholder', 'progressive'];
+const DEFAULT_IMAGE_DISPLAY_MODE_BY_HOST = Object.freeze({
+    'old.reddit.com': 'strict',
+    'www.reddit.com': 'progressive',
+    'new.reddit.com': 'progressive',
+    'reddit.com': 'progressive'
+});
 
 // Import domain filtering functionality
 importScripts('content/DomainFilter.js');
@@ -83,6 +93,87 @@ function dedupeStringList(list) {
     });
 
     return deduped;
+}
+
+function normalizeImageDisplayMode(value, fallbackValue) {
+    return IMAGE_DISPLAY_MODES.includes(value) ? value : fallbackValue;
+}
+
+function normalizeHostInput(value) {
+    if (typeof value !== 'string') {
+        return null;
+    }
+
+    const trimmedValue = value.trim().toLowerCase();
+    if (!trimmedValue) {
+        return null;
+    }
+
+    const withoutWildcard = trimmedValue.replace(/^\*\./, '');
+    const parsedHostname = getHostname(withoutWildcard) || getHostname('https://' + withoutWildcard);
+    if (!parsedHostname || parsedHostname.indexOf(' ') !== -1) {
+        return null;
+    }
+
+    return parsedHostname;
+}
+
+function normalizeImageDisplayModeByHost(value) {
+    const normalizedMap = {};
+    if (!value || typeof value !== 'object' || Array.isArray(value)) {
+        return normalizedMap;
+    }
+
+    for (const [host, mode] of Object.entries(value)) {
+        const normalizedHost = normalizeHostInput(host);
+        const normalizedMode = normalizeImageDisplayMode(mode, null);
+        if (normalizedHost && normalizedMode) {
+            normalizedMap[normalizedHost] = normalizedMode;
+        }
+    }
+
+    return normalizedMap;
+}
+
+function findImageDisplayModeForHost(hostname, settings) {
+    if (!hostname) {
+        return {
+            mode: settings.imageDisplayMode,
+            source: 'global',
+            matchedHost: null
+        };
+    }
+
+    const userModes = settings.imageDisplayModeByHost || {};
+    let currentHost = hostname;
+    while (currentHost) {
+        if (userModes[currentHost]) {
+            return {
+                mode: userModes[currentHost],
+                source: 'site',
+                matchedHost: currentHost
+            };
+        }
+        if (DEFAULT_IMAGE_DISPLAY_MODE_BY_HOST[currentHost]) {
+            return {
+                mode: DEFAULT_IMAGE_DISPLAY_MODE_BY_HOST[currentHost],
+                source: 'default-site',
+                matchedHost: currentHost
+            };
+        }
+
+        const nextDotIndex = currentHost.indexOf('.');
+        if (nextDotIndex === -1) {
+            break;
+        }
+        currentHost = currentHost.slice(nextDotIndex + 1);
+    }
+
+    return {
+        mode: settings.imageDisplayMode,
+        source: 'global',
+        matchedHost: null
+    };
 }
 
 function isUrlInUserList(url, urlList) {
@@ -161,6 +252,8 @@ function getExclusionState(url, settings) {
 }
 
 function getComputedTabState(tab, settings) {
+    const hostname = tab && tab.url ? getHostname(tab.url) : null;
+    const displayModeState = findImageDisplayModeForHost(hostname, settings);
     const computedState = {
         isPaused: !!settings.isPaused,
         pausedTime: settings.pausedTime,
@@ -172,6 +265,13 @@ function getComputedTabState(tab, settings) {
         filterColor: settings.filterColor,
         isBlackList: !!settings.isBlackList,
         excludeLocalhost: settings.excludeLocalhost,
+        imageDisplayMode: displayModeState.mode,
+        imageDisplayModeSource: displayModeState.source,
+        imageDisplayModeHost: displayModeState.matchedHost,
+        globalImageDisplayMode: settings.imageDisplayMode,
+        imageDisplayModeByHost: settings.imageDisplayModeByHost || {},
+        defaultImageDisplayModeByHost: DEFAULT_IMAGE_DISPLAY_MODE_BY_HOST,
+        currentHostname: hostname,
         isPausedForTab: false,
         isExcludedForTab: false,
         isExcluded: false
@@ -406,7 +506,9 @@ async function getSettings() {
         'autoUnpauseTimeout': null,
         'blocklistSettings': null,
         'filterColor': null,
-        'excludeLocalhost': null
+        'excludeLocalhost': null,
+        'imageDisplayMode': null,
+        'imageDisplayModeByHost': null
     });
 
     const nextSettings = { ...DEFAULT_SETTINGS };
@@ -414,14 +516,28 @@ async function getSettings() {
     nextSettings.isNoEye = syncResult.isNoEye == 1;
     nextSettings.isNoFaceFeatures = syncResult.isNoFaceFeatures == 1;
     nextSettings.maxSafe = +syncResult.maxSafe || DEFAULT_SETTINGS.maxSafe;
-    nextSettings.autoUnpause = syncResult.autoUnpause !== null ? syncResult.autoUnpause == 1 : DEFAULT_SETTINGS.autoUnpause;
+    nextSettings.autoUnpause = syncResult.autoUnpause !== null ?
+        syncResult.autoUnpause == 1 :
+        DEFAULT_SETTINGS.autoUnpause;
     nextSettings.autoUnpauseTimeout = syncResult.autoUnpauseTimeout !== null &&
-        syncResult.autoUnpauseTimeout !== undefined ? (+syncResult.autoUnpauseTimeout || 0) : DEFAULT_SETTINGS.autoUnpauseTimeout;
+        syncResult.autoUnpauseTimeout !== undefined ?
+            (+syncResult.autoUnpauseTimeout || 0) :
+            DEFAULT_SETTINGS.autoUnpauseTimeout;
     if (nextSettings.autoUnpauseTimeout < 1 || nextSettings.autoUnpauseTimeout > 1000) {
         nextSettings.autoUnpauseTimeout = DEFAULT_SETTINGS.autoUnpauseTimeout;
     }
-    nextSettings.filterColor = ['white', 'black', 'grey'].includes(syncResult.filterColor) ? syncResult.filterColor : DEFAULT_SETTINGS.filterColor;
-    nextSettings.excludeLocalhost = syncResult.excludeLocalhost !== null ? syncResult.excludeLocalhost == 1 : DEFAULT_SETTINGS.excludeLocalhost;
+    nextSettings.filterColor = ['white', 'black', 'grey'].includes(syncResult.filterColor) ?
+        syncResult.filterColor :
+        DEFAULT_SETTINGS.filterColor;
+    nextSettings.excludeLocalhost = syncResult.excludeLocalhost !== null ?
+        syncResult.excludeLocalhost == 1 :
+        DEFAULT_SETTINGS.excludeLocalhost;
+    nextSettings.imageDisplayMode = normalizeImageDisplayMode(
+        syncResult.imageDisplayMode,
+        DEFAULT_SETTINGS.imageDisplayMode
+    );
+    nextSettings.imageDisplayModeByHost =
+        normalizeImageDisplayModeByHost(safeParseJson(syncResult.imageDisplayModeByHost, {}));
 
     // Load blocklist settings
     if (syncResult.blocklistSettings) {
@@ -768,6 +884,75 @@ chrome.runtime.onMessage.addListener(
                 storedSettings.filterColor = color;
                 chrome.storage.sync.set({"filterColor": color});
                 sendResponse(true);
+                break;
+            }
+            case 'getImageDisplayModes': {
+                getSettings()
+                    .then(freshSettings => {
+                        sendResponse({
+                            globalImageDisplayMode: freshSettings.imageDisplayMode,
+                            imageDisplayModeByHost: freshSettings.imageDisplayModeByHost,
+                            defaultImageDisplayModeByHost: DEFAULT_IMAGE_DISPLAY_MODE_BY_HOST,
+                            validImageDisplayModes: IMAGE_DISPLAY_MODES
+                        });
+                    })
+                    .catch(error => {
+                        console.error('Error getting image display modes:', error);
+                        sendResponse({
+                            globalImageDisplayMode: DEFAULT_SETTINGS.imageDisplayMode,
+                            imageDisplayModeByHost: {},
+                            defaultImageDisplayModeByHost: DEFAULT_IMAGE_DISPLAY_MODE_BY_HOST,
+                            validImageDisplayModes: IMAGE_DISPLAY_MODES
+                        });
+                    });
+                break;
+            }
+            case 'setImageDisplayMode': {
+                const mode = normalizeImageDisplayMode(request.mode, DEFAULT_SETTINGS.imageDisplayMode);
+                storedSettings.imageDisplayMode = mode;
+                chrome.storage.sync.set({ "imageDisplayMode": mode })
+                    .then(() => {
+                        chrome.runtime.sendMessage({ r: 'imageDisplayModesModified' });
+                        sendResponse(true);
+                    })
+                    .catch(error => {
+                        console.error('Error setting image display mode:', error);
+                        sendResponse(false);
+                    });
+                break;
+            }
+            case 'setSiteImageDisplayMode': {
+                const host = normalizeHostInput(request.host);
+                if (!host) {
+                    sendResponse(false);
+                    break;
+                }
+
+                const mode = normalizeImageDisplayMode(request.mode, null);
+                getSettings()
+                    .then(freshSettings => {
+                        const nextMap = normalizeImageDisplayModeByHost(
+                            freshSettings.imageDisplayModeByHost || {}
+                        );
+                        if (mode) {
+                            nextMap[host] = mode;
+                        } else {
+                            delete nextMap[host];
+                        }
+
+                        storedSettings.imageDisplayModeByHost = nextMap;
+                        return chrome.storage.sync.set({
+                            "imageDisplayModeByHost": JSON.stringify(nextMap)
+                        });
+                    })
+                    .then(() => {
+                        chrome.runtime.sendMessage({ r: 'imageDisplayModesModified' });
+                        sendResponse(true);
+                    })
+                    .catch(error => {
+                        console.error('Error setting site image display mode:', error);
+                        sendResponse(false);
+                    });
                 break;
             }
             case 'getBlocklists':

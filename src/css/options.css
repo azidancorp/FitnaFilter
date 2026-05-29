@@ -543,7 +543,8 @@ label:hover {
 
 /* Text Inputs - Enhanced */
 input[type="text"],
-input[type="number"] {
+input[type="number"],
+select {
     background: var(--bg-input);
     border: 1px solid var(--border-subtle);
     border-radius: var(--radius-sm);
@@ -556,12 +557,14 @@ input[type="number"] {
 }
 
 input[type="text"]:hover,
-input[type="number"]:hover {
+input[type="number"]:hover,
+select:hover {
     border-color: var(--border-medium);
 }
 
 input[type="text"]:focus,
-input[type="number"]:focus {
+input[type="number"]:focus,
+select:focus {
     border-color: var(--purple-primary);
     background: var(--bg-input-focus);
     box-shadow: 0 0 0 3px var(--purple-glow-soft), 0 0 20px var(--purple-glow-soft);
@@ -639,6 +642,79 @@ input[type="submit"]:hover {
 
 input[type="submit"]:active {
     transform: translateY(0);
+}
+
+.site-mode-panel {
+    padding: 14px 18px;
+    margin-bottom: 14px;
+    background: rgba(26, 26, 32, 0.6);
+    border: 1px solid transparent;
+    border-radius: var(--radius-md);
+}
+
+.site-mode-controls {
+    display: grid;
+    grid-template-columns: minmax(0, 1fr) 170px auto;
+    gap: 10px;
+    margin-bottom: 12px;
+}
+
+.site-mode-controls input,
+.site-mode-controls select {
+    width: 100%;
+}
+
+.site-mode-controls button,
+.site-mode-remove {
+    background: linear-gradient(135deg, var(--purple-darker) 0%, var(--purple-primary) 100%);
+    color: #fff;
+    border: 1px solid var(--purple-primary);
+    border-radius: var(--radius-sm);
+    cursor: pointer;
+    font-size: 13px;
+    font-weight: 600;
+    padding: 10px 14px;
+    transition: all var(--transition-normal);
+}
+
+.site-mode-controls button:hover,
+.site-mode-remove:hover {
+    background: linear-gradient(135deg, var(--purple-primary) 0%, var(--purple-light) 100%);
+    box-shadow: var(--shadow-glow-strong);
+}
+
+.site-mode-entry {
+    display: grid;
+    grid-template-columns: minmax(0, 1fr) 160px auto;
+    align-items: center;
+    gap: 10px;
+    padding: 10px 12px;
+    margin-bottom: 8px;
+    background: var(--bg-glass);
+    border: 1px solid var(--border-subtle);
+    border-radius: var(--radius-sm);
+}
+
+.site-mode-host {
+    color: var(--text-secondary);
+    font-size: 13px;
+    word-break: break-all;
+}
+
+.site-mode-value {
+    color: var(--purple-lighter);
+    font-size: 12px;
+    font-weight: 700;
+}
+
+.built-in-site-modes {
+    margin-top: 12px;
+    padding-top: 12px;
+    border-top: 1px solid var(--border-subtle);
+}
+
+.built-in-site-modes .site-mode-entry {
+    opacity: 0.75;
 }
 
 /* List Container - Enhanced */

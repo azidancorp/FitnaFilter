@@ -36,6 +36,11 @@ const RECT_TIMEOUT_REPEAT_COUNT = 3;
 const IFRAME_POLL_INTERVAL_MS = 50;
 const IFRAME_POLL_MAX_ATTEMPTS = 100;
 const HOVER_VISUAL_CLEAR_TIMEOUT_MS = 2500;
+const PLACEHOLDER_BACKGROUND_IMAGE =
+    'repeating-linear-gradient(135deg, rgba(120, 120, 132, 0.28) 0px, ' +
+    'rgba(120, 120, 132, 0.28) 12px, rgba(34, 34, 42, 0.86) 12px, ' +
+    'rgba(34, 34, 42, 0.86) 24px), linear-gradient(135deg, ' +
+    'rgba(20, 20, 26, 0.96), rgba(8, 8, 12, 0.96))';
 
 // Detect if the script is being executed within an iframe. It is
 // useful when trying to accomplish something just in the main page
@@ -212,6 +217,15 @@ function ProcessWin(win, winContentLoaded) {
 
                 addHeadStyle(mDoc, mHeadStyles, 'body ', '{background-image: none !important;}');
                 addHeadStyle(mDoc, mHeadStyles, '.' + CSS_CLASS_HIDE, '{opacity: 0 !important;}');
+                addHeadStyle(
+                    mDoc,
+                    mHeadStyles,
+                    '.' + CSS_CLASS_PLACEHOLDER,
+                    '{position: absolute !important; pointer-events: none !important; ' +
+                        'z-index: 2147483646 !important; overflow: hidden !important; ' +
+                        'background: ' + PLACEHOLDER_BACKGROUND_IMAGE + ' !important; ' +
+                        'box-shadow: inset 0 0 0 1px rgba(255, 255, 255, 0.14) !important;}'
+                );
 
                 clearInterval(pollID);
             }
@@ -505,7 +519,7 @@ function ProcessWin(win, winContentLoaded) {
      */
     function processImage() {
 
-        hideElement(this, false);
+        applyPendingImageDisplay(this);
         processDomImage(this, mDoc.getElementById(CANVAS_GLOBAL_ID));
         handleLoadProcessImageListener(this, processImage, false);
         handleLoadEventListener(this, doElement, false);
@@ -522,6 +536,42 @@ function ProcessWin(win, winContentLoaded) {
         handleLoadEventListener(this, doElement, false);
         handleErrorEventListener(this, imageLoadError, false);
     }
+
+    function getImageDisplayMode() {
+        const mode = settings && settings.imageDisplayMode;
+        if (mode === IMAGE_DISPLAY_MODE_STRICT ||
+            mode === IMAGE_DISPLAY_MODE_PLACEHOLDER ||
+            mode === IMAGE_DISPLAY_MODE_PROGRESSIVE) {
+            return mode;
+        }
+
+        return IMAGE_DISPLAY_MODE_PLACEHOLDER;
+    }
+
+    function applyPendingImageDisplay(domElement) {
+        const mode = getImageDisplayMode();
+        if (mode === IMAGE_DISPLAY_MODE_STRICT) {
+            hideElement(domElement, true);
+        } else if (mode === IMAGE_DISPLAY_MODE_PLACEHOLDER) {
+            showProcessingPlaceholder(domElement);
+        } else {
+            hideElement(domElement, false);
+        }
+    }
+
+    function applyPendingBackgroundDisplay(domElement) {
+        const mode = getImageDisplayMode();
+        if (mode === IMAGE_DISPLAY_MODE_PROGRESSIVE) {
+            return;
+        }
+
+        withManagedBackgroundMutation(domElement, () => {
+            domElement.style.backgroundImage = mode === IMAGE_DISPLAY_MODE_PLACEHOLDER ?
+                PLACEHOLDER_BACKGROUND_IMAGE :
+                "url('')";
+        });
+    }
+
     /**
      * Analyse an Element to process the related images.
      */
@@ -555,7 +605,7 @@ function ProcessWin(win, winContentLoaded) {
                 }
 
                 if (!this.complete || this.naturalWidth === 0 || this.naturalHeight === 0) {
-                    hideElement(this, false);
+                    applyPendingImageDisplay(this);
                     handleLoadProcessImageListener(this, processImage, true);
                     handleErrorEventListener(this, imageLoadError, true);
                     return;
@@ -583,7 +633,14 @@ function ProcessWin(win, winContentLoaded) {
             // See if not yet loaded
             const hasRenderableBitmap = this.complete || (this.naturalWidth > 0 && this.naturalHeight > 0);
             if (!hasRenderableBitmap) {
-                hideElement(this, false);
+                const pendingWidth = this.width || this.clientWidth;
+                const pendingHeight = this.height || this.clientHeight;
+                if ((pendingWidth == 0 || pendingWidth > settings.maxSafe) &&
+                    (pendingHeight == 0 || pendingHeight > settings.maxSafe)) {
+                    applyPendingImageDisplay(this);
+                } else {
+                    hideElement(this, false);
+                }
                 return;
             }
 
@@ -627,6 +684,7 @@ function ProcessWin(win, winContentLoaded) {
                 }
 
                 if (this.src !== '') {
+                    applyPendingImageDisplay(this);
                     //If no src then lazy loaded, do this later
                     handleSourceOfImage(this, true);
                 }
@@ -702,10 +760,7 @@ function ProcessWin(win, winContentLoaded) {
                     bgImgSuffix = bgImg.substring(bgImg.indexOf(", ") + 1).slice(0,-1);
                 }
                 this[ATTR_ORIGINAL_BACKGROUND_IMAGE] = bgImg;
-                // Avoids quick display of original image
-                withManagedBackgroundMutation(this, () => {
-                    this.style.backgroundImage = "url('')";
-                });
+                applyPendingBackgroundDisplay(this);
                 // Reference for the element once the image is
                 // processed.
                 addRandomWizUuid(this);

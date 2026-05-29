@@ -10,6 +10,8 @@ const elements = {
     whiteFilter: document.getElementById('whiteFilter'),
     blackFilter: document.getElementById('blackFilter'),
     greyFilter: document.getElementById('greyFilter'),
+    siteImageDisplayMode: document.getElementById('siteImageDisplayMode'),
+    siteImageDisplayLabel: document.getElementById('siteImageDisplayLabel'),
     customUrlInput: document.getElementById('customUrlInput'),
     addUrlBtn: document.getElementById('addUrlBtn'),
     grabUrlBtn: document.getElementById('grabUrlBtn'),
@@ -18,6 +20,7 @@ const elements = {
 };
 
 let currentFilterColor = null;
+let currentSiteHostname = null;
 
 /**
  * Updates the extension version label from the manifest.
@@ -162,6 +165,45 @@ function setFilterColor(color, tabId, options = {}) {
     }
 }
 
+function applySiteImageDisplayUI(settings) {
+    currentSiteHostname = settings.currentHostname || null;
+    if (!elements.siteImageDisplayMode) {
+        return;
+    }
+
+    if (!currentSiteHostname) {
+        elements.siteImageDisplayMode.disabled = true;
+        elements.siteImageDisplayMode.value = '';
+        if (elements.siteImageDisplayLabel) {
+            elements.siteImageDisplayLabel.textContent = 'Current Site';
+        }
+        return;
+    }
+
+    elements.siteImageDisplayMode.disabled = false;
+    elements.siteImageDisplayMode.value = settings.imageDisplayModeSource === 'site' ?
+        settings.imageDisplayMode :
+        '';
+
+    if (elements.siteImageDisplayLabel) {
+        elements.siteImageDisplayLabel.textContent = currentSiteHostname;
+    }
+}
+
+function setSiteImageDisplayMode(hostname, mode, tabId) {
+    if (!hostname) {
+        return;
+    }
+
+    chrome.runtime.sendMessage({
+        r: 'setSiteImageDisplayMode',
+        host: hostname,
+        mode: mode || null
+    })
+        .then(() => refreshFiltering(tabId))
+        .catch(err => console.error('Error setting site image loading mode:', err));
+}
+
 /**
  * Initialize popup with current settings
  * @param {chrome.tabs.Tab} activeTab - The currently active tab
@@ -185,6 +227,7 @@ function initializePopup(activeTab) {
         // Set active filter color button
         const filterColor = settings.filterColor || 'grey'; // Default to grey if not set
         setFilterColor(filterColor, activeTab.id, { broadcast: false, force: true });
+        applySiteImageDisplayUI(settings);
     });
 }
 
@@ -278,6 +321,12 @@ chrome.tabs.query({ active: true, currentWindow: true }, function (tabs) {
     elements.whiteFilter.addEventListener('click', () => setFilterColor('white', activeTab.id));
     elements.blackFilter.addEventListener('click', () => setFilterColor('black', activeTab.id));
     elements.greyFilter.addEventListener('click', () => setFilterColor('grey', activeTab.id));
+
+    if (elements.siteImageDisplayMode) {
+        elements.siteImageDisplayMode.addEventListener('change', function() {
+            setSiteImageDisplayMode(currentSiteHostname, this.value, activeTab.id);
+        });
+    }
 
     // Add URL button event listener (custom input)
     if (elements.addUrlBtn && elements.customUrlInput) {

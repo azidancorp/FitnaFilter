@@ -158,7 +158,8 @@ function getReplacementRgb(filterColor) {
  * const base64Image = filterSkinColor(element, uuid, canvas);
  */
 async function filterSkinColor(imgElement, uuid, canvas, filterColor, isNoFaceFeatures) {
-    const { width, height } = imgElement;
+    const width = imgElement.naturalWidth || imgElement.width;
+    const height = imgElement.naturalHeight || imgElement.height;
 
     if (!width || !height) {
         throw new Error('Image has invalid dimensions');
@@ -181,13 +182,18 @@ async function filterSkinColor(imgElement, uuid, canvas, filterColor, isNoFaceFe
             throw new Error('Canvas 2D context could not be created');
         }
 
-        context.drawImage(imgElement, 0, 0, imgElement.width, imgElement.height);
+        if (typeof imgElement.decode === 'function' && imgElement.complete) {
+            await imgElement.decode();
+        }
+
+        context.drawImage(imgElement, 0, 0, width, height);
 
         const imageData = context.getImageData(0, 0, width, height);
         const pixelData = imageData.data;
         const replacementRed = replacement.red;
         const replacementGreen = replacement.green;
         const replacementBlue = replacement.blue;
+        let sourceOpaquePixels = 0;
 
         // Skin classification reference: Djamila Dahmani, Mehdi Cheref, Slimane Larabi,
         // "Zero-sum game theory model for segmenting skin regions," Image and Vision Computing,
@@ -198,6 +204,11 @@ async function filterSkinColor(imgElement, uuid, canvas, filterColor, isNoFaceFe
             const r = pixelData[pixelIndex];
             const g = pixelData[pixelIndex + 1];
             const b = pixelData[pixelIndex + 2];
+            const a = pixelData[pixelIndex + 3];
+
+            if (a > 0) {
+                sourceOpaquePixels++;
+            }
 
             if (!shouldRemoveFaceFeatures && !(r > 95 && g > 40 && b > 20)) {
                 continue;
@@ -282,6 +293,10 @@ async function filterSkinColor(imgElement, uuid, canvas, filterColor, isNoFaceFe
                 pixelData[pixelIndex + 2] = replacementBlue;
                 pixelData[pixelIndex + 3] = 255;
             }
+        }
+
+        if (sourceOpaquePixels === 0) {
+            throw new Error('Canvas draw produced a transparent image');
         }
 
         context.putImageData(imageData, 0, 0);

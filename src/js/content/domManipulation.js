@@ -278,11 +278,7 @@ function withManagedSourceMutation(domElement, callback) {
             domElement[ATTR_IGNORE_SOURCE_MUTATIONS] = pendingMutations - 1;
         };
 
-        if (typeof queueMicrotask === 'function') {
-            queueMicrotask(releaseMutationGuard);
-        } else {
-            Promise.resolve().then(releaseMutationGuard);
-        }
+        setTimeout(releaseMutationGuard, 0);
     }
 }
 
@@ -308,11 +304,7 @@ function withManagedBackgroundMutation(domElement, callback) {
             domElement[ATTR_IGNORE_BACKGROUND_MUTATIONS] = pendingMutations - 1;
         };
 
-        if (typeof queueMicrotask === 'function') {
-            queueMicrotask(releaseMutationGuard);
-        } else {
-            Promise.resolve().then(releaseMutationGuard);
-        }
+        setTimeout(releaseMutationGuard, 0);
     }
 }
 /**
@@ -496,6 +488,18 @@ function handleLoadEventListener(domElement, callback, toggle) {
     }, toggle, HAS_LOAD_LISTENER);
 }
 /**
+ * Add|remove a listener for error event in an HTMLImageElement.
+ *
+ * @param {HTMLImageElement} domElement
+ * @param {function} callback
+ * @param {boolean} toggle
+ */
+function handleErrorEventListener(domElement, callback, toggle) {
+    handleListeners(domElement, {
+        'error': callback
+    }, toggle, HAS_ERROR_LISTENER);
+}
+/**
  * Process the bitmap in an
  * HTMLImageElement.
  *
@@ -677,38 +681,48 @@ async function filterImageElement(imgElement, uuid, canvas) {
     if (actualElement) {
         const previousObjectUrl = actualElement[ATTR_OBJECT_URL];
         actualElement[ATTR_OBJECT_URL] = urlData;
-        actualElement.onload = () => {
-            removeCssClass(actualElement, CSS_CLASS_HIDE);
+        let didFinish = false;
+        const isCurrentFilteredImage = () => actualElement[ATTR_OBJECT_URL] === urlData &&
+            (actualElement.src === urlData || actualElement.currentSrc === urlData);
+        const cleanupFilteredImageListeners = () => {
+            actualElement.removeEventListener('load', handleFilteredImageLoad);
+            actualElement.removeEventListener('error', handleFilteredImageError);
+        };
+        const handleFilteredImageLoad = () => {
+            if (didFinish || !isCurrentFilteredImage()) {
+                return;
+            }
+            didFinish = true;
+            cleanupFilteredImageListeners();
+            hideElement(actualElement, false);
             actualElement.setAttribute(IS_PROCESSED, 'true');
             actualElement[IS_PROCESSED] = true;
             handleBackgroundForElement(actualElement, true);
-
-            if (urlData && typeof urlData === 'string' && urlData.startsWith('blob:')) {
-                try {
-                    URL.revokeObjectURL(urlData);
-                } catch (error) {
-                    console.warn('FitnaFilter: failed to revoke object URL for image', error);
-                }
-            }
-
-            if (actualElement[ATTR_OBJECT_URL] === urlData) {
-                actualElement[ATTR_OBJECT_URL] = null;
-            }
-
-            actualElement.onerror = null;
-            actualElement.onload = null;
         };
-        actualElement.onerror = () => {
+        const handleFilteredImageError = () => {
+            if (didFinish || !isCurrentFilteredImage()) {
+                return;
+            }
+            didFinish = true;
+            cleanupFilteredImageListeners();
             console.error('FitnaFilter: failed to load filtered image', urlData);
             hideElement(actualElement, false);
             handleSourceOfImage(actualElement, false);
-            actualElement.onerror = null;
-            actualElement.onload = null;
         };
+        const finishIfAlreadyLoaded = () => {
+            if (actualElement.complete && actualElement.naturalWidth > 0) {
+                handleFilteredImageLoad();
+            }
+        };
+        actualElement.addEventListener('load', handleFilteredImageLoad);
+        actualElement.addEventListener('error', handleFilteredImageError);
         withManagedSourceMutation(actualElement, () => {
             actualElement.src = urlData;
             actualElement.srcset = '';
         });
+        setTimeout(finishIfAlreadyLoaded, 0);
+        setTimeout(finishIfAlreadyLoaded, 250);
+        setTimeout(finishIfAlreadyLoaded, 1000);
         if (previousObjectUrl && previousObjectUrl !== urlData &&
             typeof previousObjectUrl === 'string' && previousObjectUrl.startsWith('blob:')) {
             URL.revokeObjectURL(previousObjectUrl);

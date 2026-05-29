@@ -91,6 +91,11 @@ const HAS_HOVER_VISUAL = 'skf-has-hover-visual';
 const HAS_LOAD_LISTENER = 'skf-has-load-listener';
 
 /**
+ * Flag to determine if an Element has an error event listener. This flag is set in the javascript object.
+ */
+const HAS_ERROR_LISTENER = 'skf-has-error-listener';
+
+/**
  * Flag to determine if an Element has a load event listener for skin filtering. This flag is set in the javascript object.
  */
 const HAS_PROCESS_IMAGE_LISTENER = 'skf-has-process-image-listener';

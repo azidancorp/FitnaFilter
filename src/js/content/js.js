@@ -505,10 +505,22 @@ function ProcessWin(win, winContentLoaded) {
      */
     function processImage() {
 
+        hideElement(this, false);
         processDomImage(this, mDoc.getElementById(CANVAS_GLOBAL_ID));
         handleLoadProcessImageListener(this, processImage, false);
         handleLoadEventListener(this, doElement, false);
+        handleErrorEventListener(this, imageLoadError, false);
 
+    }
+    /**
+     * Restore image visibility if the browser reports that the original source failed to load.
+     */
+    function imageLoadError() {
+        hideElement(this, false);
+        handleSourceOfImage(this, false);
+        handleLoadProcessImageListener(this, processImage, false);
+        handleLoadEventListener(this, doElement, false);
+        handleErrorEventListener(this, imageLoadError, false);
     }
     /**
      * Analyse an Element to process the related images.
@@ -537,7 +549,18 @@ function ProcessWin(win, winContentLoaded) {
 
             mSuspects.addSuspect(this);
 
-            if (typeof this.src !== 'undefined' && this.src.startsWith('blob')) {
+            if (typeof this.src !== 'undefined' && this.src.startsWith('blob:')) {
+                if (this.getAttribute(IS_TOGGLED) === 'true') {
+                    return;
+                }
+
+                if (!this.complete || this.naturalWidth === 0 || this.naturalHeight === 0) {
+                    hideElement(this, false);
+                    handleLoadProcessImageListener(this, processImage, true);
+                    handleErrorEventListener(this, imageLoadError, true);
+                    return;
+                }
+
                 //For some reason, blob URL's dont fire a load event.
                 //And it relies on src and srcset, so handleSourceOfImage will break
                 //the display.  TODO fix this and all lazy loading
@@ -555,11 +578,12 @@ function ProcessWin(win, winContentLoaded) {
             // 2) In case the img gets changed to something else later
             handleLoadProcessImageListener(this, processImage, true);
             handleLoadEventListener(this, doElement, true);
+            handleErrorEventListener(this, imageLoadError, true);
 
             // See if not yet loaded
-            if (!this.complete) {
-                // Hide, to avoid flash until load event is handled.
-                hideElement(this, true);
+            const hasRenderableBitmap = this.complete || (this.naturalWidth > 0 && this.naturalHeight > 0);
+            if (!hasRenderableBitmap) {
+                hideElement(this, false);
                 return;
             }
 
@@ -602,7 +626,6 @@ function ProcessWin(win, winContentLoaded) {
                     this[HAS_TITLE_AND_SIZE] = true;
                 }
 
-                hideElement(this, true);
                 if (this.src !== '') {
                     //If no src then lazy loaded, do this later
                     handleSourceOfImage(this, true);
@@ -623,6 +646,7 @@ function ProcessWin(win, winContentLoaded) {
                     // Already-loaded images need an immediate pass because no load event will fire now.
                     handleLoadProcessImageListener(this, processImage, false);
                     handleLoadEventListener(this, doElement, false);
+                    handleErrorEventListener(this, imageLoadError, false);
                     processDomImage(this, mDoc.getElementById(CANVAS_GLOBAL_ID));
                 }
                 //this.src = blankImg;

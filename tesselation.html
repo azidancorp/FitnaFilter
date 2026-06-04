@@ -1,0 +1,332 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Tessellation — Living 8-Point Islamic Stars</title>
+    <style>
+        html, body {
+            margin: 0;
+            padding: 0;
+            height: 100%;
+            background: #000;
+            overflow: hidden;
+            cursor: crosshair;
+        }
+        #art {
+            display: block;
+            width: 100vw;
+            height: 100vh;
+        }
+    </style>
+</head>
+<body>
+    <canvas id="art"></canvas>
+
+    <script>
+    (function () {
+        "use strict";
+
+        // ---- Tunables -------------------------------------------------------
+        const TILE       = 96;          // grid cell / star size in px
+        const BASE_RGB   = [150, 90, 220];    // faint resting line colour
+        const HOT_RGB    = [200, 140, 255];   // colour when cursor is near
+        const DOT_RGB    = [165, 80, 235];    // travelling light colour (purple)
+        const BASE_ALPHA = 0.20;        // resting line opacity (slightly brighter)
+        const HOT_ALPHA  = 0.95;        // line opacity right under cursor
+        const MOUSE_R    = 190;         // cursor glow radius in px
+        const DOT_COUNT  = 90;          // number of travelling lights
+        const DOT_SPEED  = [12, 55];    // px/sec range per light (slower, more varied)
+        const TAIL_LEN   = 100;         // comet tail length in px (longer)
+
+        const canvas = document.getElementById("art");
+        const ctx = canvas.getContext("2d");
+
+        let W = 0, H = 0, DPR = 1;
+        // Graph storage (rebuilt on resize).
+        let nodeX, nodeY;               // node coordinates
+        let edgeA, edgeB, edgeLen;      // edge endpoints (node indices) + length
+        let nodeEdges;                  // adjacency: node -> [edge indices]
+        let basePath;                   // Path2D of every edge, drawn once/frame
+        let dots = [];
+
+        const mouse = { x: -9999, y: -9999 };
+
+        // ---- Geometry: one tile's line segments -----------------------------
+        // The star is two equal squares (axis-aligned + 45deg rotated). We split
+        // every edge at the points where the two squares cross, producing the
+        // interlaced strapwork and a graph the lights can actually travel along.
+        function tileSegments() {
+            const R = TILE / 2;
+            const d = R * Math.SQRT1_2;
+            const A = [[R, 0], [0, R], [-R, 0], [0, -R]];           // axis square
+            const B = [[d, d], [-d, d], [-d, -d], [d, -d]];        // rotated square
+            const edgesA = [[A[0], A[1]], [A[1], A[2]], [A[2], A[3]], [A[3], A[0]]];
+            const edgesB = [[B[0], B[1]], [B[1], B[2]], [B[2], B[3]], [B[3], B[0]]];
+
+            const segs = [];
+            splitGroup(edgesA, edgesB, segs);
+            splitGroup(edgesB, edgesA, segs);
+            return segs;
+        }
+
+        // Split each edge in `group` at its intersections with `others`.
+        function splitGroup(group, others, out) {
+            for (const [p, q] of group) {
+                const ts = [0, 1];
+                for (const [r, s] of others) {
+                    const t = segParam(p, q, r, s);
+                    if (t !== null) ts.push(t);
+                }
+                ts.sort((a, b) => a - b);
+                for (let i = 0; i < ts.length - 1; i++) {
+                    if (ts[i + 1] - ts[i] < 1e-6) continue;
+                    out.push([lerp(p, q, ts[i]), lerp(p, q, ts[i + 1])]);
+                }
+            }
+        }
+
+        function lerp(p, q, t) { return [p[0] + (q[0] - p[0]) * t, p[1] + (q[1] - p[1]) * t]; }
+
+        // Intersection of segment p->q with r->s; returns param t on p->q or null.
+        function segParam(p, q, r, s) {
+            const dx1 = q[0] - p[0], dy1 = q[1] - p[1];
+            const dx2 = s[0] - r[0], dy2 = s[1] - r[1];
+            const den = dx1 * dy2 - dy1 * dx2;
+            if (Math.abs(den) < 1e-9) return null;
+            const t = ((r[0] - p[0]) * dy2 - (r[1] - p[1]) * dx2) / den;
+            const u = ((r[0] - p[0]) * dy1 - (r[1] - p[1]) * dx1) / den;
+            if (t > 1e-6 && t < 1 - 1e-6 && u > 1e-6 && u < 1 - 1e-6) return t;
+            return null;
+        }
+
+        // ---- Build the full-screen graph ------------------------------------
+        function buildGraph() {
+            const local = tileSegments();
+            const nodeMap = new Map();
+            const xs = [], ys = [];
+            const ea = [], eb = [];
+            const edgeSet = new Set();
+
+            const key = (x, y) => Math.round(x * 2) + "_" + Math.round(y * 2);
+            function nodeId(x, y) {
+                const k = key(x, y);
+                let id = nodeMap.get(k);
+                if (id === undefined) { id = xs.length; xs.push(x); ys.push(y); nodeMap.set(k, id); }
+                return id;
+            }
+
+            const cols = Math.ceil(W / TILE) + 2;
+            const rows = Math.ceil(H / TILE) + 2;
+            for (let r = -1; r < rows; r++) {
+                for (let c = -1; c < cols; c++) {
+                    const cx = c * TILE + TILE / 2;
+                    const cy = r * TILE + TILE / 2;
+                    for (const [p, q] of local) {
+                        const a = nodeId(cx + p[0], cy + p[1]);
+                        const b = nodeId(cx + q[0], cy + q[1]);
+                        if (a === b) continue;
+                        const ek = a < b ? a + "_" + b : b + "_" + a;
+                        if (edgeSet.has(ek)) continue;
+                        edgeSet.add(ek);
+                        ea.push(a); eb.push(b);
+                    }
+                }
+            }
+
+            nodeX = Float32Array.from(xs);
+            nodeY = Float32Array.from(ys);
+            edgeA = Int32Array.from(ea);
+            edgeB = Int32Array.from(eb);
+
+            edgeLen = new Float32Array(ea.length);
+            nodeEdges = Array.from({ length: xs.length }, () => []);
+            basePath = new Path2D();
+            for (let e = 0; e < ea.length; e++) {
+                const a = ea[e], b = eb[e];
+                edgeLen[e] = Math.hypot(nodeX[a] - nodeX[b], nodeY[a] - nodeY[b]) || 1;
+                nodeEdges[a].push(e);
+                nodeEdges[b].push(e);
+                basePath.moveTo(nodeX[a], nodeY[a]);
+                basePath.lineTo(nodeX[b], nodeY[b]);
+            }
+
+            spawnDots();
+        }
+
+        // ---- Travelling lights ----------------------------------------------
+        function spawnDots() {
+            dots = [];
+            if (edgeA.length === 0) return;
+            for (let i = 0; i < DOT_COUNT; i++) {
+                const e = (Math.random() * edgeA.length) | 0;
+                dots.push({
+                    edge: e,
+                    from: Math.random() < 0.5 ? edgeA[e] : edgeB[e],
+                    t: Math.random(),
+                    speed: DOT_SPEED[0] + Math.random() * (DOT_SPEED[1] - DOT_SPEED[0]),
+                    hist: []     // recent head positions, for a path-following tail
+                });
+            }
+        }
+
+        function advanceDot(dot, dt) {
+            // Move a real distance this frame, carrying leftover across nodes so
+            // speed stays constant regardless of edge length (no position jump).
+            let move = dot.speed * dt;
+            let guard = 0;
+            while (move > 0 && guard++ < 8) {
+                const e = dot.edge;
+                const to = (edgeA[e] === dot.from) ? edgeB[e] : edgeA[e];
+                const remain = (1 - dot.t) * edgeLen[e];
+                if (move < remain) {
+                    dot.t += move / edgeLen[e];
+                    break;
+                }
+                // Reached `to`; pick a new edge, avoiding an immediate U-turn.
+                move -= remain;
+                const opts = nodeEdges[to];
+                let next = e;
+                if (opts.length > 1) {
+                    let tries = 0;
+                    do { next = opts[(Math.random() * opts.length) | 0]; }
+                    while (next === e && ++tries < 6);
+                }
+                dot.edge = next;
+                dot.from = to;
+                dot.t = 0;
+            }
+        }
+
+        // ---- Distance from point to segment (for cursor glow) ---------------
+        function distToEdge(e, px, py) {
+            const ax = nodeX[edgeA[e]], ay = nodeY[edgeA[e]];
+            const bx = nodeX[edgeB[e]], by = nodeY[edgeB[e]];
+            const dx = bx - ax, dy = by - ay;
+            const len2 = dx * dx + dy * dy || 1;
+            let t = ((px - ax) * dx + (py - ay) * dy) / len2;
+            t = t < 0 ? 0 : t > 1 ? 1 : t;
+            const cx = ax + dx * t, cy = ay + dy * t;
+            return Math.hypot(px - cx, py - cy);
+        }
+
+        // ---- Render loop ----------------------------------------------------
+        let last = performance.now();
+        function frame(now) {
+            const dt = Math.min(0.05, (now - last) / 1000);
+            last = now;
+
+            ctx.setTransform(DPR, 0, 0, DPR, 0, 0);
+            ctx.clearRect(0, 0, W, H);
+            ctx.fillStyle = "#000";
+            ctx.fillRect(0, 0, W, H);
+
+            // 1) Faint resting lattice — one cheap stroke for the whole graph.
+            ctx.lineWidth = 1.1;
+            ctx.strokeStyle = `rgba(${BASE_RGB[0]},${BASE_RGB[1]},${BASE_RGB[2]},${BASE_ALPHA})`;
+            ctx.stroke(basePath);
+
+            // 2) Brighten edges near the cursor.
+            ctx.lineCap = "round";
+            for (let e = 0; e < edgeA.length; e++) {
+                const a = edgeA[e], b = edgeB[e];
+                const mx = (nodeX[a] + nodeX[b]) * 0.5;
+                const my = (nodeY[a] + nodeY[b]) * 0.5;
+                if (Math.abs(mx - mouse.x) > MOUSE_R || Math.abs(my - mouse.y) > MOUSE_R) continue;
+                const dist = distToEdge(e, mouse.x, mouse.y);
+                if (dist > MOUSE_R) continue;
+                const k = 1 - dist / MOUSE_R;            // 0..1 closeness
+                const glow = k * k;                       // ease-in
+                const al = BASE_ALPHA + (HOT_ALPHA - BASE_ALPHA) * glow;
+                const cr = BASE_RGB[0] + (HOT_RGB[0] - BASE_RGB[0]) * glow;
+                const cg = BASE_RGB[1] + (HOT_RGB[1] - BASE_RGB[1]) * glow;
+                const cb = BASE_RGB[2] + (HOT_RGB[2] - BASE_RGB[2]) * glow;
+                ctx.strokeStyle = `rgba(${cr | 0},${cg | 0},${cb | 0},${al})`;
+                ctx.lineWidth = 1.1 + 1.3 * glow;
+                ctx.beginPath();
+                ctx.moveTo(nodeX[a], nodeY[a]);
+                ctx.lineTo(nodeX[b], nodeY[b]);
+                ctx.stroke();
+            }
+
+            // 3) Travelling lights with path-following comet tails.
+            ctx.globalCompositeOperation = "lighter";
+            ctx.lineCap = "round";
+            for (const dot of dots) {
+                advanceDot(dot, dt);
+                const e = dot.edge;
+                const fromX = nodeX[dot.from], fromY = nodeY[dot.from];
+                const to = (edgeA[e] === dot.from) ? edgeB[e] : edgeA[e];
+                const toX = nodeX[to], toY = nodeY[to];
+                const x = fromX + (toX - fromX) * dot.t;
+                const y = fromY + (toY - fromY) * dot.t;
+
+                // Record head, then trim the trail to TAIL_LEN of actual path.
+                const hist = dot.hist;
+                hist.push(x, y);
+                let total = 0;
+                for (let i = hist.length - 2; i >= 2; i -= 2) {
+                    total += Math.hypot(hist[i] - hist[i - 2], hist[i + 1] - hist[i - 1]);
+                    if (total > TAIL_LEN) { hist.splice(0, i - 2); break; }
+                }
+
+                // Tail: smooth curve through the recorded points, faded segment
+                // by segment ALONG THE PATH (not by spatial endpoints) so it
+                // never blinks out when the dot loops across its own trail.
+                const n = hist.length / 2;
+                if (n > 2) {
+                    ctx.lineJoin = "round";
+                    ctx.lineCap = "round";
+                    let prevMx = hist[0], prevMy = hist[1];
+                    for (let i = 1; i < n; i++) {
+                        const cx = hist[i * 2], cy = hist[i * 2 + 1];
+                        // Segment ends at the midpoint to the next point (head at the end).
+                        const mx = (i < n - 1) ? (cx + hist[(i + 1) * 2]) * 0.5 : x;
+                        const my = (i < n - 1) ? (cy + hist[(i + 1) * 2 + 1]) * 0.5 : y;
+                        const f = i / (n - 1);               // 0 at tail .. 1 at head
+                        ctx.strokeStyle = `rgba(${DOT_RGB[0]},${DOT_RGB[1]},${DOT_RGB[2]},${(0.6 * f * f).toFixed(3)})`;
+                        ctx.lineWidth = 0.6 + 1.6 * f;
+                        ctx.beginPath();
+                        ctx.moveTo(prevMx, prevMy);
+                        ctx.quadraticCurveTo(cx, cy, mx, my);
+                        ctx.stroke();
+                        prevMx = mx; prevMy = my;
+                    }
+                }
+
+                // glowing head
+                ctx.shadowBlur = 10;
+                ctx.shadowColor = `rgba(${DOT_RGB[0]},${DOT_RGB[1]},${DOT_RGB[2]},0.9)`;
+                ctx.fillStyle = `rgba(${DOT_RGB[0]},${DOT_RGB[1]},${DOT_RGB[2]},0.95)`;
+                ctx.beginPath();
+                ctx.arc(x, y, 1.9, 0, Math.PI * 2);
+                ctx.fill();
+                ctx.shadowBlur = 0;
+            }
+            ctx.globalCompositeOperation = "source-over";
+
+            requestAnimationFrame(frame);
+        }
+
+        // ---- Setup ----------------------------------------------------------
+        function resize() {
+            DPR = Math.min(window.devicePixelRatio || 1, 2);
+            W = window.innerWidth;
+            H = window.innerHeight;
+            canvas.width = W * DPR;
+            canvas.height = H * DPR;
+            canvas.style.width = W + "px";
+            canvas.style.height = H + "px";
+            buildGraph();
+        }
+
+        window.addEventListener("resize", resize);
+        window.addEventListener("pointermove", (e) => { mouse.x = e.clientX; mouse.y = e.clientY; });
+        window.addEventListener("pointerleave", () => { mouse.x = -9999; mouse.y = -9999; });
+
+        resize();
+        requestAnimationFrame(frame);
+    })();
+    </script>
+</body>
+</html>

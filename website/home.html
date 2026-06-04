@@ -9,6 +9,7 @@
     <link rel="preconnect" href="https://fonts.googleapis.com">
     <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
     <link href="https://fonts.googleapis.com/css2?family=Sora:wght@400;500;600;700;800&family=Inter:wght@400;500;600&family=Instrument+Serif:ital@0;1&family=JetBrains+Mono:wght@400;500&family=Noto+Naskh+Arabic:wght@400;500;600;700&family=Amiri+Quran&display=swap" rel="stylesheet">
+    <link rel="preload" as="image" href="hero_art.png">
     <link rel="stylesheet" href="home.css">
 </head>
 <body>
@@ -21,13 +22,13 @@
     <!-- Ambient backdrop -->
     <div class="backdrop" aria-hidden="true">
         <div class="grid-floor"></div>
-        <div class="lattice"></div>
         <div class="orb orb--1"></div>
         <div class="orb orb--2"></div>
         <div class="orb orb--3"></div>
         <div class="scanlines"></div>
         <div class="noise"></div>
     </div>
+    <canvas class="content-pattern" id="contentPattern" aria-hidden="true"></canvas>
 
     <svg class="svg-sprite" aria-hidden="true" focusable="false">
         <symbol id="fitna-logo-mark" viewBox="0 0 1254 1254">
@@ -497,14 +498,7 @@
         <!-- ============ HERO ============ -->
         <section class="hero" id="hero">
             <div class="hero__media" aria-hidden="true">
-                <div class="hero__img hero__art" id="heroImg">
-                    <span class="hero__art-ring"></span>
-                    <span class="hero__art-panel hero__art-panel--top"></span>
-                    <span class="hero__art-panel hero__art-panel--bottom"></span>
-                    <span class="hero__art-shield">
-                        <svg class="logo-mark" viewBox="0 0 1254 1254"><use href="#fitna-logo-mark"></use></svg>
-                    </span>
-                </div>
+                <div class="hero__img hero__art" id="heroImg"></div>
                 <div class="hero__veil"></div>
                 <!-- drifting blocked domains -->
                 <div class="hero__drift" id="heroDrift"></div>
@@ -1150,7 +1144,6 @@
         <section class="section install" id="install">
             <div class="install__card" data-reveal>
                 <div class="install__glow" aria-hidden="true"></div>
-                <div class="install__lattice" aria-hidden="true"></div>
                 <h2 class="install__title">Build a wall around what you see.</h2>
                 <p class="install__sub">Free, open, and on-device. Add FitnaFilter to your browser and pass everything through the gate.</p>
                 <div class="install__actions">

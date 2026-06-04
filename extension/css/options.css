@@ -216,6 +216,8 @@ body::before {
 .header-logo {
     width: 48px;
     height: 48px;
+    display: block;
+    object-fit: contain;
     filter: drop-shadow(0 0 20px rgba(191, 0, 255, 0.4));
     animation: logoFloat 4s ease-in-out infinite;
     flex-shrink: 0;

@@ -1,4 +1,4 @@
-# FitnaFilter (v1.1.0)
+# FitnaFilter (v1.3.0)
 
 A Chrome extension designed to help purify your browsing experience by filtering visual content and blocking access to potentially harmful websites.
 
@@ -28,7 +28,19 @@ To install FitnaFilter:
 1. Download the extension files from the GitHub repository.
 2. Open Chrome and go to `chrome://extensions/`.
 3. Enable "Developer mode" in the top right corner.
-4. Click "Load unpacked" and select the directory containing the extension files.
+4. Click "Load unpacked" and select this repo's `extension/` directory.
+
+## Repository Layout
+
+*   `extension/`: Chrome extension source. This is the unpacked extension root and contains `manifest.json`.
+*   `website/`: Website source for the upcoming FitnaFilter site.
+*   `qa/`: Historical manual verification evidence.
+
+To refresh extension blocklists from the repo root:
+
+```bash
+python extension/download_blocklists.py
+```
 
 ## Usage
 
@@ -51,8 +63,6 @@ To install FitnaFilter:
     *   `Alt+P`: Toggle global Pause/Resume.
     *   `Alt+Z`: Show original for a filtered `<img>` element under the mouse cursor.
     *   `Alt+A`: Show original for an element with a filtered background image under the mouse cursor.
-
-<!-- <img src="filtered_website.jpg" height="500"/> -->
 
 ## How it Works
 

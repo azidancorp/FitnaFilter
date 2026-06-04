@@ -1,12 +1,12 @@
 # Agent Guidelines
 
-This repository contains **FitnaFilter**, a Chrome extension (Manifest V3) that provides content filtering through advanced skin tone detection and comprehensive website blocking using curated blocklists.
+This repository contains **FitnaFilter**, a Chrome extension (Manifest V3) plus a separate website workspace.
 
 ## Architecture Overview
 
 ### Core Components
-- **Background Service Worker** (`src/js/background.js`): Central hub for settings, blocklist processing, and website blocking via webNavigation API
-- **Content Scripts** (`src/js/content/`): Modular image processing pipeline with DOM manipulation
+- **Background Service Worker** (`extension/js/background.js`): Central hub for settings, blocklist processing, and website blocking via webNavigation API
+- **Content Scripts** (`extension/js/content/`): Modular image processing pipeline with DOM manipulation
 - **UI Components**: Popup for quick controls, Options page for comprehensive settings
 
 ### Image Processing Pipeline
@@ -32,7 +32,7 @@ Categories: **Vice** (always enabled), **Hazard** (configurable), **Distraction*
 - Keep line length under **120 characters**
 - Use `camelCase` for JavaScript variables and function names
 - Add short comments for new functions or complex logic
-- When working with blocklists, run `python download_blocklists.py` to fetch latest versions
+- When working with blocklists, run `python extension/download_blocklists.py` from the repo root to fetch latest versions
 
 ## Key Technical Patterns
 
@@ -63,24 +63,25 @@ Categories: **Vice** (always enabled), **Hazard** (configurable), **Distraction*
 
 ## Repository Layout
 
-- `src/` contains extension code:
+- `extension/` contains extension code and is the unpacked Chrome extension root:
   - `js/` for content scripts, service worker, popup and options
   - `css/` and `images/` for styling and UI assets
   - `blocklists/` for domain lists (one domain per line)
   - `manifest.json` for extension configuration (V3)
   - `js/content/constants.js` for shared constants and feature flags
-- `download_blocklists.py` retrieves latest blocklist files from remote sources
+- `extension/download_blocklists.py` retrieves latest blocklist files from remote sources
+- `website/` contains the website source; keep website implementation separate from extension runtime files
 
 ## Development Workflow
 
 ```bash
 # Update blocklists
-python download_blocklists.py
+python extension/download_blocklists.py
 
 # Load extension in Chrome
 # 1. Open chrome://extensions/
 # 2. Enable Developer mode  
-# 3. Click "Load unpacked" and select src/ directory
+# 3. Click "Load unpacked" and select extension/ directory
 ```
 
 ## Testing
@@ -100,7 +101,7 @@ No automated tests provided. Manual verification required:
 - Background `getSettings` now reads fresh sync/local storage on every call, so consumers immediately see toggled values; retain the mirror in `storedSettings`.
 - Popup initialization no longer fires redundant `setFilterColor` messages; only actual colour changes trigger a reprocess.
 - Content script revokes blob URLs once filtered assets finish loading to prevent session-long memory growth.
-- DOM/style bootstrapping, hover polling, rectangle refresh, iframe readiness, and hover-visual timeout all reference the constants declared at the top of `src/js/content/js.js` (`STYLE_POLL_INTERVAL_MS`, `HOVER_POLL_INTERVAL_MS`, `RECT_UPDATE_INTERVAL_MS`, `RECT_TIMEOUT_BASE_MS`, `RECT_TIMEOUT_REPEAT_COUNT`, `IFRAME_POLL_INTERVAL_MS`, `IFRAME_POLL_MAX_ATTEMPTS`, `HOVER_VISUAL_CLEAR_TIMEOUT_MS`). Adjust those values instead of sprinkling new literals.
+- DOM/style bootstrapping, hover polling, rectangle refresh, iframe readiness, and hover-visual timeout all reference the constants declared at the top of `extension/js/content/js.js` (`STYLE_POLL_INTERVAL_MS`, `HOVER_POLL_INTERVAL_MS`, `RECT_UPDATE_INTERVAL_MS`, `RECT_TIMEOUT_BASE_MS`, `RECT_TIMEOUT_REPEAT_COUNT`, `IFRAME_POLL_INTERVAL_MS`, `IFRAME_POLL_MAX_ATTEMPTS`, `HOVER_VISUAL_CLEAR_TIMEOUT_MS`). Adjust those values instead of sprinkling new literals.
 - Style injection now uses a 32 ms poll; if you pursue an event-driven approach, remove the corresponding `setInterval` and clear logic.
 
 - **Eye toggle functionality**: The Eye component now supports reveal/undo toggle mode via `setAnchor()`. Clicking the eye reveals the original image, then clicking again re-applies the filter. The `mCurrentMode` state tracks whether to reveal or filter.
@@ -110,25 +111,25 @@ No automated tests provided. Manual verification required:
 
 ### Common Development Tasks
 1. **Adding New Blocklist Categories**:
-   - Add new `.txt` file to `src/blocklists/`
-   - Update category definitions in `src/js/background.js`
-   - Add UI controls in `src/js/options.js`
-   - Test with `python download_blocklists.py`
+   - Add new `.txt` file to `extension/blocklists/`
+   - Update category definitions in `extension/js/background.js`
+   - Add UI controls in `extension/js/options.js`
+   - Test with `python extension/download_blocklists.py`
 
 2. **Modifying Image Processing**:
-   - Core algorithm in `src/js/content/ImageProcessing.js`
+   - Core algorithm in `extension/js/content/ImageProcessing.js`
    - Color space conversions and threshold adjustments
    - Test with various image types and cross-origin scenarios
-   - Update constants in `src/js/content/constants.js`
+   - Update constants in `extension/js/content/constants.js`
 
 3. **Adding User Interface Features**:
-   - Popup controls: `src/js/popup.js` + `src/popup.html`
-   - Options page: `src/js/options.js` + `src/options.html`
-   - Styling: `src/css/popup.css` or `src/css/options.css`
+   - Popup controls: `extension/js/popup.js` + `extension/popup.html`
+   - Options page: `extension/js/options.js` + `extension/options.html`
+   - Styling: `extension/css/popup.css` or `extension/css/options.css`
 
 4. **Implementing New Exclusion Logic**:
-   - Background processing: `src/js/background.js`
-   - Content script integration: `src/js/content/js.js`
+   - Background processing: `extension/js/background.js`
+   - Content script integration: `extension/js/content/js.js`
    - Storage management via chrome.storage APIs
 
 ### Debugging and Troubleshooting
@@ -156,19 +157,19 @@ No automated tests provided. Manual verification required:
 
 ## Detailed Implementation Notes
 
-### Service Worker (`src/js/background.js`)
+### Service Worker (`extension/js/background.js`)
 - Maintains an in-memory `storedSettings` mirror of values saved in `chrome.storage.sync` and `chrome.storage.local`.
 - Responds to runtime messages for exclusion management, pause toggles, filter color updates, and per-tab controls.
 - Loads blocklists by importing `content/DomainFilter.js`, calling `fetchAndProcessBlocklist`, and keeping a `Set` (`blockedDomains`) plus a `Map` (`domainToBlocklistMap`) so blocked domains resolve back to their source lists.
 - Intercepts primary-frame navigations through `chrome.webNavigation.onBeforeNavigate`; when the hostname matches a blocked domain the tab is redirected to a contextual Quran verse chosen by `getContextualRedirectUrl`.
 - Handles cross-origin image fetching by responding to `fetchAndReadImage` messages, retrieving binary data with `fetch`, converting to a data URL, and returning it to the content script.
 
-### Blocklist Utilities (`src/js/content/DomainFilter.js`)
+### Blocklist Utilities (`extension/js/content/DomainFilter.js`)
 - Declares `BLOCKLISTS`, grouping lists into `vice`, `hazard`, and `distraction` categories with metadata used by the Options UI.
 - Provides `processBlocklist` to scan local `.txt` files (supports `0.0.0.0 domain` rows and simple domain rows), chunking work to avoid long blocking loops when loading the large Porn list (~500k entries).
 - Supplies Quran verse mappings for contextual redirects and exposes `getContextualRedirectUrl`.
 
-### Content Script Runtime (`src/js/content/js.js` et al.)
+### Content Script Runtime (`extension/js/content/js.js` et al.)
 - Entry point `ProcessWin` orchestrates image discovery, mutation observation, and hover-eye behaviour for each frame.
 - A hidden canvas tagged `CANVAS_GLOBAL_ID` lives in the page to transform pixels. `processDomImage` and `processBackgroundImage` fetch image data (via the background worker when needed), then call `applyImageFilters`.
 - `ImageProcessing.js` carries the HSV + YCbCr detection pipeline (`filterSkinColor`). Skin pixels are recoloured using the current `settings.filterColor` (white / black / grey) before generating an object URL through `canvasBlobify`.
@@ -177,9 +178,9 @@ No automated tests provided. Manual verification required:
 - Lazy-loaded `<img>` elements and CSS backgrounds are reprocessed when their sources update, aided by mutation observers and cached bounding rectangles.
 
 ### UI Surfaces
-- **Popup (`src/popup.html`, `src/js/popup.js`)** exposes quick actions: toggling pause/exclusions, reloading, grabbing the current URL, and switching filter colours. Filter colour changes notify both storage (via the service worker) and active tabs (`updateFilterColor`).
-- **Options (`src/options.html`, `src/js/options.js`)** presents two columns: image filtering settings (eye icon, facial features removal, max safe size, pause timeout, exclusion list with optional free-text editing) and blocklist toggles split by category. Vice lists render as checked + disabled, while hazard/distraction lists stay user-toggleable.
-- Styling resides in `src/css/popup.css` and `src/css/options.css`; assets are served through `web_accessible_resources`.
+- **Popup (`extension/popup.html`, `extension/js/popup.js`)** exposes quick actions: toggling pause/exclusions, reloading, grabbing the current URL, and switching filter colours. Filter colour changes notify both storage (via the service worker) and active tabs (`updateFilterColor`).
+- **Options (`extension/options.html`, `extension/js/options.js`)** presents two columns: image filtering settings (eye icon, facial features removal, max safe size, pause timeout, exclusion list with optional free-text editing) and blocklist toggles split by category. Vice lists render as checked + disabled, while hazard/distraction lists stay user-toggleable.
+- Styling resides in `extension/css/popup.css` and `extension/css/options.css`; assets are served through `web_accessible_resources`.
 
 ### Storage Layout
 - `chrome.storage.sync` keys: `urlList` (JSON string array), `isNoEye`, `isNoFaceFeatures`, `maxSafe`, `autoUnpause`, `autoUnpauseTimeout`, `blocklistSettings` (JSON map of enabled flags), `filterColor`.
@@ -194,15 +195,15 @@ No automated tests provided. Manual verification required:
 - `showImages`, `updateFilterColor`, `fetchAndReadImage`: coordinate runtime behaviour between popup, content scripts, and service worker.
 
 ### Utilities and Assets
-- `download_blocklists.py` refreshes the local copies of Block List Project text files. Run before packaging to capture the latest domains.
-- Design assets (`eye.png`, `undo.png`, various pattern sprites) live under `src/images/`.
-- Example filtered output and GIMP source files (`eye.xcf`, `filter.xcf`) are stored at the repo root for reference.
+- `extension/download_blocklists.py` refreshes the local copies of Block List Project text files. Run before packaging to capture the latest domains.
+- Design assets (`eye.png`, `undo.png`, various pattern sprites) live under `extension/images/`.
+- GIMP source files (`eye.xcf`, `filter.xcf`) are stored under `extension/assets/` for reference.
 
 ## Known Limitations Observed
 
 - Style bootstrapping still relies on polling (`STYLE_POLL_INTERVAL_MS`), so we keep checking until `document.head` exists. Investigate event-driven hooks if you need further CPU savings.
 - Iframe readiness waits on a polling loop (`IFRAME_POLL_INTERVAL_MS`, `IFRAME_POLL_MAX_ATTEMPTS`); very slow embeds may still slip past the 5 s budget.
-- The hover-eye toggle now supports both reveal and re-filter actions via `setAnchor()` in `src/js/content/Eye.js`.
+- The hover-eye toggle now supports both reveal and re-filter actions via `setAnchor()` in `extension/js/content/Eye.js`.
 - `Suspects` now has `pruneDisconnected()` to clean up disconnected elements (`Suspects.js:7-17`), but still uses O(n) `indexOf` for duplicate detection (`Suspects.js:39`).
 
 

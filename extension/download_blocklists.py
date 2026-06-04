@@ -1,10 +1,11 @@
 import requests
-import os
 import time
+from pathlib import Path
 
 # Create the blocklists directory if it doesn't exist
-blocklists_dir = os.path.join('src', 'blocklists')
-os.makedirs(blocklists_dir, exist_ok=True)
+extension_dir = Path(__file__).resolve().parent
+blocklists_dir = extension_dir / 'blocklists'
+blocklists_dir.mkdir(parents=True, exist_ok=True)
 
 # List of all blocklists available from Block List Project (.txt and .ip files)
 blocklists = [
@@ -45,7 +46,7 @@ base_url = 'https://blocklistproject.github.io/Lists/'
 # Download each blocklist
 for blocklist in blocklists:
     filename = blocklist
-    target_path = os.path.join(blocklists_dir, filename)
+    target_path = blocklists_dir / filename
     url = f"{base_url}{filename}"
 
     print(f"Downloading {url} to {target_path}...")
@@ -64,4 +65,4 @@ for blocklist in blocklists:
     # Add a short delay to be polite to the server
     time.sleep(1)
 
-print("\nDownload complete! All blocklists have been saved to the src/blocklists directory.")
+print("\nDownload complete! All blocklists have been saved to the extension/blocklists directory.")

@@ -3,9 +3,11 @@
 
 const assert = require('assert');
 const fs = require('fs');
+const path = require('path');
 const vm = require('vm');
 
-const backgroundCode = fs.readFileSync('src/js/background.js', 'utf8');
+const backgroundPath = path.join(__dirname, '..', 'js', 'background.js');
+const backgroundCode = fs.readFileSync(backgroundPath, 'utf8');
 
 function createContext(overrides = {}) {
     let capturedMessageListener = null;

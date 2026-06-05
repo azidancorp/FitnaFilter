@@ -1,0 +1,1111 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>FitnaFilter — A firewall for your gaze</title>
+    <meta name="description" content="FitnaFilter is an open-source Chrome extension that blurs explicit imagery the instant it loads, blocks 500K+ harmful domains at the gateway, and gently redirects you toward something better — all processed privately on your own machine.">
+    <link rel="icon" type="image/svg+xml" href="data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 64 64'%3E%3Cpath fill='%237c3aed' d='M32 4 52 12v14c0 14.5-8.4 24.4-20 30-11.6-5.6-20-15.5-20-30V12L32 4Z'/%3E%3Cpath fill='%23f4e8ff' d='M24 22h20l-2.5 7H31v5h10l-2.5 7H31v12l-7-4V22Z'/%3E%3C/svg%3E">
+    <link rel="preconnect" href="https://fonts.googleapis.com">
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+    <link href="https://fonts.googleapis.com/css2?family=Sora:wght@500;600;700;800&family=Inter:wght@400;500;600&family=JetBrains+Mono:wght@400;500&family=Noto+Naskh+Arabic:wght@600&display=swap" rel="stylesheet">
+    <link rel="preload" as="image" href="hero_art.avif" type="image/avif">
+    <link rel="stylesheet" href="home.css">
+</head>
+<body>
+
+    <!-- Scroll progress -->
+    <div class="scrollbar" id="scrollbar" aria-hidden="true"></div>
+    <!-- Cursor glow -->
+    <div class="cursor-glow" id="cursorGlow" aria-hidden="true"></div>
+
+    <!-- Ambient backdrop -->
+    <div class="backdrop" aria-hidden="true">
+        <div class="grid-floor"></div>
+        <div class="orb orb--1"></div>
+        <div class="orb orb--2"></div>
+        <div class="orb orb--3"></div>
+        <div class="scanlines"></div>
+        <div class="noise"></div>
+    </div>
+    <canvas class="content-pattern" id="contentPattern" aria-hidden="true"></canvas>
+
+    <svg class="svg-sprite" aria-hidden="true" focusable="false">
+        <symbol id="fitna-logo-mark" viewBox="0 0 1254 1254">
+            <defs>
+                <linearGradient
+                   id="gradient_0"
+                   gradientUnits="userSpaceOnUse"
+                   x1="304.23898"
+                   y1="827.13232"
+                   x2="494.63257"
+                   y2="694.93964">
+                  <stop
+                     offset="0"
+                     stop-color="#3C1873" />
+                  <stop
+                     offset="1"
+                     stop-color="#7F33CB" />
+                </linearGradient>
+              </defs>
+              <path
+                 fill="url(#gradient_0)"
+                 d="M592.099 228.176C595.287 227.755 596.546 227.093 599.252 225.188C599.826 228.807 601.693 236.876 599.674 239.727C598.048 242.025 593.03 244.779 591.95 247.052C577.51 255.831 558.402 265.019 543.127 272.377C486.893 299.769 427.849 320.97 367.035 335.607C345.26 341.005 322.424 346.168 300.215 349.449C301.069 356.006 300.637 373.534 300.635 381.067L300.624 442.302L300.795 515.994C300.86 527.26 301.546 545.826 300.809 556.415C301.696 583.674 300.798 607.596 304.491 634.811C314.527 708.772 343.21 777.592 387.93 837.305C397.144 849.608 411.535 869.076 422.947 879.329C425.735 883.288 436.375 894.099 440.162 897.881C475.891 933.566 518.451 966.416 561.05 993.442C572.666 1000.81 584.33 1008.11 596.04 1015.32C598.006 1016.54 610.581 1024.21 611.646 1025.19C617.03 1028.2 622 1031.48 627.165 1034.83C629.997 1033.48 633.362 1031.36 636.106 1029.69C663.698 1012.96 691.495 996.21 717.706 977.369C721.494 974.646 726.976 970.536 731.045 968.437L730.886 969.672C728.65 971.374 726.994 972.644 724.586 974.144L724.613 974.975C724.745 980.526 721.891 986.77 723.559 989.665C726.681 990.879 733.686 983.554 737.217 981.394L738.082 981.995C780.864 950.807 819.238 916.558 853.741 876.513C858.394 871.113 864.648 862.119 869.791 857.763L871.14 857.897C833.653 905.564 791.76 943.94 743.412 980.142C744.848 981.334 745.575 982.409 746.76 983.488C753.626 989.743 761.848 996.374 770.271 1000.35C773.819 1002.03 780.493 1000.59 781.722 1005.99C778.555 1010.78 769.162 1014.79 769.566 1017.72C757.782 1026.97 743.443 1036.66 731 1045.06C705.516 1062.11 679.574 1078.45 653.204 1094.09C650.296 1095.8 629.505 1107.87 627.254 1108.67C607.088 1097.36 586.813 1083.93 567.047 1071.88C507.022 1035.29 450.253 996.389 399.918 947.036C310.293 859.158 248.59 750.215 236.598 624.033C234.417 601.082 234.523 582.227 234.481 559.237L234.377 495.947L233.678 289.529C241.352 288.856 249.257 288.043 256.937 287.729C263.642 286.376 277.662 285.122 285.194 284.011C302.441 281.462 319.589 278.282 336.603 274.478C351.743 271.086 366.787 267.28 381.718 263.064C390.467 260.533 402.722 256.369 411.257 254.428L411.756 254.318C416.975 251.871 433.87 246.575 440.641 244.157C456.733 238.422 472.653 232.216 488.38 225.546C491.613 227.17 490.97 227.429 490.44 231.104C494.8 236.132 498.252 250.092 504.311 248.003C508.152 254.958 505.305 257.317 513.727 260.406L514.414 261.494C512.578 265.299 507.292 265.005 507.953 269.02L510.864 269.088C541.201 256.255 563.865 243.016 592.099 228.176Z" />
+              <path
+                 fill="#9c44d7"
+                 d="m 411.756,254.318 c 5.219,-2.447 22.114,-7.743 28.885,-10.161 16.092,-5.735 32.012,-11.941 47.739,-18.611 3.233,1.624 2.59,1.883 2.06,5.558 4.36,5.028 7.812,18.988 13.871,16.899 3.841,6.955 0.994,9.314 9.416,12.403 l 0.687,1.088 c -1.836,3.805 -7.122,3.511 -6.461,7.526 l 2.911,0.068 c -5.908,2.61 -11.967,5.401 -17.994,7.678 0,0 -24.73536,8.7995 -35.589,12.633 -44.896,15.487 -90.963,29.428 -137.639,38.403 -7.205,1.385 -25.983,5.039 -32.983,5.389 l -0.933,-0.592 c -2.158,-0.087 -1.213,-0.372 -2.951,0.821 -1.297,2.759 -0.334,46.909 -0.915,54.111 l -0.56,0.462 -0.862,-0.321 c -1.457,-5.302 -4.944,-5.974 -10.052,-8.918 -0.682,-1.796 -0.538,-1.965 -2.009,-3.102 -2.687,-0.424 -5.741,2.964 -9.571,3.772 -5.726,1.432 -10.077,-4.17 -14.771,-6.551 -3.291,-1.669 -6.751,-2.861 -8.701,1.222 -0.467,-2.196 -0.244,-22.952 -0.179,-25.409 0.231,-8.732 -2.609,-52.367 0.889,-57.837 3.659,-0.959 20.289,-2.185 25.334,-2.723 -1.487,-0.46 -2.877,-0.37 -4.441,-0.397 6.705,-1.353 20.725,-2.607 28.257,-3.718 17.247,-2.549 34.395,-5.729 51.409,-9.533 15.14,-3.392 30.184,-7.198 45.115,-11.414 8.749,-2.531 21.004,-6.695 29.539,-8.636 z" />
+              <defs>
+                <linearGradient
+                   id="gradient_1"
+                   gradientUnits="userSpaceOnUse"
+                   x1="353.66989"
+                   y1="244.55634"
+                   x2="509.29398"
+                   y2="360.65714">
+                  <stop
+                     offset="0"
+                     stop-color="#34146C" />
+                  <stop
+                     offset="1"
+                     stop-color="#5E229E" />
+                </linearGradient>
+              </defs>
+              <path
+                 fill="url(#gradient_1)"
+                 d="m 592.099,228.176 c 3.188,-0.421 4.447,-1.083 7.153,-2.988 0.574,3.619 2.441,11.688 0.422,14.539 -1.626,2.298 -6.644,5.052 -7.724,7.325 -14.44,8.779 -33.548,17.967 -48.823,25.325 -56.234,27.392 -115.278,48.593 -176.092,63.23 -21.775,5.398 -44.611,10.561 -66.82,13.842 0.854,6.557 0.422,24.085 0.42,31.618 l -0.011,61.235 0.171,73.692 c 0.065,11.266 0.751,29.832 0.014,40.421 -2.497,5.814 0.379,53.93 0.689,62.587 -1.156,0.456 -4.519,0.214 -5.99,0.183 -13.144,-9.772 -6.486,-6.005 -8.934,-18.378 -2.252,-11.387 2.019,-53.27 -1.667,-61.588 0.04,20.153 -0.007,40.596 0.651,60.744 0.418,12.795 2.618,26.005 3.636,38.639 l -1.591,-0.507 c -0.523,-1.507 -1.444,-10.951 -1.668,-13.206 -3.234,-32.57 -2.5,-65.992 -2.513,-98.754 l -0.238,-101.517 -0.02,-57.544 c -10e-4,-9.874 -0.376,-22.533 0.267,-32.176 1.065,-1.579 0.791,-1.081 3.228,-1.707 7,-0.35 25.778,-4.004 32.983,-5.389 66.02493,-14.45733 129.90242,-31.0614 191.222,-58.714 30.337,-12.833 53.001,-26.072 81.235,-40.912 z" />
+              <path
+                 fill="#572295"
+                 d="M284.819 432.463C286.572 425.753 284.14 399.252 285.894 395.243C288.521 393.517 291.076 395.274 294.426 393.947C295.358 393.578 298.202 392.972 299.273 392.915C299.287 396.369 298.985 437.912 299.128 438.452C301.076 436.396 299.248 361.791 300.17 349.974L300.215 349.449C301.069 356.006 300.637 373.534 300.635 381.067L300.624 442.302L300.795 515.994C300.86 527.26 301.546 545.826 300.809 556.415C298.312 562.229 301.188 610.345 301.498 619.002C300.342 619.458 296.979 619.216 295.508 619.185C282.364 609.413 289.022 613.18 286.574 600.807C284.322 589.42 288.593 547.537 284.907 539.219L284.737 470.863C284.698 458.919 284.194 444.05 284.819 432.463Z" />
+              <defs>
+                <linearGradient
+                   id="gradient_2"
+                   gradientUnits="userSpaceOnUse"
+                   x1="468.11502"
+                   y1="823.13177"
+                   x2="397.46631"
+                   y2="875.34674">
+                  <stop
+                     offset="0"
+                     stop-color="#9133D5" />
+                  <stop
+                     offset="1"
+                     stop-color="#D380F9" />
+                </linearGradient>
+              </defs>
+              <path
+                 fill="url(#gradient_2)"
+                 d="M284.907 539.219C288.593 547.537 284.322 589.42 286.574 600.807C289.022 613.18 282.364 609.413 295.508 619.185C296.979 619.216 300.342 619.458 301.498 619.002C301.188 610.345 298.312 562.229 300.809 556.415C301.696 583.674 300.798 607.596 304.491 634.811C314.527 708.772 343.21 777.592 387.93 837.305C397.144 849.608 411.535 869.076 422.947 879.329C425.735 883.288 436.375 894.099 440.162 897.881C475.891 933.566 518.451 966.416 561.05 993.442C572.666 1000.81 584.33 1008.11 596.04 1015.32C598.006 1016.54 610.581 1024.21 611.646 1025.19C617.03 1028.2 622 1031.48 627.165 1034.83C627.192 1038.51 627.1 1043.14 627.316 1046.73C627.443 1048.6 627.391 1050.91 628.177 1052.52C624.844 1052.82 611.016 1042.81 607.216 1040.53C547.476 1004.7 487.686 966.314 437.679 917.383C435.649 916.057 427.269 907.528 425.508 905.398C423.619 903.82 420.597 900.933 419.303 898.895C410.069 890.556 393.126 869.942 385.555 860.335C345.939 810.063 315.832 753.535 299.963 691.348C295.437 673.611 291.458 656.969 289.194 638.602C288.176 625.968 285.976 612.758 285.558 599.963C284.9 579.815 284.947 559.372 284.907 539.219Z" />
+              <path
+                 fill="#9C44D7"
+                 d="M611.646 1025.19C617.03 1028.2 622 1031.48 627.165 1034.83C627.192 1038.51 627.1 1043.14 627.316 1046.73L626.89 1048.41L626.388 1048.33C627.212 1025.63 620.033 1039.36 611.646 1025.19Z" />
+              <path
+                 fill="#C883EB"
+                 d="M425.508 905.398C427.471 906.708 437.205 915.622 437.679 917.383C435.649 916.057 427.269 907.528 425.508 905.398Z" />
+              <path
+                 fill="#C883EB"
+                 d="M419.303 898.895C421.16 899.958 424.237 903.594 425.508 905.398C423.619 903.82 420.597 900.933 419.303 898.895Z" />
+              <path
+                 fill="#572295"
+                 d="M743.412 980.142C744.848 981.334 745.575 982.409 746.76 983.488C753.626 989.743 761.848 996.374 770.271 1000.35C773.819 1002.03 780.493 1000.59 781.722 1005.99C778.555 1010.78 769.162 1014.79 769.566 1017.72C757.782 1026.97 743.443 1036.66 731 1045.06C705.516 1062.11 679.574 1078.45 653.204 1094.09C650.296 1095.8 629.505 1107.87 627.254 1108.67C627.15 1097.69 627.119 1086.72 627.16 1075.74C627.207 1069.34 627.582 1061.03 627.108 1054.83C667.164 1032 705.986 1007.07 743.412 980.142Z" />
+              <defs>
+                <linearGradient
+                   id="gradient_3"
+                   gradientUnits="userSpaceOnUse"
+                   x1="642.94745"
+                   y1="998.74847"
+                   x2="709.21436"
+                   y2="1025.3624">
+                  <stop
+                     offset="0"
+                     stop-color="#6F2EBB" />
+                  <stop
+                     offset="1"
+                     stop-color="#A550E5" />
+                </linearGradient>
+              </defs>
+              <path
+                 fill="url(#gradient_3)"
+                 d="M627.165 1034.83C629.997 1033.48 633.362 1031.36 636.106 1029.69C663.698 1012.96 691.495 996.21 717.706 977.369C721.494 974.646 726.976 970.536 731.045 968.437L730.886 969.672C728.65 971.374 726.994 972.644 724.586 974.144L724.613 974.975C724.745 980.526 721.891 986.77 723.559 989.665C726.681 990.879 733.686 983.554 737.217 981.394L738.082 981.995C712.968 1000.17 687.101 1017.27 660.549 1033.27C651.366 1038.88 637.456 1047.78 628.177 1052.52C627.391 1050.91 627.443 1048.6 627.316 1046.73C627.1 1043.14 627.192 1038.51 627.165 1034.83Z" />
+              <defs>
+                <linearGradient
+                   id="gradient_4"
+                   gradientUnits="userSpaceOnUse"
+                   x1="725.41711"
+                   y1="659.08411"
+                   x2="1038.3953"
+                   y2="641.06061">
+                  <stop
+                     offset="0"
+                     stop-color="#4B1A8C" />
+                  <stop
+                     offset="1"
+                     stop-color="#B552ED" />
+                </linearGradient>
+              </defs>
+              <path
+                 fill="url(#gradient_4)"
+                 d="M977.166 328.085C981.885 327.259 1011.42 294.786 1018.53 291.962C1019.3 302.439 1018.55 317.581 1018.55 328.505L1018.28 405.21C1018.52 404.4 1018.88 402.374 1019.3 401.826L1018.26 526.938C1018.08 560.666 1018.82 597.869 1015.07 631.198C1001.58 750.877 940.145 860.449 855.437 944.535C833.5 966.347 810.214 986.76 785.716 1005.65C783.115 1007.69 771.885 1016.55 769.566 1017.72C769.162 1014.79 778.555 1010.78 781.722 1005.99C780.493 1000.59 773.819 1002.03 770.271 1000.35C761.848 996.374 753.626 989.743 746.76 983.488C745.575 982.409 744.848 981.334 743.412 980.142C791.76 943.94 833.653 905.564 871.14 857.897C871.571 857.452 872.061 856.806 872.447 856.327C923.044 793.353 955.451 717.739 966.159 637.67C967.284 629.38 970.714 602.833 969.822 594.603C970.595 566.89 970.313 537.048 970.365 509.205L970.513 333.281L977.166 328.085Z" />
+              <path
+                 fill="#9C44D7"
+                 d="M630.34 147.857C652.847 162.085 676.671 177.012 700.04 189.727C774.664 230.122 854.873 259.211 938.042 276.041C959.088 280.391 998.661 287.604 1019.88 287.912C1019.53 325.648 1020.01 364.219 1019.3 401.826C1018.88 402.374 1018.52 404.4 1018.28 405.21L1018.55 328.505C1018.55 317.581 1019.3 302.439 1018.53 291.962C1011.42 294.786 981.885 327.259 977.166 328.085L970.513 333.281L970.365 509.205C970.313 537.048 970.595 566.89 969.822 594.603C968.056 587.506 968.531 569.156 968.545 561.093L968.594 512.539C968.638 454.5 967.595 392.958 968.995 335.173C968.166 333.443 954.417 331.636 951.77 331.151C940.835 329.128 929.941 326.887 919.095 324.43C862.818 311.879 807.801 294.23 754.724 271.702C739.513 265.041 724.455 258.037 709.562 250.695C702.944 247.387 694.946 242.435 688.21 239.795C684.76 237.508 680.339 235.114 676.661 233.179C660.678 224.772 645.479 214.309 629.737 205.633L629.945 204.259C630.303 201.635 630.222 198.981 630.27 196.337C630.568 180.179 630.083 164.015 630.34 147.857Z" />
+              <path
+                 fill="#ECCFF8"
+                 d="M629.945 204.259C637.359 207.545 646.761 214.546 654.097 218.835C671.768 229.191 689.74 239.024 707.989 248.323C770.512 280.017 836.868 303.106 904.942 319.337C923.212 323.693 951.357 330.582 969.902 332.747L970.513 333.281L970.365 509.205C970.313 537.048 970.595 566.89 969.822 594.603C968.056 587.506 968.531 569.156 968.545 561.093L968.594 512.539C968.638 454.5 967.595 392.958 968.995 335.173C968.166 333.443 954.417 331.636 951.77 331.151C940.835 329.128 929.941 326.887 919.095 324.43C862.818 311.879 807.801 294.23 754.724 271.702C739.513 265.041 724.455 258.037 709.562 250.695C702.944 247.387 694.946 242.435 688.21 239.795C684.76 237.508 680.339 235.114 676.661 233.179C660.678 224.772 645.479 214.309 629.737 205.633L629.945 204.259Z" />
+              <defs>
+                <linearGradient
+                   id="gradient_5"
+                   gradientUnits="userSpaceOnUse"
+                   x1="632.49213"
+                   y1="226.67883"
+                   x2="601.81677"
+                   y2="817.92426">
+                  <stop
+                     offset="0"
+                     stop-color="#D3C8DF" />
+                  <stop
+                     offset="1"
+                     stop-color="#EDEAF1" />
+                </linearGradient>
+              </defs>
+              <defs>
+                <linearGradient
+                   id="gradient_6"
+                   gradientUnits="userSpaceOnUse"
+                   x1="827.05652"
+                   y1="246.33057"
+                   x2="825.55225"
+                   y2="344.64648">
+                  <stop
+                     offset="0"
+                     stop-color="#7534C6" />
+                  <stop
+                     offset="1"
+                     stop-color="#C756EB" />
+                </linearGradient>
+              </defs>
+              <path
+                 fill="url(#gradient_6)"
+                 d="M688.21 239.795C694.946 242.435 702.944 247.387 709.562 250.695C724.455 258.037 739.513 265.041 754.724 271.702C807.801 294.23 862.818 311.879 919.095 324.43C929.941 326.887 940.835 329.128 951.77 331.151C954.417 331.636 968.166 333.443 968.995 335.173C966.733 336.464 960.861 340.432 959.792 342.555C957.951 344.242 953.905 347.179 953.76 349.306C951.927 347.776 934.667 344.621 931.144 343.86C905.632 338.47 880.306 332.23 855.209 325.151C804.039 310.528 754.283 291.348 706.539 267.84C695.299 262.276 681.146 255.294 670.445 248.871C683.464 249.816 683.531 265.228 694.161 243.934C691.663 242.87 690.542 242.355 688.241 240.933L688.21 239.795Z" />
+              <path
+                 fill="#572295"
+                 d="M629.737 205.633C645.479 214.309 660.678 224.772 676.661 233.179C680.339 235.114 684.76 237.508 688.21 239.795L688.241 240.933C690.542 242.355 691.663 242.87 694.161 243.934C683.531 265.228 683.464 249.816 670.445 248.871C666.267 247.545 634.406 228.035 629.416 224.793C622.104 229.981 600.047 242.98 591.95 247.052C593.03 244.779 598.048 242.025 599.674 239.727C601.693 236.876 599.826 228.807 599.252 225.188C596.546 227.093 595.287 227.755 592.099 228.176C600.445 222.248 620.034 211.373 629.737 205.633Z" />
+              <defs>
+                <linearGradient
+                   id="gradient_7"
+                   gradientUnits="userSpaceOnUse"
+                   x1="840.08929"
+                   y1="661.62299"
+                   x2="952.09601"
+                   y2="703.05139">
+                  <stop
+                     offset="0"
+                     stop-color="#AE51E8" />
+                  <stop
+                     offset="1"
+                     stop-color="#E19DFB" />
+                </linearGradient>
+              </defs>
+              <path
+                 fill="url(#gradient_7)"
+                 d="M959.792 342.555C960.861 340.432 966.733 336.464 968.995 335.173C967.595 392.958 968.638 454.5 968.594 512.539L968.545 561.093C968.531 569.156 968.056 587.506 969.822 594.603C970.714 602.833 967.284 629.38 966.159 637.67C955.451 717.739 923.044 793.353 872.447 856.327C872.061 856.806 871.571 857.452 871.14 857.897L869.791 857.763C864.648 862.119 858.394 871.113 853.741 876.513C819.238 916.558 780.864 950.807 738.082 981.995L737.217 981.394C733.686 983.554 726.681 990.879 723.559 989.665C721.891 986.77 724.745 980.526 724.613 974.975L724.586 974.144C726.994 972.644 728.65 971.374 730.886 969.672L731.045 968.437C733.485 965.891 752.313 952.049 756.527 948.733C771.419 937.044 785.705 924.602 799.329 911.456C879.529 834.285 933.497 748.385 949.089 636.609C954.352 598.873 952.247 565.216 952.829 527.604C953.684 472.374 952.387 416.255 953.405 361.16C953.205 358.263 953.355 353.453 953.355 350.412L953.76 349.306C953.905 347.179 957.951 344.242 959.792 342.555Z" />
+              <defs>
+                <linearGradient
+                   id="gradient_8"
+                   gradientUnits="userSpaceOnUse"
+                   x1="614.89697"
+                   y1="501.70532"
+                   x2="864.09119"
+                   y2="401.76459">
+                  <stop
+                     offset="0"
+                     stop-color="#AA46DF" />
+                  <stop
+                     offset="1"
+                     stop-color="#E36CFB" />
+                </linearGradient>
+              </defs>
+              <path
+                 fill="url(#gradient_8)"
+                 d="M590.987 429.032L877.785 429.059C869.493 454.65 861.801 483.198 835.658 496.366C828.553 499.975 820.849 502.259 812.924 503.105C803.522 504.196 792.005 503.881 782.36 503.874L739.852 503.82C702.533 503.77 662.528 504.59 625.396 503.765C627.844 502.949 628.618 503.06 631.259 502.991C629.461 502.16 628.475 503.132 625.51 502.566C624.008 500.463 621.009 498.893 619.859 496.963C616.638 491.554 614.266 483.692 611.113 478.431C608.863 474.676 603.51 469.695 601.496 465.372C596.905 455.512 587.916 439.851 590.987 429.032Z" />
+              <defs>
+                <linearGradient
+                   id="gradient_9"
+                   gradientUnits="userSpaceOnUse"
+                   x1="685.6192"
+                   y1="602.68262"
+                   x2="814.99896"
+                   y2="556.0188">
+                  <stop
+                     offset="0"
+                     stop-color="#9138CA" />
+                  <stop
+                     offset="1"
+                     stop-color="#DD68FD" />
+                </linearGradient>
+              </defs>
+              <defs>
+                <linearGradient
+                   id="gradient_10"
+                   gradientUnits="userSpaceOnUse"
+                   x1="560.19977"
+                   y1="625.17902"
+                   x2="703.0625"
+                   y2="582.83087">
+                  <stop
+                     offset="0"
+                     stop-color="#6221AB" />
+                  <stop
+                     offset="1"
+                     stop-color="#8A38C5"
+                     style="stop-color:#aa4ccc;stop-opacity:1;" />
+                </linearGradient>
+              </defs>
+              <path
+                 style="fill:url(#gradient_10)"
+                 d="m 554.707,621.395 c 9.401,-41.029 13.901,-77.448 66.41,-75.93 -47.85921,33.23008 64.9928,59.714 19.592,75.893 -8.612,0.455 -20.805,0.093 -29.651,0.087 z m 66.41,-75.93 c 7.945,-0.48 18.778,-0.195 26.924,-0.202 l 51.459,0.047 c 43.794,-0.015 88.644,-0.563 132.333,0.067 -6.166,22.474 -12.559,40.35 -30.66,56.479 -26.756,23.84 -62.917,19.602 -96.187,19.614 -21.157,0.008 -43.28,0.587 -64.277,-0.112 -8.612,0.455 -20.805,0.093 -29.651,0.087 l -56.351,-0.05 c 9.401,-41.029 13.901,-77.448 66.41,-75.93 z" />
+              <defs>
+                <linearGradient
+                   id="gradient_11"
+                   gradientUnits="userSpaceOnUse"
+                   x1="442.77481"
+                   y1="591.54755"
+                   x2="599.38489"
+                   y2="537.39331">
+                  <stop
+                     offset="0"
+                     stop-color="#3D1571" />
+                  <stop
+                     offset="1"
+                     stop-color="#6728A3" />
+                </linearGradient>
+              </defs>
+              <path
+                 fill="url(#gradient_11)"
+                 d="M468.129 550.641C469.22 542.768 472.04 534.798 473.455 527.263C482.461 479.303 506.247 439.353 557.797 430.563C569.233 428.613 579.326 428.97 590.987 429.032C587.916 439.851 596.905 455.512 601.496 465.372C603.51 469.695 608.863 474.676 611.113 478.431C614.266 483.692 616.638 491.554 619.859 496.963C621.009 498.893 624.008 500.463 625.51 502.566C628.475 503.132 629.461 502.16 631.259 502.991C628.618 503.06 627.844 502.949 625.396 503.765C614.454 503.818 602.745 503.518 591.964 504.994C550.433 515.198 547.82 551.751 538.546 587.412C535.628 598.629 533.457 610.157 530.709 621.423L451.013 621.388C454.931 605.662 458.706 589.901 462.336 574.106C463.292 570.009 466.741 554.142 468.129 550.641Z" />
+              <defs>
+                <linearGradient
+                   id="gradient_12"
+                   gradientUnits="userSpaceOnUse"
+                   x1="468.32123"
+                   y1="541.99512"
+                   x2="604.74847"
+                   y2="452.97885">
+                  <stop
+                     offset="0"
+                     stop-color="#601DAC" />
+                  <stop
+                     offset="1"
+                     stop-color="#A947DD" />
+                </linearGradient>
+              </defs>
+              <path
+                 fill="url(#gradient_12)"
+                 d="M468.129 550.641C469.22 542.768 472.04 534.798 473.455 527.263C482.461 479.303 506.247 439.353 557.797 430.563C569.233 428.613 579.326 428.97 590.987 429.032C587.916 439.851 596.905 455.512 601.496 465.372C603.51 469.695 608.863 474.676 611.113 478.431C614.266 483.692 616.638 491.554 619.859 496.963C621.009 498.893 624.008 500.463 625.51 502.566C628.475 503.132 629.461 502.16 631.259 502.991C628.618 503.06 627.844 502.949 625.396 503.765C614.454 503.818 602.745 503.518 591.964 504.994L591.471 504.162C585.474 503.39 572.481 503.568 565.899 503.524C539.397 503.343 517.409 501.767 495.194 518.77C487.759 524.461 481.301 531.325 476.075 539.094C474.273 541.791 469.975 548.986 468.129 550.641Z" />
+              <defs>
+                <linearGradient
+                   id="gradient_13"
+                   gradientUnits="userSpaceOnUse"
+                   x1="588.36755"
+                   y1="696.60742"
+                   x2="484.04913"
+                   y2="838.44">
+                  <stop
+                     offset="0"
+                     stop-color="#5A1EA5" />
+                  <stop
+                     offset="1"
+                     stop-color="#C148E6" />
+                </linearGradient>
+              </defs>
+              <path
+                 fill="url(#gradient_13)"
+                 d="M545.573 662.126C548.872 661.52 565.804 661.769 569.914 661.773L624.547 661.853C624.444 665.984 612.787 716.192 612.312 716.844L613.957 717.259C612.871 718.088 612.6 718.954 612.309 720.314C604.108 758.229 595.297 802.881 550.2 811.256C529.176 814.681 507.034 813.384 485.659 813.488C472.043 813.553 454.726 814.135 441.548 812.736C526.953 802.618 524.219 744.755 542.632 676.115C543.79 671.801 545.247 666.542 545.573 662.126Z" />
+              <path
+                 fill="#572295"
+                 d="m 545.573,662.126 c 3.299,-0.606 20.231,-0.357 24.341,-0.353 l 54.633,0.08 c -0.103,4.131 -11.76,54.339 -12.235,54.991 -28.77053,-0.0435 -50.96917,-21.59883 -66.739,-54.718 z" />
+              <defs>
+                <linearGradient
+                   id="gradient_14"
+                   gradientUnits="userSpaceOnUse"
+                   x1="510.24048"
+                   y1="656.4671"
+                   x2="415.95972"
+                   y2="792.47821">
+                  <stop
+                     offset="0"
+                     stop-color="#4D199D" />
+                  <stop
+                     offset="1"
+                     stop-color="#C14BE8" />
+                </linearGradient>
+              </defs>
+              <path
+                 fill="url(#gradient_14)"
+                 d="M473.745 662.132C477.125 661.63 487.252 661.776 490.823 661.783L521.996 661.895C518.311 677.765 514.523 693.611 510.63 709.432C500.859 749.104 494.097 777.127 448.314 782.545L397.405 782.569C407.982 768.196 416.993 753.512 422.802 736.568C433.707 704.759 431.159 667.002 473.745 662.132Z" />
+              <defs>
+                <linearGradient
+                   id="gradient_15"
+                   gradientUnits="userSpaceOnUse"
+                   x1="612.04376"
+                   y1="712.31836"
+                   x2="720.5061"
+                   y2="656.8172">
+                  <stop
+                     offset="0"
+                     stop-color="#581F9C" />
+                  <stop
+                     offset="1"
+                     stop-color="#A440D8" />
+                </linearGradient>
+              </defs>
+              <path
+                 fill="url(#gradient_15)"
+                 d="m 624.547,661.853 96.719,0.016 c -13.901,47.675 -38.62275,55.80256 -87.826,55.677 -6.64563,0.0589 -12.02395,-0.23733 -19.483,-0.287 l -1.645,-0.415 c 0.475,-0.652 12.132,-50.86 12.235,-54.991 z"
+                 style="fill:url(#gradient_15)" />
+              <defs>
+                <linearGradient
+                   id="gradient_16"
+                   gradientUnits="userSpaceOnUse"
+                   x1="506.67761"
+                   y1="268.49463"
+                   x2="626.29358"
+                   y2="147.50032">
+                  <stop
+                     offset="0"
+                     stop-color="#B34DE9" />
+                  <stop
+                     offset="1"
+                     stop-color="#EBA1FB" />
+                </linearGradient>
+              </defs>
+              <path
+                 fill="url(#gradient_16)"
+                 d="M488.38 225.546C527.54 208.825 565.309 189.02 601.333 166.318C610.696 160.506 621.386 154.139 630.34 147.857C630.083 164.015 630.568 180.179 630.27 196.337C630.222 198.981 630.303 201.635 629.945 204.259L629.737 205.633C620.034 211.373 600.445 222.248 592.099 228.176C563.865 243.016 541.201 256.255 510.864 269.088L507.953 269.02C507.292 265.005 512.578 265.299 514.414 261.494L513.727 260.406C505.305 257.317 508.152 254.958 504.311 248.003C498.252 250.092 494.8 236.132 490.44 231.104C490.97 227.429 491.613 227.17 488.38 225.546Z" />
+        </symbol>
+    </svg>
+
+    <!-- ============ NAV ============ -->
+    <header class="nav" id="nav">
+        <div class="nav__inner">
+            <a class="brand" href="#top" aria-label="FitnaFilter home">
+                <svg class="brand__mark logo-mark" viewBox="0 0 1254 1254"><use href="#fitna-logo-mark"></use></svg>
+                <span class="brand__name">Fitna<span class="brand__accent">Filter</span></span>
+                <span class="brand__tag">v1.0</span>
+            </a>
+            <nav class="nav__links" aria-label="Primary">
+                <a href="#engine">Engine</a>
+                <a href="#playground">Playground</a>
+                <a href="#features">Features</a>
+                <a href="#categories">Blocklists</a>
+                <a href="#sanctuary">Sanctuary</a>
+                <a href="#faq">FAQ</a>
+            </nav>
+            <div class="nav__right">
+                <a href="https://github.com/azidancorp/FitnaFilter" class="nav__ghost" aria-label="GitHub repository">
+                    <svg viewBox="0 0 24 24" fill="currentColor" width="18" height="18"><path d="M12 .5a12 12 0 0 0-3.8 23.4c.6.1.8-.3.8-.6v-2c-3.3.7-4-1.6-4-1.6-.6-1.4-1.3-1.8-1.3-1.8-1.1-.7 0-.7 0-.7 1.2 0 1.9 1.2 1.9 1.2 1 1.8 2.8 1.3 3.5 1 .1-.8.4-1.3.7-1.6-2.7-.3-5.5-1.3-5.5-5.9 0-1.3.5-2.4 1.2-3.2 0-.4-.5-1.6.2-3.2 0 0 1-.3 3.3 1.2a11.5 11.5 0 0 1 6 0C17.3 5 18.3 5.3 18.3 5.3c.7 1.6.2 2.8.1 3.2.8.8 1.2 1.9 1.2 3.2 0 4.6-2.8 5.6-5.5 5.9.4.4.8 1.1.8 2.2v3.3c0 .3.2.7.8.6A12 12 0 0 0 12 .5Z"/></svg>
+                    <span class="nav__stars">Star</span>
+                </a>
+                <a href="https://github.com/azidancorp/FitnaFilter" class="btn btn--solid nav__cta">
+                    <span class="btn__glyph">↓</span> Get it free
+                </a>
+            </div>
+        </div>
+    </header>
+
+    <main id="top">
+
+        <!-- ============ HERO ============ -->
+        <section class="hero" id="hero">
+            <div class="hero__media" aria-hidden="true">
+                <div class="hero__img hero__art" id="heroImg"></div>
+                <div class="hero__veil"></div>
+            </div>
+            <div class="hero__content">
+                <p class="eyebrow">
+                    <span class="eyebrow__dot"></span>
+                    Open source · Manifest&nbsp;V3 · On-device
+                </p>
+                <h1 class="hero__title">
+                    Filter the <span class="grad">fitna</span>,<br>
+                    not the&nbsp;web.
+                </h1>
+                <p class="hero__lede">
+                    FitnaFilter blurs explicit imagery the instant it loads, blocks harmful
+                    domains at the gateway, and gently redirects you toward something better —
+                    all processed <strong>privately, on your own machine.</strong>
+                </p>
+                <div class="hero__actions">
+                    <a href="https://github.com/azidancorp/FitnaFilter" class="btn btn--solid btn--lg">
+                        <span class="btn__glyph">↓</span> Get FitnaFilter — Free
+                    </a>
+                    <a href="#engine" class="btn btn--ghost btn--lg">
+                        See how it works <span aria-hidden="true">→</span>
+                    </a>
+                </div>
+                <ul class="hero__trust">
+                    <li><span class="check">✓</span> No account</li>
+                    <li><span class="check">✓</span> No tracking</li>
+                    <li><span class="check">✓</span> 100% on-device</li>
+                </ul>
+            </div>
+            <div class="hero__scroll" aria-hidden="true">
+                <span>scroll</span>
+                <div class="hero__scroll-line"></div>
+            </div>
+        </section>
+
+        <div class="section-separator" aria-hidden="true">
+            <div class="separator-line"></div>
+            <div class="separator-line"></div>
+            <div class="separator-line"></div>
+        </div>
+
+        <!-- ============ MARQUEE ============ -->
+        <section class="marquee" aria-hidden="true">
+            <div class="marquee__row">
+                <div class="marquee__track">
+                    <div class="marquee__group">
+                        <span class="mq mq--block">casino.bet</span><span class="mq mq--block">tracker.ad</span><span class="mq mq--block">phish.login</span><span class="mq mq--block">malware.host</span><span class="mq mq--block">cryptominer.js</span><span class="mq mq--block">popup.redirect</span><span class="mq mq--block">torrent.cache</span><span class="mq mq--block">scam.gift</span><span class="mq mq--block">spyware.kit</span><span class="mq mq--block">ransom.lock</span>
+                    </div>
+                    <div class="marquee__group">
+                        <span class="mq mq--block">casino.bet</span><span class="mq mq--block">tracker.ad</span><span class="mq mq--block">phish.login</span><span class="mq mq--block">malware.host</span><span class="mq mq--block">cryptominer.js</span><span class="mq mq--block">popup.redirect</span><span class="mq mq--block">torrent.cache</span><span class="mq mq--block">scam.gift</span><span class="mq mq--block">spyware.kit</span><span class="mq mq--block">ransom.lock</span>
+                    </div>
+                </div>
+            </div>
+            <div class="marquee__row marquee__row--rev">
+                <div class="marquee__track">
+                    <div class="marquee__group">
+                        <span class="mq mq--pass">YCbCr detection</span><span class="mq mq--pass">HSV validation</span><span class="mq mq--pass">canvas pipeline</span><span class="mq mq--pass">webNavigation gate</span><span class="mq mq--pass">contextual redirect</span><span class="mq mq--pass">per-site modes</span><span class="mq mq--pass">hover-eye reveal</span><span class="mq mq--pass">zero telemetry</span>
+                    </div>
+                    <div class="marquee__group">
+                        <span class="mq mq--pass">YCbCr detection</span><span class="mq mq--pass">HSV validation</span><span class="mq mq--pass">canvas pipeline</span><span class="mq mq--pass">webNavigation gate</span><span class="mq mq--pass">contextual redirect</span><span class="mq mq--pass">per-site modes</span><span class="mq mq--pass">hover-eye reveal</span><span class="mq mq--pass">zero telemetry</span>
+                    </div>
+                </div>
+            </div>
+        </section>
+
+        <div class="section-separator section-separator--compact" aria-hidden="true">
+            <div class="separator-line"></div>
+            <div class="separator-line"></div>
+        </div>
+
+        <!-- ============ STATS ============ -->
+        <section class="stats" aria-label="By the numbers">
+            <div class="stats__grid">
+                <div class="stat" data-reveal>
+                    <div class="stat__num" data-count="500000" data-suffix="K+" data-divide="1000">0</div>
+                    <div class="stat__label">Domains at the gate</div>
+                </div>
+                <div class="stat" data-reveal>
+                    <div class="stat__num" data-count="27" data-suffix="">0</div>
+                    <div class="stat__label">Curated blocklists</div>
+                </div>
+                <div class="stat" data-reveal>
+                    <div class="stat__num" data-count="100" data-suffix="%">0</div>
+                    <div class="stat__label">Processed locally</div>
+                </div>
+            </div>
+        </section>
+
+        <div class="section-separator section-separator--compact" aria-hidden="true">
+            <div class="separator-line"></div>
+            <div class="separator-line"></div>
+        </div>
+
+        <!-- ============ THE FILTER ENGINE ============ -->
+        <section class="section engine" id="engine">
+            <header class="section__head" data-reveal>
+                <p class="kicker">⟡ The Filter Engine ⟡</p>
+                <h2 class="section__title">Three gates, one calm browser.</h2>
+                <p class="section__sub">
+                    Every pixel and every link passes through a pipeline built for restraint —
+                    fast enough to feel invisible, strict enough to matter.
+                </p>
+            </header>
+
+            <!-- Pixel-alchemy portal showpiece -->
+            <div class="portal" data-reveal aria-hidden="true">
+                <div class="portal__in" id="portalIn"></div>
+                <div class="portal__pass" id="portalPass"></div>
+                <div class="portal__core">
+                    <div class="portal__ring"></div>
+                    <div class="portal__ring portal__ring--2"></div>
+                    <svg class="portal__mark logo-mark" viewBox="0 0 1254 1254"><use href="#fitna-logo-mark"></use></svg>
+                    <div class="portal__beam"></div>
+                </div>
+                <div class="portal__out" id="portalOut"></div>
+            </div>
+
+            <div class="engine__flow">
+                <article class="gate" data-reveal>
+                    <div class="gate__step">01</div>
+                    <div class="gate__icon">
+                        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.6"><path d="M3 7V5a2 2 0 0 1 2-2h2M17 3h2a2 2 0 0 1 2 2v2M21 17v2a2 2 0 0 1-2 2h-2M7 21H5a2 2 0 0 1-2-2v-2"/><circle cx="12" cy="12" r="3.2"/></svg>
+                    </div>
+                    <h3>Sees every image</h3>
+                    <p>A canvas pipeline reads pixels in two color spaces, scoring skin tones with YCbCr and HSV thresholds — even across cross-origin walls.</p>
+                </article>
+
+                <div class="gate__arrow" aria-hidden="true">→</div>
+
+                <article class="gate" data-reveal>
+                    <div class="gate__step">02</div>
+                    <div class="gate__icon">
+                        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.6"><path d="M3 5h18l-7 8v5l-4 2v-7L3 5Z"/></svg>
+                    </div>
+                    <h3>Filters the harm</h3>
+                    <p>Flagged imagery is repainted in your chosen tone before it ever fully renders. Harmful domains are stopped at <code>onBeforeNavigate</code>.</p>
+                </article>
+
+                <div class="gate__arrow" aria-hidden="true">→</div>
+
+                <article class="gate" data-reveal>
+                    <div class="gate__step">03</div>
+                    <div class="gate__icon">
+                        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.6"><path d="M12 3a9 9 0 1 0 9 9"/><path d="M21 3v6h-6"/><path d="M21 3l-9 9"/></svg>
+                    </div>
+                    <h3>Redirects you upward</h3>
+                    <p>Instead of a cold block page, a blocked site sends you to a contextual verse of the Qur'an — a pause, not just a wall.</p>
+                </article>
+            </div>
+        </section>
+
+        <div class="section-separator" aria-hidden="true">
+            <div class="separator-line"></div>
+            <div class="separator-line"></div>
+        </div>
+
+        <!-- ============ LIVE PLAYGROUND ============ -->
+        <section class="section playground" id="playground">
+            <header class="section__head" data-reveal>
+                <p class="kicker">⟡ Try it live ⟡</p>
+                <h2 class="section__title">The filter, in your hands.</h2>
+                <p class="section__sub">No install needed. Flip protection on, pick a tone, dial the sensitivity — watch a mock feed transform exactly like the real thing. Click any covered tile to reveal it on purpose.</p>
+            </header>
+
+            <div class="pg" data-reveal>
+                <div class="pg__controls">
+                    <div class="pg__control">
+                        <span class="pg__label">Protection</span>
+                        <button class="toggle is-on" id="pgToggle" role="switch" aria-checked="true" aria-label="Toggle protection">
+                            <span class="toggle__track"><span class="toggle__thumb"></span></span>
+                            <span class="toggle__state">ON</span>
+                        </button>
+                    </div>
+
+                    <div class="pg__control">
+                        <span class="pg__label">Filter tone</span>
+                        <div class="swatches" id="pgSwatches">
+                            <button class="swatch swatch--white is-sel" data-paint="#f4f1ff" aria-label="White"></button>
+                            <button class="swatch swatch--black" data-paint="#0c0712" aria-label="Black"></button>
+                            <button class="swatch swatch--grey" data-paint="#5b556e" aria-label="Grey"></button>
+                            <button class="swatch swatch--violet" data-paint="#7c3aed" aria-label="Violet"></button>
+                        </div>
+                    </div>
+
+                    <div class="pg__control pg__control--wide">
+                        <span class="pg__label">Sensitivity <em id="pgSensVal">Balanced</em></span>
+                        <input type="range" class="slider" id="pgSens" min="1" max="3" step="1" value="2" aria-label="Sensitivity">
+                    </div>
+                </div>
+
+                <div class="pg__grid is-protected level-2" id="pgGrid" style="--filter-paint:#f4f1ff">
+                    <!-- tiles injected by JS -->
+                </div>
+                <p class="pg__hint" id="pgHint">3 of 9 images flagged · click a covered tile to reveal</p>
+            </div>
+        </section>
+
+        <div class="section-separator" aria-hidden="true">
+            <div class="separator-line"></div>
+            <div class="separator-line"></div>
+        </div>
+
+        <!-- ============ BEFORE / AFTER ============ -->
+        <section class="section reveal-demo" data-reveal>
+            <div class="ba">
+                <div class="ba__head">
+                    <p class="kicker">⟡ Real-time, in the page ⟡</p>
+                    <h2 class="section__title">From noise to quiet,<br>before you even notice.</h2>
+                    <p class="section__sub">Drag the handle. The left is the open web; the right is the web through FitnaFilter. The hover-eye lets you reveal anything on purpose — never by accident.</p>
+                    <ul class="ba__legend">
+                        <li><span class="dot dot--danger"></span> Flagged &amp; repainted</li>
+                        <li><span class="dot dot--safe"></span> Passed through clean</li>
+                    </ul>
+                </div>
+
+                <div class="ba__stage" id="baStage">
+                    <div class="ba__layer ba__layer--after">
+                        <div class="tiles">
+                            <div class="tile tile--clean"><span class="tile__pic"></span><span class="tile__bar"></span></div>
+                            <div class="tile tile--filtered"><span class="tile__eye">👁</span></div>
+                            <div class="tile tile--clean"><span class="tile__pic"></span><span class="tile__bar"></span></div>
+                            <div class="tile tile--filtered"><span class="tile__eye">👁</span></div>
+                            <div class="tile tile--clean"><span class="tile__pic"></span><span class="tile__bar"></span></div>
+                            <div class="tile tile--clean"><span class="tile__pic"></span><span class="tile__bar"></span></div>
+                        </div>
+                    </div>
+                    <div class="ba__layer ba__layer--before" id="baBefore">
+                        <div class="tiles">
+                            <div class="tile tile--clean"><span class="tile__pic"></span><span class="tile__bar"></span></div>
+                            <div class="tile tile--raw"></div>
+                            <div class="tile tile--clean"><span class="tile__pic"></span><span class="tile__bar"></span></div>
+                            <div class="tile tile--raw"></div>
+                            <div class="tile tile--clean"><span class="tile__pic"></span><span class="tile__bar"></span></div>
+                            <div class="tile tile--clean"><span class="tile__pic"></span><span class="tile__bar"></span></div>
+                        </div>
+                    </div>
+                    <div class="ba__handle" id="baHandle" role="slider" aria-label="Reveal comparison" aria-valuemin="0" aria-valuemax="100" aria-valuenow="50" tabindex="0">
+                        <div class="ba__grip"><span></span><span></span></div>
+                    </div>
+                </div>
+            </div>
+        </section>
+
+        <div class="section-separator" aria-hidden="true">
+            <div class="separator-line"></div>
+            <div class="separator-line"></div>
+        </div>
+
+        <!-- ============ FEATURES (BENTO) ============ -->
+        <section class="section features" id="features">
+            <header class="section__head">
+                <p class="kicker">⟡ Everything in one shield ⟡</p>
+                <h2 class="section__title">Built for focus. Tuned for trust.</h2>
+            </header>
+
+            <div class="bento">
+                <article class="card bento--hero" data-reveal>
+                    <div class="card__icon"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.6"><rect x="3" y="4" width="18" height="14" rx="2"/><circle cx="9" cy="10" r="2"/><path d="m6 17 4-4 3 3 2-2 3 3"/></svg></div>
+                    <h3>Skin-aware image filtering</h3>
+                    <p>A dual color-space detector (YCbCr + HSV) finds explicit imagery and repaints it in white, black, or grey — your call. Optional facial-feature handling and a max-safe size keep it fast.</p>
+                    <div class="card__demo" aria-hidden="true">
+                        <span class="cd cd--clean"></span><span class="cd cd--filtered"></span><span class="cd cd--clean"></span><span class="cd cd--clean"></span>
+                    </div>
+                </article>
+
+                <article class="card bento--tall" data-reveal>
+                    <div class="card__icon"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.6"><path d="M12 3 4 6v6c0 5 3.5 7.5 8 9 4.5-1.5 8-4 8-9V6l-8-3Z"/><path d="m9 12 2 2 4-4"/></svg></div>
+                    <h3>Domain gateway</h3>
+                    <p>Harmful sites are stopped before the first byte loads via <code>webNavigation</code>. 500,000+ domains across 27 lists.</p>
+                    <div class="card__counter" aria-hidden="true"><span class="card__counter-num" data-count="500000" data-suffix="K+" data-divide="1000">0</span><span>blocked</span></div>
+                </article>
+
+                <article class="card" data-reveal>
+                    <div class="card__icon"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.6"><path d="M4 19V5M4 5h11l-2 3 2 3H4"/></svg></div>
+                    <h3>Contextual redirects</h3>
+                    <p>Blocked navigations land on a Qur'an verse matched to the moment.</p>
+                </article>
+
+                <article class="card" data-reveal>
+                    <div class="card__icon"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.6"><circle cx="12" cy="12" r="3"/><path d="M2 12s3.5-7 10-7 10 7 10 7-3.5 7-10 7S2 12 2 12Z"/></svg></div>
+                    <h3>Hover-eye reveal</h3>
+                    <p>Uncover any filtered element with a click — re-apply with one more.</p>
+                </article>
+
+                <article class="card" data-reveal>
+                    <div class="card__icon"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.6"><path d="M3 12h4l3 8 4-16 3 8h4"/></svg></div>
+                    <h3>Per-site modes</h3>
+                    <p>Tune how images load site-by-site, with temporary or permanent exclusions.</p>
+                </article>
+
+                <article class="card card--accent bento--wide" data-reveal>
+                    <div class="card__icon"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.6"><rect x="5" y="11" width="14" height="9" rx="2"/><path d="M8 11V7a4 4 0 0 1 8 0v4"/></svg></div>
+                    <h3>Private by construction</h3>
+                    <p>No servers, no accounts, no telemetry. Every pixel is analysed on your device and never leaves it. There's no backend to leak — because there's no backend at all.</p>
+                </article>
+            </div>
+        </section>
+
+        <div class="section-separator" aria-hidden="true">
+            <div class="separator-line"></div>
+            <div class="separator-line"></div>
+        </div>
+
+        <!-- ============ POPUP ARTIFACT ============ -->
+        <section class="section artifact" id="artifact">
+            <div class="artifact__inner">
+                <div class="artifact__copy" data-reveal>
+                    <p class="kicker">⟡ One click from the toolbar ⟡</p>
+                    <h2 class="section__title">Command the shield<br>without leaving the page.</h2>
+                    <p class="section__sub">The popup is for the moment you're in: pause protection, reveal filtered images, show background media, exclude a trusted site, or switch the cover tone without leaving the page.</p>
+                    <p class="artifact__note">The options page handles the calmer, permanent decisions: image-filter behavior, hover-eye controls, face-feature removal, safe-size thresholds, auto-unpause timing, saved exclusions, and which hazard or distraction blocklists should stay active.</p>
+                    <ul class="artifact__list">
+                        <li><kbd>Alt</kbd>+<kbd>P</kbd> Pause / resume filtering</li>
+                        <li><kbd>Alt</kbd>+<kbd>Z</kbd> Reveal all images</li>
+                        <li><kbd>Alt</kbd>+<kbd>A</kbd> Reveal all backgrounds</li>
+                    </ul>
+                    <div class="artifact__settings" aria-label="Settings surfaces">
+                        <div>
+                            <span>Popup</span>
+                            <p>Fast session controls, tab exclusions, reveal actions, and filter color.</p>
+                        </div>
+                        <div>
+                            <span>Options</span>
+                            <p>Persistent defaults, blocklist toggles, exclusions, sensitivity, and auto-unpause.</p>
+                        </div>
+                    </div>
+                </div>
+
+                <div class="artifact__stage" data-reveal aria-hidden="true">
+                    <!-- options panel behind -->
+                    <div class="optpanel">
+                        <div class="optpanel__row"><span></span><span class="optpanel__pill"></span></div>
+                        <div class="optpanel__row"><span></span><span class="optpanel__pill"></span></div>
+                        <div class="optpanel__row"><span></span><span class="optpanel__pill optpanel__pill--on"></span></div>
+                        <div class="optpanel__grid"><i></i><i></i><i></i><i></i><i></i><i></i></div>
+                    </div>
+
+                    <!-- the popup -->
+                    <div class="popup">
+                        <div class="popup__head">
+                            <svg class="popup__logo logo-mark" viewBox="0 0 1254 1254"><use href="#fitna-logo-mark"></use></svg>
+                            <span class="popup__name">FitnaFilter</span>
+                            <span class="popup__status">Active</span>
+                        </div>
+                        <div class="popup__main">
+                            <span class="popup__main-label">Filtering</span>
+                            <button class="toggle is-on" tabindex="-1"><span class="toggle__track"><span class="toggle__thumb"></span></span><span class="toggle__state">ON</span></button>
+                        </div>
+                        <div class="popup__rows">
+                            <div class="popup__row"><span>👁 Reveal images</span><kbd>Alt+Z</kbd></div>
+                            <div class="popup__row"><span>🖼 Reveal backgrounds</span><kbd>Alt+A</kbd></div>
+                            <div class="popup__row"><span>✜ Exclude this site</span><span class="popup__chev">›</span></div>
+                        </div>
+                        <div class="popup__colors">
+                            <span class="popup__colors-label">Tone</span>
+                            <span class="pc pc--white is-sel"></span>
+                            <span class="pc pc--black"></span>
+                            <span class="pc pc--grey"></span>
+                        </div>
+                        <div class="popup__glow"></div>
+                    </div>
+                </div>
+            </div>
+        </section>
+
+        <div class="section-separator" aria-hidden="true">
+            <div class="separator-line"></div>
+            <div class="separator-line"></div>
+        </div>
+
+        <!-- ============ CATEGORIES ============ -->
+        <section class="section categories" id="categories">
+            <header class="section__head" data-reveal>
+                <p class="kicker">⟡ 27 community blocklists ⟡</p>
+                <h2 class="section__title">Three tiers of defense.</h2>
+                <p class="section__sub">Sourced from The Block List Project and grouped by intent. Vice is always on; the rest is yours to shape.</p>
+            </header>
+
+            <div class="cat-grid">
+                <article class="cat cat--vice" data-reveal>
+                    <div class="cat__top">
+                        <span class="cat__badge">Always on</span>
+                        <h3>Vice</h3>
+                    </div>
+                    <p class="cat__desc">The hard line. Non-negotiable categories that stay enabled by default.</p>
+                    <ul class="chips">
+                        <li>abuse</li><li>drugs</li><li>gambling</li><li>porn</li><li>vaping</li>
+                    </ul>
+                </article>
+
+                <article class="cat cat--hazard" data-reveal>
+                    <div class="cat__top">
+                        <span class="cat__badge">Configurable</span>
+                        <h3>Hazard</h3>
+                    </div>
+                    <p class="cat__desc">Threats to your security and your data. Toggle what fits your threat model.</p>
+                    <ul class="chips">
+                        <li>crypto</li><li>fraud</li><li>malware</li><li>phishing</li><li>ransomware</li><li>redirect</li><li>scam</li><li>tracking</li>
+                    </ul>
+                </article>
+
+                <article class="cat cat--distraction" data-reveal>
+                    <div class="cat__top">
+                        <span class="cat__badge">Configurable</span>
+                        <h3>Distraction</h3>
+                    </div>
+                    <p class="cat__desc">The attention economy. Mute the feeds and time-sinks you'd rather not visit.</p>
+                    <ul class="chips">
+                        <li>ads</li><li>facebook</li><li>fortnite</li><li>piracy</li><li>smart-tv</li><li>tiktok</li><li>torrent</li><li>twitter</li><li>whatsapp</li><li>youtube</li>
+                    </ul>
+                </article>
+            </div>
+        </section>
+
+        <div class="section-separator" aria-hidden="true">
+            <div class="separator-line"></div>
+            <div class="separator-line"></div>
+        </div>
+
+        <!-- ============ ARCHITECTURE ============ -->
+        <section class="section arch" id="architecture">
+            <header class="section__head">
+                <p class="kicker">⟡ Under the hood ⟡</p>
+                <h2 class="section__title">A small machine that never phones home.</h2>
+            </header>
+            <div class="arch-map" aria-hidden="true">
+                <div class="arch-flow">
+                    <article class="arch-step">
+                        <span class="arch-step__num">01</span>
+                        <h3>Page</h3>
+                        <p>Live DOM, images, backgrounds, and navigation attempts.</p>
+                    </article>
+                    <span class="arch-arrow"></span>
+                    <article class="arch-step">
+                        <span class="arch-step__num">02</span>
+                        <h3>Content Script</h3>
+                        <p>Observes changes, finds assets, and applies the in-page filter.</p>
+                    </article>
+                    <span class="arch-arrow"></span>
+                    <article class="arch-step arch-step--primary">
+                        <span class="arch-step__num">03</span>
+                        <h3>Service Worker</h3>
+                        <p>Owns settings, CORS-safe fetches, and navigation blocking.</p>
+                    </article>
+                </div>
+
+                <div class="arch-output-label">Local outcomes</div>
+
+                <div class="arch-outputs">
+                    <article class="arch-output">
+                        <span class="arch-output__tag">Canvas</span>
+                        <h3>Image filter</h3>
+                        <p>Pixels are analysed and repainted in-browser.</p>
+                    </article>
+                    <article class="arch-output">
+                        <span class="arch-output__tag">Storage</span>
+                        <h3>Private settings</h3>
+                        <p>Preferences stay in Chrome storage.</p>
+                    </article>
+                    <article class="arch-output">
+                        <span class="arch-output__tag">Navigation</span>
+                        <h3>Domain gate</h3>
+                        <p>Blocked sites redirect before the page loads.</p>
+                    </article>
+                </div>
+            </div>
+        </section>
+
+        <div class="section-separator" aria-hidden="true">
+            <div class="separator-line"></div>
+            <div class="separator-line"></div>
+        </div>
+
+        <!-- ============ SANCTUARY (editorial) ============ -->
+        <section class="sanctuary sanctuary-wall" id="sanctuary">
+            <div class="sanctuary__lattice" aria-hidden="true"></div>
+            <div class="sanctuary__inner">
+                <header class="sanctuary__head" data-reveal>
+                    <p class="sanctuary__kicker">Instead of a wall, a window</p>
+                    <h2 class="sanctuary__title">A filter rooted in reminders.</h2>
+                    <p class="sanctuary__lede">
+                        FitnaFilter does more than refuse a page. It gives the stop a reason:
+                        purity, restraint, accountability, and the quiet discipline of guarding
+                        what the eye is allowed to dwell on.
+                    </p>
+                </header>
+
+                <div class="ayah-rail" data-reveal aria-label="Quranic reminders">
+                    <div class="ayah-track" id="ayahTrack">
+                        <div class="ayah-group">
+                            <article class="ayah-card ayah-card--feature">
+                                <p class="ayah-card__ref">An-Nur 24:30</p>
+                                <p class="ayah-card__ar" lang="ar" dir="rtl">قُل لِّلْمُؤْمِنِينَ يَغُضُّوا مِنْ أَبْصَارِهِمْ وَيَحْفَظُوا فُرُوجَهُمْ ذَٰلِكَ أَزْكَىٰ لَهُمْ</p>
+                                <p class="ayah-card__reason">The core command is direct: lower the gaze. The product exists to make that command easier before the moment becomes a struggle.</p>
+                            </article>
+
+                            <article class="ayah-card">
+                                <p class="ayah-card__ref">An-Nur 24:31</p>
+                                <p class="ayah-card__ar" lang="ar" dir="rtl">وَقُل لِّلْمُؤْمِنَاتِ يَغْضُضْنَ مِنْ أَبْصَارِهِنَّ وَيَحْفَظْنَ فُرُوجَهُنَّ</p>
+                                <p class="ayah-card__reason">Guarding the gaze is not gendered as a burden. Everyone deserves tools that make modesty practical.</p>
+                            </article>
+
+                            <article class="ayah-card">
+                                <p class="ayah-card__ref">Al-Isra 17:32</p>
+                                <p class="ayah-card__ar" lang="ar" dir="rtl">وَلَا تَقْرَبُوا الزِّنَىٰ إِنَّهُ كَانَ فَاحِشَةً وَسَاءَ سَبِيلًا</p>
+                                <p class="ayah-card__reason">The warning is about approach, not only arrival. Blocking near occasions of harm is part of the design.</p>
+                            </article>
+
+                            <article class="ayah-card">
+                                <p class="ayah-card__ref">Ghafir 40:19</p>
+                                <p class="ayah-card__ar" lang="ar" dir="rtl">يَعْلَمُ خَائِنَةَ الْأَعْيُنِ وَمَا تُخْفِي الصُّدُورُ</p>
+                                <p class="ayah-card__reason">The eye can betray before the hand ever moves. Private browsing still deserves private accountability.</p>
+                            </article>
+
+                            <article class="ayah-card">
+                                <p class="ayah-card__ref">Al-Mu'minun 23:5</p>
+                                <p class="ayah-card__ar" lang="ar" dir="rtl">وَالَّذِينَ هُمْ لِفُرُوجِهِمْ حَافِظُونَ</p>
+                                <p class="ayah-card__reason">Protection is an active habit. The extension helps turn intention into a default environment.</p>
+                            </article>
+
+                            <article class="ayah-card">
+                                <p class="ayah-card__ref">An-Nur 24:21</p>
+                                <p class="ayah-card__ar" lang="ar" dir="rtl">يَا أَيُّهَا الَّذِينَ آمَنُوا لَا تَتَّبِعُوا خُطُوَاتِ الشَّيْطَانِ</p>
+                                <p class="ayah-card__reason">Harm often arrives as steps. FitnaFilter interrupts the trail early: ads, feeds, redirects, and sites that pull the gaze away.</p>
+                            </article>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </section>
+
+        <div class="section-separator" aria-hidden="true">
+            <div class="separator-line"></div>
+            <div class="separator-line"></div>
+        </div>
+
+        <!-- ============ PRIVACY ============ -->
+        <section class="section privacy" id="privacy">
+            <div class="privacy__inner" data-reveal>
+                <div class="privacy__mark" aria-hidden="true">
+                    <svg class="privacy__logo logo-mark" viewBox="0 0 1254 1254"><use href="#fitna-logo-mark"></use></svg>
+                    <div class="privacy__pulse"></div>
+                    <div class="privacy__pulse privacy__pulse--2"></div>
+                </div>
+                <div class="privacy__body">
+                    <p class="kicker">⟡ Privacy is the architecture ⟡</p>
+                    <h2 class="section__title">Your browsing never leaves your browser.</h2>
+                    <p class="section__sub">FitnaFilter has no backend. Settings live in <code>chrome.storage.sync</code>, image analysis runs on a local canvas, and the only network calls are the ones the page already makes. Nothing about you is collected, stored, or sold — because there's nowhere for it to go.</p>
+                    <div class="privacy__points">
+                        <span><span class="check">✓</span> Zero telemetry</span>
+                        <span><span class="check">✓</span> No accounts</span>
+                        <span><span class="check">✓</span> Open Manifest&nbsp;V3</span>
+                    </div>
+                </div>
+            </div>
+        </section>
+
+        <div class="section-separator" aria-hidden="true">
+            <div class="separator-line"></div>
+            <div class="separator-line"></div>
+        </div>
+
+        <!-- ============ INSTALL STEPS ============ -->
+        <section class="section steps" id="install-steps">
+            <header class="section__head" data-reveal>
+                <p class="kicker">⟡ Up and running in a minute ⟡</p>
+                <h2 class="section__title">Install from source.</h2>
+                <p class="section__sub">No web store yet — and that's fine. Loading unpacked keeps you on the bleeding edge and fully in control.</p>
+            </header>
+            <div class="steps__grid">
+                <article class="step" data-reveal>
+                    <div class="step__n">1</div>
+                    <h3>Grab the code</h3>
+                    <p>Clone or download the repository from GitHub.</p>
+                    <div class="step__command">
+                        <code class="step__code">git clone https://github.com/azidancorp/FitnaFilter.git</code>
+                        <button class="step__copy" type="button" data-copy-command="git clone https://github.com/azidancorp/FitnaFilter.git" aria-label="Copy git clone command">
+                            <svg viewBox="0 0 24 24" aria-hidden="true" fill="none" stroke="currentColor" stroke-width="1.8">
+                                <rect x="8" y="8" width="11" height="11" rx="2"></rect>
+                                <path d="M5 15H4a2 2 0 0 1-2-2V4a2 2 0 0 1 2-2h9a2 2 0 0 1 2 2v1"></path>
+                            </svg>
+                            <span>Copy</span>
+                        </button>
+                    </div>
+                </article>
+                <article class="step" data-reveal>
+                    <div class="step__n">2</div>
+                    <h3>Open extensions</h3>
+                    <p>Visit <code>chrome://extensions</code> and switch on <strong>Developer mode</strong> (top-right).</p>
+                </article>
+                <article class="step" data-reveal>
+                    <div class="step__n">3</div>
+                    <h3>Load unpacked</h3>
+                    <p>Click <strong>Load unpacked</strong> and select the <code>extension/</code> folder. The shield appears in your toolbar.</p>
+                </article>
+            </div>
+        </section>
+
+        <div class="section-separator" aria-hidden="true">
+            <div class="separator-line"></div>
+            <div class="separator-line"></div>
+        </div>
+
+        <!-- ============ FAQ ============ -->
+        <section class="section faq" id="faq">
+            <header class="section__head" data-reveal>
+                <p class="kicker">⟡ Questions ⟡</p>
+                <h2 class="section__title">Good to know.</h2>
+            </header>
+            <div class="faq__list" data-reveal>
+                <details class="qa">
+                    <summary>Does FitnaFilter send my browsing anywhere?</summary>
+                    <p>No. There is no backend and no telemetry. Image analysis runs on a local canvas in your browser and settings sync only through your own Chrome account via <code>chrome.storage.sync</code>.</p>
+                </details>
+                <details class="qa">
+                    <summary>How does the image filtering actually work?</summary>
+                    <p>Each image is drawn to a hidden canvas and scored pixel-by-pixel in two color spaces — YCbCr (Cb 85–128, Cr 142–180) and HSV (hue 0–32°, saturation &gt;15%). Flagged regions are repainted in your chosen tone before the image fully renders.</p>
+                </details>
+                <details class="qa">
+                    <summary>Why isn't it on the Chrome Web Store?</summary>
+                    <p>It's open source and currently distributed via GitHub. You install it unpacked in Developer mode — see the steps above. A store listing may come later.</p>
+                </details>
+                <details class="qa">
+                    <summary>Can I turn it off for sites I trust?</summary>
+                    <p>Yes. Use the popup to pause globally (Alt+P) or add per-site exclusions — temporary or permanent. Per-site image modes let you fine-tune individual domains.</p>
+                </details>
+                <details class="qa">
+                    <summary>What happens when I hit a blocked domain?</summary>
+                    <p>Instead of a blank block page, you're redirected to a contextually chosen verse of the Qur'an — a moment to reset rather than just a closed door.</p>
+                </details>
+            </div>
+        </section>
+
+        <div class="section-separator" aria-hidden="true">
+            <div class="separator-line"></div>
+            <div class="separator-line"></div>
+        </div>
+
+        <!-- ============ INSTALL CTA ============ -->
+        <section class="section install" id="install">
+            <div class="install__card" data-reveal>
+                <div class="install__glow" aria-hidden="true"></div>
+                <h2 class="install__title">Build a wall around what you see.</h2>
+                <p class="install__sub">Free, open, and on-device. Add FitnaFilter to your browser and pass everything through the gate.</p>
+                <div class="install__actions">
+                    <a href="https://github.com/azidancorp/FitnaFilter" class="btn btn--solid btn--xl">
+                        <span class="btn__glyph">↓</span> Get it on GitHub
+                    </a>
+                    <a href="#install-steps" class="btn btn--ghost btn--xl">Install guide</a>
+                </div>
+                <p class="install__note">Works in any Chromium browser · Manifest V3 · MIT-spirited open source</p>
+            </div>
+        </section>
+    </main>
+
+    <!-- ============ FOOTER ============ -->
+    <footer class="footer">
+        <div class="footer__inner">
+            <div class="footer__brand">
+                <a class="brand" href="#top">
+                    <svg class="brand__mark logo-mark" viewBox="0 0 1254 1254"><use href="#fitna-logo-mark"></use></svg>
+                    <span class="brand__name">Fitna<span class="brand__accent">Filter</span></span>
+                </a>
+                <p>A firewall for your gaze. Built with restraint, shipped with care.</p>
+            </div>
+            <nav class="footer__col" aria-label="Product">
+                <h4>Product</h4>
+                <a href="#engine">Filter Engine</a>
+                <a href="#playground">Playground</a>
+                <a href="#features">Features</a>
+                <a href="#categories">Blocklists</a>
+            </nav>
+            <nav class="footer__col" aria-label="Resources">
+                <h4>Resources</h4>
+                <a href="https://github.com/azidancorp/FitnaFilter">GitHub</a>
+                <a href="#install-steps">Install guide</a>
+                <a href="#faq">FAQ</a>
+                <a href="https://blocklistproject.github.io/Lists/">Block List Project</a>
+            </nav>
+        </div>
+        <div class="footer__wordmark" aria-hidden="true">FITNAFILTER</div>
+        <div class="footer__base">
+            <span>© 2026 FitnaFilter · Open source</span>
+            <span class="footer__verse">“Tell the believing men to lower their gaze.” — 24:30</span>
+        </div>
+    </footer>
+
+    <script src="home.js"></script>
+</body>
+</html>

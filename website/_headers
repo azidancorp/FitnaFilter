@@ -1,0 +1,28 @@
+/*
+    X-Content-Type-Options: nosniff
+    Referrer-Policy: strict-origin-when-cross-origin
+    Permissions-Policy: camera=(), microphone=(), geolocation=(), payment=()
+
+/
+    Cache-Control: public, max-age=0, must-revalidate
+
+/index.html
+    Cache-Control: public, max-age=0, must-revalidate
+
+/home.html
+    Cache-Control: public, max-age=0, must-revalidate
+
+/home.css
+    Cache-Control: public, max-age=3600, must-revalidate
+
+/home.js
+    Cache-Control: public, max-age=3600, must-revalidate
+
+/hero_art.avif
+    Cache-Control: public, max-age=86400
+
+/hero_art.webp
+    Cache-Control: public, max-age=86400
+
+/hero_art.png
+    Cache-Control: public, max-age=86400

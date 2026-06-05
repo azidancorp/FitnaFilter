@@ -5,16 +5,24 @@
     'use strict';
 
     const reduceMotion = window.matchMedia('(prefers-reduced-motion: reduce)').matches;
+    const allowPointerEffects = !reduceMotion && window.matchMedia('(hover: hover) and (pointer: fine)').matches;
 
     /* ---- Sticky nav state ---- */
     const nav = document.getElementById('nav');
-    const onScroll = () => nav.classList.toggle('is-stuck', window.scrollY > 24);
+    let navIsStuck = null;
+    const onScroll = () => {
+        const nextIsStuck = window.scrollY > 24;
+        if (nextIsStuck === navIsStuck) return;
+        navIsStuck = nextIsStuck;
+        nav.classList.toggle('is-stuck', nextIsStuck);
+    };
     onScroll();
     window.addEventListener('scroll', onScroll, { passive: true });
 
     /* ---- Scroll reveal ---- */
     const revealEls = document.querySelectorAll('[data-reveal]');
     if ('IntersectionObserver' in window && !reduceMotion) {
+        let pendingRevealCount = revealEls.length;
         const io = new IntersectionObserver((entries) => {
             entries.forEach((e, i) => {
                 if (e.isIntersecting) {
@@ -22,6 +30,8 @@
                     e.target.style.transitionDelay = (Math.min(i, 4) * 70) + 'ms';
                     e.target.classList.add('is-in');
                     io.unobserve(e.target);
+                    pendingRevealCount--;
+                    if (pendingRevealCount <= 0) io.disconnect();
                 }
             });
         }, { threshold: 0.12, rootMargin: '0px 0px -8% 0px' });
@@ -33,14 +43,15 @@
     /* ---- Animated counters ---- */
     const counters = document.querySelectorAll('[data-count]');
     const easeOut = (t) => 1 - Math.pow(1 - t, 3);
+    const counterMeta = new WeakMap();
     const formatNum = (el, value) => {
-        const divide = parseFloat(el.dataset.divide || '1');
-        const suffix = el.dataset.suffix || '';
-        const shown = Math.round(value / divide);
-        el.textContent = shown.toLocaleString() + suffix;
+        const meta = counterMeta.get(el);
+        const shown = Math.round(value / meta.divide);
+        const nextText = shown.toLocaleString() + meta.suffix;
+        if (el.textContent !== nextText) el.textContent = nextText;
     };
     const runCount = (el) => {
-        const target = parseFloat(el.dataset.count);
+        const target = counterMeta.get(el).target;
         if (reduceMotion) { formatNum(el, target); return; }
         const dur = 1500;
         const start = performance.now();
@@ -52,19 +63,39 @@
         requestAnimationFrame(tick);
     };
     if ('IntersectionObserver' in window) {
+        let pendingCounterCount = counters.length;
         const co = new IntersectionObserver((entries) => {
             entries.forEach((e) => {
-                if (e.isIntersecting) { runCount(e.target); co.unobserve(e.target); }
+                if (e.isIntersecting) {
+                    runCount(e.target);
+                    co.unobserve(e.target);
+                    pendingCounterCount--;
+                    if (pendingCounterCount <= 0) co.disconnect();
+                }
             });
         }, { threshold: 0.6 });
-        counters.forEach((el) => co.observe(el));
+        counters.forEach((el) => {
+            counterMeta.set(el, {
+                target: parseFloat(el.dataset.count),
+                divide: parseFloat(el.dataset.divide || '1'),
+                suffix: el.dataset.suffix || ''
+            });
+            co.observe(el);
+        });
     } else {
-        counters.forEach((el) => formatNum(el, parseFloat(el.dataset.count)));
+        counters.forEach((el) => {
+            counterMeta.set(el, {
+                target: parseFloat(el.dataset.count),
+                divide: parseFloat(el.dataset.divide || '1'),
+                suffix: el.dataset.suffix || ''
+            });
+            formatNum(el, counterMeta.get(el).target);
+        });
     }
 
     /* ---- Hero parallax (subtle) ---- */
     const heroImg = document.getElementById('heroImg');
-    if (heroImg && !reduceMotion) {
+    if (heroImg && allowPointerEffects) {
         let raf = null;
         window.addEventListener('mousemove', (ev) => {
             if (raf) return;
@@ -78,7 +109,7 @@
     }
 
     /* ---- Card spotlight follow ---- */
-    if (!reduceMotion) {
+    if (allowPointerEffects) {
         document.querySelectorAll('.card').forEach((card) => {
             card.addEventListener('mousemove', (e) => {
                 const r = card.getBoundingClientRect();
@@ -94,34 +125,47 @@
     const handle = document.getElementById('baHandle');
     if (stage && before && handle) {
         let dragging = false;
-        const setPos = (clientX) => {
-            const r = stage.getBoundingClientRect();
-            let pct = ((clientX - r.left) / r.width) * 100;
-            pct = Math.max(4, Math.min(96, pct));
-            before.style.width = pct + '%';
-            handle.style.left = pct + '%';
-            handle.setAttribute('aria-valuenow', Math.round(pct));
-        };
-        const start = () => { dragging = true; stage.style.cursor = 'grabbing'; };
-        const end = () => { dragging = false; stage.style.cursor = 'ew-resize'; };
-        const move = (clientX) => { if (dragging) setPos(clientX); };
-
-        handle.addEventListener('pointerdown', (e) => { start(); handle.setPointerCapture(e.pointerId); });
-        stage.addEventListener('pointerdown', (e) => { start(); setPos(e.clientX); });
-        window.addEventListener('pointerup', end);
-        window.addEventListener('pointermove', (e) => move(e.clientX));
-
-        handle.addEventListener('keydown', (e) => {
-            const cur = parseFloat(handle.getAttribute('aria-valuenow')) || 50;
-            if (e.key === 'ArrowLeft') { e.preventDefault(); apply(cur - 4); }
-            if (e.key === 'ArrowRight') { e.preventDefault(); apply(cur + 4); }
-        });
+        let dragRect = null;
         const apply = (pct) => {
             pct = Math.max(4, Math.min(96, pct));
             before.style.width = pct + '%';
             handle.style.left = pct + '%';
             handle.setAttribute('aria-valuenow', Math.round(pct));
         };
+        const setPos = (clientX) => {
+            const r = dragRect || stage.getBoundingClientRect();
+            apply(((clientX - r.left) / r.width) * 100);
+        };
+        const move = (e) => { if (dragging) setPos(e.clientX); };
+        const end = () => {
+            if (!dragging) return;
+            dragging = false;
+            dragRect = null;
+            stage.style.cursor = 'ew-resize';
+            window.removeEventListener('pointermove', move);
+            window.removeEventListener('pointerup', end);
+        };
+        const start = (clientX) => {
+            dragging = true;
+            dragRect = stage.getBoundingClientRect();
+            stage.style.cursor = 'grabbing';
+            setPos(clientX);
+            window.addEventListener('pointermove', move, { passive: true });
+            window.addEventListener('pointerup', end);
+        };
+
+        handle.addEventListener('pointerdown', (e) => {
+            e.stopPropagation();
+            handle.setPointerCapture(e.pointerId);
+            start(e.clientX);
+        });
+        stage.addEventListener('pointerdown', (e) => { start(e.clientX); });
+
+        handle.addEventListener('keydown', (e) => {
+            const cur = parseFloat(handle.getAttribute('aria-valuenow')) || 50;
+            if (e.key === 'ArrowLeft') { e.preventDefault(); apply(cur - 4); }
+            if (e.key === 'ArrowRight') { e.preventDefault(); apply(cur + 4); }
+        });
 
         // gentle auto-demo nudge on first reveal
         if (!reduceMotion && 'IntersectionObserver' in window) {
@@ -129,6 +173,7 @@
                 entries.forEach((en) => {
                     if (!en.isIntersecting) return;
                     demo.unobserve(en.target);
+                    demo.disconnect();
                     let p = 50, dir = -1, frames = 0;
                     const id = setInterval(() => {
                         p += dir * 1.4; frames++;
@@ -169,23 +214,64 @@
 (function () {
     'use strict';
     const reduceMotion = window.matchMedia('(prefers-reduced-motion: reduce)').matches;
+    const allowPointerEffects = !reduceMotion && window.matchMedia('(hover: hover) and (pointer: fine)').matches;
+    const lowPowerMotion = reduceMotion || window.matchMedia('(max-width: 760px), (pointer: coarse)').matches;
+
+    const keepMotionNearViewport = (el, onEnter) => {
+        if (!el) return;
+        if (lowPowerMotion) {
+            el.classList.add('is-motion-paused');
+            return;
+        }
+        if (!('IntersectionObserver' in window)) {
+            if (onEnter) onEnter();
+            return;
+        }
+
+        let hasEntered = false;
+        el.classList.add('is-motion-paused');
+        const io = new IntersectionObserver((entries) => {
+            entries.forEach((entry) => {
+                if (entry.isIntersecting) {
+                    if (!hasEntered && onEnter) onEnter();
+                    hasEntered = true;
+                    el.classList.remove('is-motion-paused');
+                } else {
+                    el.classList.add('is-motion-paused');
+                }
+            });
+        }, { rootMargin: '420px 0px', threshold: 0.01 });
+        io.observe(el);
+    };
 
     /* ---- Scroll progress bar ---- */
     const bar = document.getElementById('scrollbar');
     if (bar) {
+        let latestProgress = -1;
+        let scrollRaf = null;
         const update = () => {
             const h = document.documentElement;
-            const max = h.scrollHeight - h.clientHeight;
-            bar.style.width = (max > 0 ? (h.scrollTop / max) * 100 : 0) + '%';
+            const scrollMax = h.scrollHeight - h.clientHeight;
+            const progress = scrollMax > 0 ? h.scrollTop / scrollMax : 0;
+            if (Math.abs(progress - latestProgress) < 0.001) return;
+            latestProgress = progress;
+            bar.style.transform = `scaleX(${progress})`;
+        };
+        const scheduleUpdate = () => {
+            if (scrollRaf) return;
+            scrollRaf = requestAnimationFrame(() => {
+                scrollRaf = null;
+                update();
+            });
         };
         update();
-        window.addEventListener('scroll', update, { passive: true });
-        window.addEventListener('resize', update);
+        window.addEventListener('scroll', scheduleUpdate, { passive: true });
+        window.addEventListener('resize', scheduleUpdate);
     }
 
     /* ---- Cursor glow ---- */
     const glow = document.getElementById('cursorGlow');
-    if (glow && !reduceMotion && window.matchMedia('(hover: hover)').matches) {
+    if (glow && allowPointerEffects) {
         let gx = 0, gy = 0, raf = null;
         window.addEventListener('mousemove', (e) => {
             gx = e.clientX; gy = e.clientY;
@@ -197,21 +283,7 @@
         }, { passive: true });
     }
 
-    /* ---- Hero drift chips ---- */
-    const drift = document.getElementById('heroDrift');
-    if (drift && !reduceMotion) {
-        const words = ['casino.bet', 'tracker.ad', 'phish.login', 'malware.host', 'popup.redirect', 'scam.gift', 'miner.js', 'spyware.kit'];
-        for (let i = 0; i < 9; i++) {
-            const s = document.createElement('span');
-            s.className = 'drift';
-            s.textContent = words[i % words.length];
-            s.style.top = (18 + Math.random() * 68) + '%';
-            const dur = 8 + Math.random() * 6;
-            s.style.animationDuration = dur + 's';
-            s.style.animationDelay = (-Math.random() * dur) + 's';
-            drift.appendChild(s);
-        }
-    }
+    document.querySelectorAll('.marquee').forEach((el) => keepMotionNearViewport(el));
 
     /* ---- Portal flowing chips ---- */
     const pIn = document.getElementById('portalIn');
@@ -230,20 +302,32 @@
             host.appendChild(c);
         }
     };
-    spawnChips(pIn, 9, ['vice', 'hazard', 'distraction']);
-    spawnChips(pPass, 5, ['safe-green', 'safe-purple']);
-    spawnChips(pOut, 7);
+    const portal = document.querySelector('.portal');
+    let portalReady = false;
+    const preparePortal = () => {
+        if (portalReady) return;
+        portalReady = true;
+        spawnChips(pIn, 9, ['vice', 'hazard', 'distraction']);
+        spawnChips(pPass, 5, ['safe-green', 'safe-purple']);
+        spawnChips(pOut, 7);
+    };
+    if (!lowPowerMotion) keepMotionNearViewport(portal, preparePortal);
 
     /* ---- Ayah reminder rail ---- */
     const ayahTrack = document.getElementById('ayahTrack');
     if (ayahTrack) {
-        const ayahGroup = ayahTrack.querySelector('.ayah-group');
-        if (ayahGroup) {
+        const ayahRail = ayahTrack.closest('.ayah-rail');
+        const prepareAyahRail = () => {
+            if (ayahTrack.dataset.ready === 'true') return;
+            const ayahGroup = ayahTrack.querySelector('.ayah-group');
+            if (!ayahGroup) return;
             const clone = ayahGroup.cloneNode(true);
             clone.setAttribute('aria-hidden', 'true');
             ayahTrack.appendChild(clone);
-        }
-        if (reduceMotion) ayahTrack.classList.add('is-still');
+            ayahTrack.dataset.ready = 'true';
+        };
+        if (lowPowerMotion) ayahTrack.classList.add('is-still');
+        else keepMotionNearViewport(ayahRail || ayahTrack, prepareAyahRail);
     }
 
     /* ---- Copy command buttons ---- */
@@ -314,22 +398,21 @@
         const hint = document.getElementById('pgHint');
         const labels = { 1: 'Relaxed', 2: 'Balanced', 3: 'Strict' };
         const flaggedByLevel = { 1: 2, 2: 4, 3: 6 };
+        const ranked = [...tiles].sort((a, b) => b.dataset.spice - a.dataset.spice);
+        let flaggedCount = 0;
 
         const applySensitivity = (level) => {
-            const count = flaggedByLevel[level];
-            // rank tiles by spice, flag the top `count`
-            const ranked = [...tiles].sort((a, b) => b.dataset.spice - a.dataset.spice);
+            flaggedCount = flaggedByLevel[level];
             tiles.forEach((t) => { t.classList.remove('pgtile--flag', 'is-revealed'); });
-            ranked.slice(0, count).forEach((t) => t.classList.add('pgtile--flag'));
+            ranked.slice(0, flaggedCount).forEach((t) => t.classList.add('pgtile--flag'));
             grid.className = 'pg__grid level-' + level + (grid.classList.contains('is-protected') ? ' is-protected' : '');
             if (sensLabel) sensLabel.textContent = labels[level];
             updateHint();
         };
         const updateHint = () => {
-            const flagged = grid.querySelectorAll('.pgtile--flag').length;
             const on = grid.classList.contains('is-protected');
             if (hint) hint.textContent = on
-                ? flagged + ' of 9 images flagged · click a covered tile to reveal'
+                ? flaggedCount + ' of 9 images flagged · click a covered tile to reveal'
                 : 'protection off · all images shown raw';
         };
 
@@ -343,10 +426,11 @@
         // protection toggle
         const toggle = document.getElementById('pgToggle');
         if (toggle) {
+            const toggleState = toggle.querySelector('.toggle__state');
             toggle.addEventListener('click', () => {
                 const on = toggle.classList.toggle('is-on');
                 toggle.setAttribute('aria-checked', on ? 'true' : 'false');
-                toggle.querySelector('.toggle__state').textContent = on ? 'ON' : 'OFF';
+                if (toggleState) toggleState.textContent = on ? 'ON' : 'OFF';
                 grid.classList.toggle('is-protected', on);
                 tiles.forEach((t) => t.classList.remove('is-revealed'));
                 updateHint();
@@ -356,10 +440,11 @@
         // swatches
         const swatches = document.getElementById('pgSwatches');
         if (swatches) {
+            const swatchButtons = Array.from(swatches.querySelectorAll('.swatch'));
             swatches.addEventListener('click', (e) => {
                 const b = e.target.closest('.swatch');
                 if (!b) return;
-                swatches.querySelectorAll('.swatch').forEach((s) => s.classList.remove('is-sel'));
+                swatchButtons.forEach((s) => s.classList.remove('is-sel'));
                 b.classList.add('is-sel');
                 grid.style.setProperty('--filter-paint', b.dataset.paint);
             });
@@ -382,14 +467,23 @@
     const canvas = document.getElementById('contentPattern');
     if (!canvas) return;
 
+    const reduceMotion = window.matchMedia('(prefers-reduced-motion: reduce)').matches;
+    const allowCanvas = !reduceMotion && window.matchMedia('(hover: hover) and (pointer: fine) and (min-width: 761px)').matches;
+    if (!allowCanvas) {
+        canvas.width = 0;
+        canvas.height = 0;
+        canvas.hidden = true;
+        return;
+    }
+
     const ctx = canvas.getContext('2d');
     if (!ctx) return;
 
-    const reduceMotion = window.matchMedia('(prefers-reduced-motion: reduce)').matches;
     const baseRgb = [178, 112, 255];
     const hotRgb = [224, 178, 255];
     const dotRgb = [198, 118, 255];
     const mouse = { x: -9999, y: -9999 };
+    const segmentCache = new Map();
 
     let w = 0;
     let h = 0;
@@ -404,9 +498,14 @@
     let nodeEdges = [];
     let dots = [];
     let last = performance.now();
+    let mouseActive = false;
+    let rafId = 0;
 
     // Build the 8-point star from two crossing squares, split at intersections.
     function tileSegments() {
+        const cached = segmentCache.get(tile);
+        if (cached) return cached;
+
         const r = tile / 2;
         const d = r * Math.SQRT1_2;
         const a = [[r, 0], [0, r], [-r, 0], [0, -r]];
@@ -416,6 +515,7 @@
         const segs = [];
         splitGroup(edgesA, edgesB, segs);
         splitGroup(edgesB, edgesA, segs);
+        segmentCache.set(tile, segs);
         return segs;
     }
 
@@ -586,27 +686,29 @@
 
         if (!reduceMotion) {
             const mouseRadius = 190;
-            ctx.lineCap = 'round';
-            for (let e = 0; e < edgeA.length; e++) {
-                const a = edgeA[e];
-                const b = edgeB[e];
-                const mx = (nodeX[a] + nodeX[b]) * 0.5;
-                const my = (nodeY[a] + nodeY[b]) * 0.5;
-                if (Math.abs(mx - mouse.x) > mouseRadius || Math.abs(my - mouse.y) > mouseRadius) continue;
+            if (mouseActive) {
+                ctx.lineCap = 'round';
+                for (let e = 0; e < edgeA.length; e++) {
+                    const a = edgeA[e];
+                    const b = edgeB[e];
+                    const mx = (nodeX[a] + nodeX[b]) * 0.5;
+                    const my = (nodeY[a] + nodeY[b]) * 0.5;
+                    if (Math.abs(mx - mouse.x) > mouseRadius || Math.abs(my - mouse.y) > mouseRadius) continue;
 
-                const dist = distToEdge(e, mouse.x, mouse.y);
-                if (dist > mouseRadius) continue;
+                    const dist = distToEdge(e, mouse.x, mouse.y);
+                    if (dist > mouseRadius) continue;
 
-                const glow = Math.pow(1 - dist / mouseRadius, 2);
-                const cr = baseRgb[0] + (hotRgb[0] - baseRgb[0]) * glow;
-                const cg = baseRgb[1] + (hotRgb[1] - baseRgb[1]) * glow;
-                const cb = baseRgb[2] + (hotRgb[2] - baseRgb[2]) * glow;
-                ctx.strokeStyle = `rgba(${cr | 0},${cg | 0},${cb | 0},${0.28 + 0.5 * glow})`;
-                ctx.lineWidth = 1 + 1.2 * glow;
-                ctx.beginPath();
-                ctx.moveTo(nodeX[a], nodeY[a]);
-                ctx.lineTo(nodeX[b], nodeY[b]);
-                ctx.stroke();
+                    const glow = Math.pow(1 - dist / mouseRadius, 2);
+                    const cr = baseRgb[0] + (hotRgb[0] - baseRgb[0]) * glow;
+                    const cg = baseRgb[1] + (hotRgb[1] - baseRgb[1]) * glow;
+                    const cb = baseRgb[2] + (hotRgb[2] - baseRgb[2]) * glow;
+                    ctx.strokeStyle = `rgba(${cr | 0},${cg | 0},${cb | 0},${0.28 + 0.5 * glow})`;
+                    ctx.lineWidth = 1 + 1.2 * glow;
+                    ctx.beginPath();
+                    ctx.moveTo(nodeX[a], nodeY[a]);
+                    ctx.lineTo(nodeX[b], nodeY[b]);
+                    ctx.stroke();
+                }
             }
 
             ctx.globalCompositeOperation = 'lighter';
@@ -617,7 +719,15 @@
             ctx.globalCompositeOperation = 'source-over';
         }
 
-        if (!reduceMotion) requestAnimationFrame(draw);
+        if (!reduceMotion && !document.hidden) scheduleDraw();
+    }
+
+    function scheduleDraw() {
+        if (rafId || document.hidden) return;
+        rafId = requestAnimationFrame((now) => {
+            rafId = 0;
+            draw(now);
+        });
     }
 
     function drawDot(dot) {
@@ -687,12 +797,23 @@
     window.addEventListener('pointermove', (e) => {
         mouse.x = e.clientX;
         mouse.y = e.clientY;
+        mouseActive = e.clientX >= 0 && e.clientX <= w && e.clientY >= 0 && e.clientY <= h;
     }, { passive: true });
     window.addEventListener('pointerleave', () => {
         mouse.x = -9999;
         mouse.y = -9999;
+        mouseActive = false;
+    });
+    document.addEventListener('visibilitychange', () => {
+        if (document.hidden) {
+            if (rafId) cancelAnimationFrame(rafId);
+            rafId = 0;
+            return;
+        }
+        last = performance.now();
+        scheduleDraw();
     });
 
     resize();
-    if (!reduceMotion) requestAnimationFrame(draw);
+    if (!reduceMotion) scheduleDraw();
 })();

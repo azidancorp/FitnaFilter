@@ -466,6 +466,38 @@ function handleSourceOfImage(domElement, toggle) {
 }
 
 /**
+ * Swap original <picture> source srcsets around an HTMLImageElement.
+ *
+ * @param {HTMLImageElement} domElement
+ * @param {boolean} toggle
+ */
+function handlePictureSourcesOfImage(domElement, toggle) {
+    if (!domElement || !domElement.parentElement || domElement.parentElement.tagName !== 'PICTURE') {
+        return;
+    }
+
+    domElement.parentElement.childNodes.forEach(node => {
+        if (node.tagName === 'SOURCE') {
+            handleSourceOfImage(node, toggle);
+        }
+    });
+}
+
+/**
+ * Return the URL for the bitmap the browser is currently rendering.
+ *
+ * @param {HTMLImageElement} domElement
+ * @returns {string}
+ */
+function getImageProcessingSourceUrl(domElement) {
+    if (!domElement) {
+        return '';
+    }
+
+    return domElement.currentSrc || domElement.src || '';
+}
+
+/**
  * Restore an image/source element to its original source values so it can be filtered again.
  *
  * @param {HTMLImageElement|HTMLSourceElement} domElement
@@ -613,13 +645,10 @@ function handleErrorEventListener(domElement, callback, toggle) {
  */
 async function processDomImage(domElement, canvas) {
     const uuid = domElement.getAttribute(ATTR_UUID);
-    if (domElement.oldsrc !== '') {
-        //This was not done yet due to lazy loading
-        handleSourceOfImage(domElement, true);
-    }
+    const sourceUrl = getImageProcessingSourceUrl(domElement);
 
     try {
-        if (domElement.src.indexOf("=eyJ") != -1) {
+        if (sourceUrl.indexOf("=eyJ") != -1) {
             //Some images are protected by JWT tokens (like OWA attachments)
             //They need to be fetched first
             throw new Error("Fetch with token");
@@ -627,7 +656,7 @@ async function processDomImage(domElement, canvas) {
         await filterImageElement(domElement, uuid, canvas);
     } catch (err) {
         try {
-            const image = await fetchAndReadImage(domElement.src);
+            const image = await fetchAndReadImage(sourceUrl);
             await filterImageElement(image, uuid, canvas);
         } catch (proxyError) {
             console.error('FitnaFilter: failed to process image', proxyError);
@@ -808,6 +837,7 @@ async function filterImageElement(imgElement, uuid, canvas) {
             console.error('FitnaFilter: failed to load filtered image', urlData);
             hideElement(actualElement, false);
             handleSourceOfImage(actualElement, false);
+            handlePictureSourcesOfImage(actualElement, false);
         };
         const finishIfAlreadyLoaded = () => {
             if (actualElement.complete && actualElement.naturalWidth > 0) {
@@ -817,6 +847,8 @@ async function filterImageElement(imgElement, uuid, canvas) {
         actualElement.addEventListener('load', handleFilteredImageLoad);
         actualElement.addEventListener('error', handleFilteredImageError);
         withManagedSourceMutation(actualElement, () => {
+            handleSourceOfImage(actualElement, true);
+            handlePictureSourcesOfImage(actualElement, true);
             actualElement.src = urlData;
             actualElement.srcset = '';
         });

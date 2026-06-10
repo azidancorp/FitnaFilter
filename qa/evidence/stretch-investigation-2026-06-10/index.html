@@ -1,0 +1,87 @@
+<!doctype html>
+<html lang="en">
+<head>
+    <meta charset="utf-8">
+    <title>FitnaFilter Stretch Repro</title>
+    <style>
+        body {
+            font-family: sans-serif;
+            margin: 24px;
+        }
+
+        .row {
+            display: flex;
+            gap: 24px;
+            margin-bottom: 24px;
+        }
+
+        .case {
+            width: 380px;
+        }
+
+        .fixed-wide {
+            display: block;
+            width: 360px;
+            height: 180px;
+            border: 2px solid #222;
+        }
+
+        .auto-wide {
+            display: block;
+            width: 360px;
+            height: auto;
+            border: 2px solid #222;
+        }
+    </style>
+</head>
+<body>
+    <h1>FitnaFilter Stretch Repro</h1>
+    <div class="row">
+        <section class="case">
+            <h2>Picture: wide source, tall fallback</h2>
+            <picture>
+                <source media="(min-width: 1px)" srcset="/wide.svg">
+                <img id="picture-fixed" class="fixed-wide" src="/tall.svg" alt="picture fixed">
+            </picture>
+        </section>
+
+        <section class="case">
+            <h2>Srcset: wide candidate, tall fallback</h2>
+            <img id="srcset-fixed" class="fixed-wide" src="/tall.svg" srcset="/wide.svg 800w" sizes="360px"
+                alt="srcset fixed">
+        </section>
+    </div>
+
+    <div class="row">
+        <section class="case">
+            <h2>Picture auto-height</h2>
+            <picture>
+                <source media="(min-width: 1px)" srcset="/wide.svg">
+                <img id="picture-auto" class="auto-wide" src="/tall.svg" alt="picture auto">
+            </picture>
+        </section>
+
+        <section class="case">
+            <h2>Plain tall control</h2>
+            <img id="plain-tall" class="fixed-wide" src="/tall.svg" alt="plain tall">
+        </section>
+    </div>
+
+    <div class="row">
+        <section class="case">
+            <h2>Cross-origin picture</h2>
+            <picture>
+                <source media="(min-width: 1px)" srcset="http://cdn.test:8125/wide.svg">
+                <img id="cross-picture-fixed" class="fixed-wide" src="http://cdn.test:8125/tall.svg"
+                    alt="cross picture fixed">
+            </picture>
+        </section>
+
+        <section class="case">
+            <h2>Cross-origin srcset</h2>
+            <img id="cross-srcset-fixed" class="fixed-wide" src="http://cdn.test:8125/tall.svg"
+                srcset="http://cdn.test:8125/wide.svg 800w" sizes="360px" alt="cross srcset fixed">
+        </section>
+    </div>
+</body>
+</html>

@@ -683,24 +683,11 @@ function ProcessWin(win, winContentLoaded) {
                     this[HAS_TITLE_AND_SIZE] = true;
                 }
 
-                if (this.src !== '') {
+                if (this.src !== '' || this.currentSrc !== '') {
                     applyPendingImageDisplay(this);
-                    //If no src then lazy loaded, do this later
-                    handleSourceOfImage(this, true);
                 }
 
-                if (this.parentElement && this.parentElement.tagName == 'PICTURE') {
-
-                    this.parentElement.childNodes.forEach(node => {
-                        if (node.tagName == 'SOURCE') {
-
-                            handleSourceOfImage(node, true);
-
-                        }
-                    });
-                }
-
-                if (this.src !== '') {
+                if (this.src !== '' || this.currentSrc !== '') {
                     // Already-loaded images need an immediate pass because no load event will fire now.
                     handleLoadProcessImageListener(this, processImage, false);
                     handleLoadEventListener(this, doElement, false);

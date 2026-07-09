@@ -63,7 +63,7 @@
                             >
                         </div>
                         <div class="input-group">
-                            <label>Maximum Safe pixels</label>
+                            <label for="max-safe">Maximum Safe pixels</label>
                             <input type="number" id="max-safe" min="1" max="1000" />
                             <span
                                 class="info-icon"
@@ -87,11 +87,12 @@
                         <div class="site-mode-panel">
                             <div class="site-mode-controls">
                                 <input
-                                    type="text"
-                                    id="siteDisplayHost"
-                                    placeholder="example.com"
-                                />
-                                <select id="siteDisplayMode">
+                                type="text"
+                                id="siteDisplayHost"
+                                placeholder="example.com"
+                                aria-label="Site hostname"
+                            />
+                                <select id="siteDisplayMode" aria-label="Site image loading mode">
                                     <option value="strict">Strict</option>
                                     <option value="placeholder">Placeholder</option>
                                     <option value="progressive">Show while filtering</option>

@@ -111,6 +111,9 @@ function applyFilterColorUI(color) {
     elements.whiteFilter.classList.toggle('active', color === 'white');
     elements.blackFilter.classList.toggle('active', color === 'black');
     elements.greyFilter.classList.toggle('active', color === 'grey');
+    elements.whiteFilter.setAttribute('aria-pressed', color === 'white' ? 'true' : 'false');
+    elements.blackFilter.setAttribute('aria-pressed', color === 'black' ? 'true' : 'false');
+    elements.greyFilter.setAttribute('aria-pressed', color === 'grey' ? 'true' : 'false');
 }
 
 /**
@@ -204,6 +207,22 @@ function setSiteImageDisplayMode(hostname, mode, tabId) {
         .catch(err => console.error('Error setting site image loading mode:', err));
 }
 
+function applyDomainExclusionUI(settings) {
+    const isBlacklistMode = !!settings.isBlackList;
+    const userListChecked = isBlacklistMode ? !!settings.isInUserList : !!settings.isExcludedByUserList;
+
+    elements.excludeDomain.checked = userListChecked;
+    elements.excludeDomain.disabled = !!settings.isExcludedByLocalhost;
+    elements.excludeDomain.title = '';
+    elements.excludeDomainLabel.innerText = (isBlacklistMode ? 'Add' : 'Exclude') + ' Website';
+
+    if (settings.isExcludedByLocalhost) {
+        elements.excludeDomain.checked = true;
+        elements.excludeDomain.title = 'Local URLs are excluded from the Settings page.';
+        elements.excludeDomainLabel.innerText = 'Local URL Excluded';
+    }
+}
+
 /**
  * Initialize popup with current settings
  * @param {chrome.tabs.Tab} activeTab - The currently active tab
@@ -216,9 +235,8 @@ function initializePopup(activeTab) {
         }
         elements.pauseChk.checked = settings.isPaused;
         elements.pauseForTab.checked = settings.isPausedForTab;
-        elements.excludeDomain.checked = settings.isBlackList ? !settings.isExcluded : settings.isExcluded;
+        applyDomainExclusionUI(settings);
         elements.excludeForTab.checked = settings.isExcludedForTab;
-        elements.excludeDomainLabel.innerText = (settings.isBlackList ? 'Add' : 'Exclude') + ' Website';
         
         // Update status indicator
         const isPaused = settings.isPaused || settings.isPausedForTab;

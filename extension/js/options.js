@@ -29,6 +29,9 @@ document.addEventListener("DOMContentLoaded", function () {
     const extensionVersionElement = document.getElementById("extensionVersion");
 
     let isFreeText = false;
+    let freeTextTextarea = null;
+    let freeTextSaveTimer = null;
+    let isSavingFreeText = false;
     const displayModeLabels = {
         strict: "Strict",
         placeholder: "Placeholder",
@@ -79,6 +82,9 @@ document.addEventListener("DOMContentLoaded", function () {
         sendResponse
     ) {
         if (request.r === "urlListModified") {
+            if (isFreeText && isSavingFreeText) {
+                return;
+            }
             createList();
         } else if (request.r === "imageDisplayModesModified") {
             loadImageDisplayModes();
@@ -118,11 +124,19 @@ document.addEventListener("DOMContentLoaded", function () {
         chrome.runtime.sendMessage({
             r: "setAutoUnpauseTimeout",
             autoUnpauseTimeout: this.value,
+        }, function (normalizedValue) {
+            if (!chrome.runtime.lastError && normalizedValue) {
+                autoUnpauseTimeoutInput.value = normalizedValue;
+            }
         });
     });
 
     maxSafeInput.addEventListener("change", function () {
-        chrome.runtime.sendMessage({ r: "setMaxSafe", maxSafe: this.value });
+        chrome.runtime.sendMessage({ r: "setMaxSafe", maxSafe: this.value }, function (normalizedValue) {
+            if (!chrome.runtime.lastError && normalizedValue) {
+                maxSafeInput.value = normalizedValue;
+            }
+        });
     });
 
     if (imageDisplayModeSelect) {
@@ -189,6 +203,13 @@ document.addEventListener("DOMContentLoaded", function () {
     });
 
     freeTextCheckbox.addEventListener("click", function () {
+        if (freeTextSaveTimer) {
+            clearTimeout(freeTextSaveTimer);
+            freeTextSaveTimer = null;
+        }
+        if (freeTextTextarea) {
+            saveFreeTextList(freeTextTextarea);
+        }
         isFreeText = this.checked;
         createList(); // Rebuild list based on the new mode
     });
@@ -218,26 +239,29 @@ document.addEventListener("DOMContentLoaded", function () {
                 textarea.setAttribute("rows", "15");
                 textarea.classList.add("free-text-enabled");
                 textarea.value = urlList.join("\n"); // Join URLs with newline
+                freeTextTextarea = textarea;
+
+                textarea.addEventListener("input", function () {
+                    if (freeTextSaveTimer) {
+                        clearTimeout(freeTextSaveTimer);
+                    }
+                    freeTextSaveTimer = setTimeout(function () {
+                        freeTextSaveTimer = null;
+                        saveFreeTextList(textarea);
+                    }, 600);
+                });
 
                 textarea.addEventListener("change", function () {
-                    const text = textarea.value;
-                    const lines = text.split("\n");
-                    const urls = [];
-                    for (let i = 0; i < lines.length; i++) {
-                        const url = lines[i].trim();
-                        if (url) {
-                            urls.push(url);
-                        }
+                    if (freeTextSaveTimer) {
+                        clearTimeout(freeTextSaveTimer);
+                        freeTextSaveTimer = null;
                     }
-                    // Send the updated list back to the background script
-                    chrome.runtime.sendMessage(
-                        { r: "setUrlList", urlList: urls },
-                        createList
-                    ); // Recreate list after setting
+                    saveFreeTextList(textarea);
                 });
 
                 listElement.appendChild(textarea);
             } else {
+                freeTextTextarea = null;
                 // Create list items
                 urlList.forEach((url) => {
                     const div = document.createElement("div");
@@ -250,6 +274,31 @@ document.addEventListener("DOMContentLoaded", function () {
                 });
             }
         });
+    }
+
+    function parseFreeTextUrls(textarea) {
+        const lines = textarea.value.split("\n");
+        const urls = [];
+        for (let i = 0; i < lines.length; i++) {
+            const url = lines[i].trim();
+            if (url) {
+                urls.push(url);
+            }
+        }
+        return urls;
+    }
+
+    function saveFreeTextList(textarea) {
+        isSavingFreeText = true;
+        chrome.runtime.sendMessage(
+            { r: "setUrlList", urlList: parseFreeTextUrls(textarea) },
+            function () {
+                if (chrome.runtime.lastError) {
+                    console.error("Error saving free-text URL list:", chrome.runtime.lastError);
+                }
+                isSavingFreeText = false;
+            }
+        );
     }
 
     function createSiteModeEntry(host, mode, canRemove) {

@@ -61,7 +61,8 @@ body {
     color: var(--text-primary);
     width: 340px;
     min-height: 580px;
-    overflow: hidden;
+    overflow-x: hidden;
+    overflow-y: auto;
 }
 
 @keyframes gradientShift {

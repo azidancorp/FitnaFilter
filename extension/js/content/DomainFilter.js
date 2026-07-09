@@ -230,6 +230,38 @@ const BLOCKLISTS = {
     }
 };
 
+function normalizeBlocklistDomain(value) {
+    if (typeof value !== 'string') {
+        return null;
+    }
+
+    let domain = value.trim().toLowerCase();
+    if (!domain || domain.startsWith('#')) {
+        return null;
+    }
+
+    domain = domain.split('#')[0].trim();
+    domain = domain.replace(/^\|\|/, '').replace(/^\*\./, '');
+    domain = domain.split('$')[0].replace(/\^.*$/, '');
+
+    try {
+        if (/^\w+:\/\//.test(domain)) {
+            domain = new URL(domain).hostname;
+        } else if (domain.indexOf('/') !== -1) {
+            domain = domain.split('/')[0];
+        }
+    } catch (error) {
+        return null;
+    }
+
+    domain = domain.replace(/^\.+|\.+$/g, '');
+    if (!domain || !domain.includes('.') || /[^a-z0-9.-]/.test(domain)) {
+        return null;
+    }
+
+    return domain;
+}
+
 /**
  * Process a single blocklist file and add domains to the domainToBlocklistMap
  * @param {string} url - URL of the blocklist (local file URL or remote URL)
@@ -262,16 +294,12 @@ async function processBlocklist(url, blocklistName, domainToBlocklistMap) {
             }
             
             // Handle different formats (0.0.0.0 domain.com or just domain.com)
-            let domain;
-            if (trimmedLine.startsWith('0.0.0.0')) {
-                domain = trimmedLine.split(/\s+/)[1]; // Extract domain after IP
-            } else {
-                domain = trimmedLine;
-            }
-            
+            const parts = trimmedLine.split(/\s+/);
+            const domain = /^(?:0\.0\.0\.0|127\.0\.0\.1|::1)$/.test(parts[0]) ? parts[1] : parts[0];
+            const normalizedDomain = normalizeBlocklistDomain(domain);
+
             // Add to our Map if it's a valid domain
-            if (domain && domain.includes('.')) {
-                const normalizedDomain = domain.toLowerCase();
+            if (normalizedDomain) {
                 domainToBlocklistMap.set(normalizedDomain, blocklistName);
                 addedCount++;
             }
@@ -286,7 +314,7 @@ async function processBlocklist(url, blocklistName, domainToBlocklistMap) {
         return addedCount;
     } catch (error) {
         console.error(`Error processing blocklist ${url}:`, error);
-        return 0;
+        throw error;
     }
 }
 

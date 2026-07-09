@@ -95,6 +95,50 @@ function dedupeStringList(list) {
     return deduped;
 }
 
+function sendExtensionMessage(message) {
+    try {
+        const maybePromise = chrome.runtime.sendMessage(message);
+        if (maybePromise && typeof maybePromise.catch === 'function') {
+            maybePromise.catch(() => {});
+        }
+    } catch (error) {
+        // No receiver is fine for status broadcasts.
+    }
+}
+
+function canMessageTabUrl(url) {
+    if (typeof url !== 'string' || !url) {
+        return false;
+    }
+
+    return !/^(?:chrome|chrome-extension|edge|about):/i.test(url);
+}
+
+function broadcastToContentTabs(message) {
+    chrome.tabs.query({}, (tabs) => {
+        if (chrome.runtime.lastError || !Array.isArray(tabs)) {
+            return;
+        }
+
+        tabs.forEach(tab => {
+            if (!tab || typeof tab.id !== 'number' || !canMessageTabUrl(tab.url)) {
+                return;
+            }
+
+            chrome.tabs.sendMessage(tab.id, message, () => {
+                // Many tabs legitimately will not have the content script available yet.
+                void chrome.runtime.lastError;
+            });
+        });
+    });
+}
+
+function notifyImageDisplayModesModified() {
+    const message = { r: 'imageDisplayModesModified' };
+    sendExtensionMessage(message);
+    broadcastToContentTabs(message);
+}
+
 function normalizeImageDisplayMode(value, fallbackValue) {
     return IMAGE_DISPLAY_MODES.includes(value) ? value : fallbackValue;
 }
@@ -176,6 +220,18 @@ function findImageDisplayModeForHost(hostname, settings) {
     };
 }
 
+function isAlwaysEnabledBlocklist(name) {
+    return !!(BLOCKLISTS[name] && BLOCKLISTS[name].category === 'vice');
+}
+
+function enforceBlocklistInvariants() {
+    for (const [key, blocklist] of Object.entries(BLOCKLISTS)) {
+        if (blocklist.category === 'vice') {
+            blocklist.enabled = true;
+        }
+    }
+}
+
 function isUrlInUserList(url, urlList) {
     if (typeof url !== 'string') {
         return false;
@@ -245,7 +301,9 @@ function getExclusionState(url, settings) {
 
     const urlList = Array.isArray(settings.urlList) ? settings.urlList : [];
     exclusionState.isInUserList = isUrlInUserList(url, urlList);
-    exclusionState.isExcludedByUserList = settings.isBlackList ? !exclusionState.isInUserList : exclusionState.isInUserList;
+    exclusionState.isExcludedByUserList = settings.isBlackList ?
+        !exclusionState.isInUserList :
+        exclusionState.isInUserList;
     exclusionState.isExcluded = exclusionState.isExcludedByLocalhost || exclusionState.isExcludedByUserList;
 
     return exclusionState;
@@ -274,7 +332,10 @@ function getComputedTabState(tab, settings) {
         currentHostname: hostname,
         isPausedForTab: false,
         isExcludedForTab: false,
-        isExcluded: false
+        isExcluded: false,
+        isExcludedByLocalhost: false,
+        isExcludedByUserList: false,
+        isInUserList: false
     };
 
     if (!tab) {
@@ -286,7 +347,11 @@ function getComputedTabState(tab, settings) {
     computedState.isExcludedForTab = overrideState.isExcludedForTab;
 
     if (tab.url) {
-        computedState.isExcluded = getExclusionState(tab.url, settings).isExcluded;
+        const exclusionState = getExclusionState(tab.url, settings);
+        computedState.isExcluded = exclusionState.isExcluded;
+        computedState.isExcludedByLocalhost = exclusionState.isExcludedByLocalhost;
+        computedState.isExcludedByUserList = exclusionState.isExcludedByUserList;
+        computedState.isInUserList = exclusionState.isInUserList;
     }
 
     return computedState;
@@ -340,6 +405,60 @@ function normalizeHostname(hostname) {
     }
 
     return normalizedHostname;
+}
+
+function redirectBlockedNavigation(tabId, url) {
+    try {
+        const parsedUrl = new URL(url);
+        const hostname = normalizeHostname(parsedUrl.hostname);
+
+        maybeAutoUnpause(storedSettings);
+
+        const computedState = getComputedTabState({ id: tabId, url: url }, storedSettings);
+        if (computedState.isPaused || computedState.isPausedForTab ||
+            computedState.isExcluded || computedState.isExcludedForTab) {
+            return false;
+        }
+
+        const matchedDomain = findMatchingBlockedDomain(hostname);
+        if (!matchedDomain) {
+            return false;
+        }
+
+        const blocklistName = domainToBlocklistMap.get(matchedDomain);
+        const redirectUrl = getContextualRedirectUrl(blocklistName);
+
+        console.log(`Blocked navigation to: ${hostname} (${blocklistName}) -> redirecting to: ${redirectUrl}`);
+        chrome.tabs.update(tabId, { url: redirectUrl });
+        return true;
+    } catch (error) {
+        console.error("Error processing navigation:", error);
+        return false;
+    }
+}
+
+function redirectAfterBlocklistWarmup(details) {
+    const pendingLoad = blocklistLoadPromise;
+    if (!pendingLoad) {
+        return;
+    }
+
+    pendingLoad
+        .then(() => {
+            if (!hasLoadedBlocklists) {
+                return;
+            }
+
+            chrome.tabs.get(details.tabId, (tab) => {
+                if (chrome.runtime.lastError || !tab || tab.url !== details.url) {
+                    return;
+                }
+                redirectBlockedNavigation(details.tabId, details.url);
+            });
+        })
+        .catch(error => {
+            console.error('FitnaFilter: blocklist warm-up failed before navigation re-check', error);
+        });
 }
 
 function isPrivateIpv4Hostname(hostname) {
@@ -544,10 +663,11 @@ async function getSettings() {
         const savedBlocklists = safeParseJson(syncResult.blocklistSettings, {});
         for (const [key, value] of Object.entries(savedBlocklists)) {
             if (BLOCKLISTS[key]) {
-                BLOCKLISTS[key].enabled = value;
+                BLOCKLISTS[key].enabled = isAlwaysEnabledBlocklist(key) ? true : !!value;
             }
         }
     }
+    enforceBlocklistInvariants();
 
     const localResult = await chrome.storage.local.get({ 'isPaused': null, 'pausedTime': null });
     nextSettings.isPaused = localResult.isPaused == 1;
@@ -687,12 +807,21 @@ chrome.runtime.onMessage.addListener(
                     })
                     .catch(error => {
                         console.error('Error getting settings:', error);
-                        sendResponse({ isPaused: false, isNoEye: false, isNoFaceFeatures: false, maxSafe: DEFAULT_SETTINGS.maxSafe, filterColor: DEFAULT_SETTINGS.filterColor });
+                        sendResponse({
+                            isPaused: false,
+                            isNoEye: false,
+                            isNoFaceFeatures: false,
+                            maxSafe: DEFAULT_SETTINGS.maxSafe,
+                            filterColor: DEFAULT_SETTINGS.filterColor
+                        });
                     });
                 break;
             }
             case 'setColorIcon':
-                chrome.action.setIcon({ path: request.toggle ? '../images/icon.png' : '../images/icon-d.png', tabId: sender.tab.id });
+                chrome.action.setIcon({
+                    path: request.toggle ? '../images/icon.png' : '../images/icon-d.png',
+                    tabId: sender.tab.id
+                });
                 break;
             case 'urlListAdd': {
                 const url = normalizeUrlListEntry(request.url, !!request.domainOnly);
@@ -725,7 +854,10 @@ chrome.runtime.onMessage.addListener(
                     .then(result => {
                         let list = dedupeStringList(safeParseJson(result.urlList, []));
                         if (request.exactUrl || request.domainOnly) {
-                            const exactUrl = normalizeUrlListEntry(request.exactUrl || request.url, !!request.domainOnly);
+                            const exactUrl = normalizeUrlListEntry(
+                                request.exactUrl || request.url,
+                                !!request.domainOnly
+                            );
                             if (exactUrl) {
                                 list = list.filter(item => item !== exactUrl);
                             }
@@ -734,7 +866,9 @@ chrome.runtime.onMessage.addListener(
                             if (normalizedRequestUrl) {
                                 list = list.filter(item => item !== normalizedRequestUrl);
                             }
-                        } else if (typeof request.index === 'number' && request.index >= 0 && request.index < list.length) {
+                        } else if (typeof request.index === 'number' &&
+                            request.index >= 0 &&
+                            request.index < list.length) {
                             list.splice(request.index, 1);
                         }
                         return chrome.storage.sync.set({ urlList: JSON.stringify(list) })
@@ -792,7 +926,9 @@ chrome.runtime.onMessage.addListener(
                 }
                 if (request.toggle) {
                     // Prevent duplicates if the same tab/domain is toggled repeatedly.
-                    const existing = excludeForTabList.find(entry => entry.tabId === request.tab.id && entry.domain === domain);
+                    const existing = excludeForTabList.find(entry =>
+                        entry.tabId === request.tab.id && entry.domain === domain
+                    );
                     if (!existing) {
                         excludeForTabList.push({ tabId: request.tab.id, domain: domain });
                     }
@@ -858,7 +994,7 @@ chrome.runtime.onMessage.addListener(
                 }
                 storedSettings.autoUnpauseTimeout = autoUnpauseTimeout;
                 chrome.storage.sync.set({"autoUnpauseTimeout": autoUnpauseTimeout});
-                sendResponse(true);
+                sendResponse(autoUnpauseTimeout);
                 break;
             }
             case 'setExcludeLocalhost': {
@@ -875,7 +1011,7 @@ chrome.runtime.onMessage.addListener(
                 }
                 storedSettings.maxSafe = ms;
                 chrome.storage.sync.set({"maxSafe": ms});
-                sendResponse(true);
+                sendResponse(ms);
                 break;
             }
             case 'setFilterColor': {
@@ -912,7 +1048,7 @@ chrome.runtime.onMessage.addListener(
                 storedSettings.imageDisplayMode = mode;
                 chrome.storage.sync.set({ "imageDisplayMode": mode })
                     .then(() => {
-                        chrome.runtime.sendMessage({ r: 'imageDisplayModesModified' });
+                        notifyImageDisplayModesModified();
                         sendResponse(true);
                     })
                     .catch(error => {
@@ -946,7 +1082,7 @@ chrome.runtime.onMessage.addListener(
                         });
                     })
                     .then(() => {
-                        chrome.runtime.sendMessage({ r: 'imageDisplayModesModified' });
+                        notifyImageDisplayModesModified();
                         sendResponse(true);
                     })
                     .catch(error => {
@@ -968,7 +1104,9 @@ chrome.runtime.onMessage.addListener(
                 break;
             case 'toggleBlocklist':
                 if (request.name && BLOCKLISTS[request.name]) {
-                    BLOCKLISTS[request.name].enabled = request.enabled;
+                    BLOCKLISTS[request.name].enabled = isAlwaysEnabledBlocklist(request.name) ?
+                        true :
+                        !!request.enabled;
                     saveBlocklistSettings();
                     refreshBlocklists()
                         .then(success => {
@@ -1060,40 +1198,14 @@ chrome.webNavigation.onBeforeNavigate.addListener(
     (details) => {
         // Only intercept main frame navigation (not iframes, etc)
         if (details.frameId !== 0) return;
-        
-        try {
-            // Get the hostname from the URL
-            const url = new URL(details.url);
-            const hostname = url.hostname;
-            
-            maybeAutoUnpause(storedSettings);
 
-            const computedState = getComputedTabState({ id: details.tabId, url: details.url }, storedSettings);
-            if (computedState.isPaused || computedState.isPausedForTab ||
-                computedState.isExcluded || computedState.isExcludedForTab) {
-                return;
-            }
-
-            if (!hasLoadedBlocklists && blocklistLoadPromise) {
-                console.log('FitnaFilter: skipping navigation block while blocklists are warming up');
-                return;
-            }
-
-            const matchedDomain = findMatchingBlockedDomain(hostname);
-            if (matchedDomain) {
-                const blocklistName = domainToBlocklistMap.get(matchedDomain);
-                const redirectUrl = getContextualRedirectUrl(blocklistName);
-                
-                console.log(`Blocked navigation to: ${hostname} (${blocklistName}) -> redirecting to: ${redirectUrl}`);
-                
-                // Redirect the tab to contextual Quran verse
-                chrome.tabs.update(details.tabId, { 
-                    url: redirectUrl 
-                });
-            }
-        } catch (error) {
-            console.error("Error processing navigation:", error);
+        if (!hasLoadedBlocklists && blocklistLoadPromise) {
+            console.log('FitnaFilter: blocklists warming up; scheduling navigation re-check');
+            redirectAfterBlocklistWarmup(details);
+            return;
         }
+
+        redirectBlockedNavigation(details.tabId, details.url);
     },
     { url: [{ schemes: ['http', 'https'] }] }
 );

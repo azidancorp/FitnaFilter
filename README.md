@@ -6,7 +6,7 @@ A Chrome extension designed to help purify your browsing experience by filtering
 
 *   **Skin Tone Filtering:** Automatically detects and filters human skin tones in images on websites, replacing them with a neutral greyscale color (default) or other selectable filter colors.
 *   **Website Blocking:** Blocks access to websites based on curated blocklists and redirects you to a safe page (`https://quran.com/`).
-    *   **Vice Categories (Always On):** Blocks sites related to abuse, drugs, gambling, and pornography. This is non-configurable.
+    *   **Vice Categories (Always On):** Blocks sites related to abuse, drugs, gambling, pornography, and vaping. This is non-configurable.
     *   **Hazard & Distraction Categories (Configurable):** Allows enabling/disabling blocking for categories like fraud, malware, phishing, piracy, ransomware, and scams via the Options page.
 *   **Configurable Filtering:**
     *   **Exclusion List:** Add specific websites (domains or URLs) to an exception list via the Options page or Popup to disable filtering and blocking on trusted sites.
@@ -40,6 +40,12 @@ To refresh extension blocklists from the repo root:
 
 ```bash
 python extension/download_blocklists.py
+```
+
+Lightweight verification for the background image-fetch guard:
+
+```bash
+node extension/scripts/check_background_fetch_guard.js
 ```
 
 ## Usage

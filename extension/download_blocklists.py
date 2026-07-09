@@ -6,17 +6,15 @@ from pathlib import Path
 extension_dir = Path(__file__).resolve().parent
 blocklists_dir = extension_dir / 'blocklists'
 blocklists_dir.mkdir(parents=True, exist_ok=True)
+request_timeout_seconds = 30
 
-# List of all blocklists available from Block List Project (.txt and .ip files)
+# Runtime blocklists used by extension/js/content/DomainFilter.js.
 blocklists = [
     # 'abuse.ip',
     'abuse.txt',
-    'adobe.txt',
     'ads.txt',
-    'basic.txt',
     'crypto.txt',
     'drugs.txt',
-    'everything.txt',
     'facebook.txt',
     'fortnite.txt',
     'fraud.txt',
@@ -52,10 +50,12 @@ for blocklist in blocklists:
     print(f"Downloading {url} to {target_path}...")
 
     try:
-        response = requests.get(url)
+        response = requests.get(url, timeout=request_timeout_seconds)
         if response.status_code == 200:
-            with open(target_path, 'wb') as f:
+            temporary_path = target_path.with_suffix(target_path.suffix + '.tmp')
+            with open(temporary_path, 'wb') as f:
                 f.write(response.content)
+            temporary_path.replace(target_path)
             print(f"✓ Successfully downloaded {filename} ({len(response.content)} bytes)")
         else:
             print(f"✗ Failed to download {filename}: HTTP {response.status_code}")

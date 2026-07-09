@@ -8,6 +8,8 @@ const vm = require('vm');
 
 const backgroundPath = path.join(__dirname, '..', 'js', 'background.js');
 const backgroundCode = fs.readFileSync(backgroundPath, 'utf8');
+const domainFilterPath = path.join(__dirname, '..', 'js', 'content', 'DomainFilter.js');
+const domainFilterCode = fs.readFileSync(domainFilterPath, 'utf8');
 
 function createContext(overrides = {}) {
     let capturedMessageListener = null;
@@ -38,7 +40,10 @@ function createContext(overrides = {}) {
         fetchAndProcessBlocklist: async () => ({ domainToBlocklistMap: new Map() }),
         chrome: {
             storage: {
-                sync: { get: async () => ({}) },
+                sync: {
+                    get: async () => ({}),
+                    set() {}
+                },
                 local: {
                     get: async () => ({}),
                     set() {}
@@ -64,6 +69,32 @@ function createContext(overrides = {}) {
     vm.createContext(context);
     vm.runInContext(backgroundCode, context);
     context.capturedMessageListener = capturedMessageListener;
+    return context;
+}
+
+function createDomainFilterContext(overrides = {}) {
+    const context = {
+        console: {
+            log() {},
+            warn() {},
+            error() {}
+        },
+        URL,
+        setTimeout(callback) {
+            callback();
+        },
+        chrome: {
+            runtime: {
+                getURL(value) {
+                    return 'chrome-extension://fitna-filter/' + value;
+                }
+            }
+        },
+        ...overrides
+    };
+
+    vm.createContext(context);
+    vm.runInContext(domainFilterCode, context);
     return context;
 }
 
@@ -177,12 +208,88 @@ async function testFetchTimeoutPath() {
     assert.strictEqual(response.error, 'Image fetch timed out', 'AbortError should be reported as timeout');
 }
 
+async function testViceBlocklistsStayEnabled() {
+    const blocklists = {
+        porn: {
+            enabled: true,
+            description: 'Pornography sites',
+            category: 'vice'
+        },
+        ads: {
+            enabled: true,
+            description: 'Ad servers and trackers',
+            category: 'distraction'
+        }
+    };
+    const context = createContext({ BLOCKLISTS: blocklists });
+    await new Promise(resolve => setImmediate(resolve));
+
+    const disabledVice = await new Promise(resolve => {
+        context.capturedMessageListener(
+            { r: 'toggleBlocklist', name: 'porn', enabled: false },
+            {},
+            resolve
+        );
+    });
+
+    assert.strictEqual(disabledVice, true, 'toggleBlocklist should respond successfully for vice lists');
+    assert.strictEqual(blocklists.porn.enabled, true, 'vice list should stay enabled');
+
+    const disabledDistraction = await new Promise(resolve => {
+        context.capturedMessageListener(
+            { r: 'toggleBlocklist', name: 'ads', enabled: false },
+            {},
+            resolve
+        );
+    });
+
+    assert.strictEqual(disabledDistraction, true, 'toggleBlocklist should respond successfully for distractions');
+    assert.strictEqual(blocklists.ads.enabled, false, 'distraction list should remain toggleable');
+}
+
+async function testBlocklistParserNormalization() {
+    const blocklistText = [
+        '# comment',
+        '0.0.0.0 Example.COM',
+        '127.0.0.1 www.Example.org # inline comment',
+        '||tracker.example.net^',
+        '||ads.example.net^$third-party',
+        '*.wild.example.co.uk',
+        'https://bad.example/path/to/page',
+        'bad-path.example/path',
+        'localhost',
+        'not a domain'
+    ].join('\n');
+    const context = createDomainFilterContext({
+        fetch: async () => ({
+            ok: true,
+            text: async () => blocklistText
+        })
+    });
+    const processBlocklist = vm.runInContext('processBlocklist', context);
+    const domainToBlocklistMap = new Map();
+
+    const addedCount = await processBlocklist('blocklists/test.txt', 'test', domainToBlocklistMap);
+
+    assert.strictEqual(addedCount, 7, 'only normalized domains should be counted');
+    assert.strictEqual(domainToBlocklistMap.get('example.com'), 'test', 'host-file rows should normalize');
+    assert.strictEqual(domainToBlocklistMap.get('www.example.org'), 'test', 'localhost host rows should normalize');
+    assert.strictEqual(domainToBlocklistMap.get('tracker.example.net'), 'test', 'adblock rows should normalize');
+    assert.strictEqual(domainToBlocklistMap.get('ads.example.net'), 'test', 'adblock option rows should normalize');
+    assert.strictEqual(domainToBlocklistMap.get('wild.example.co.uk'), 'test', 'wildcard rows should normalize');
+    assert.strictEqual(domainToBlocklistMap.get('bad.example'), 'test', 'URL rows should normalize to host');
+    assert.strictEqual(domainToBlocklistMap.get('bad-path.example'), 'test', 'path-like rows should normalize to host');
+    assert.strictEqual(domainToBlocklistMap.has('localhost'), false, 'single-label hosts should be skipped');
+}
+
 (async () => {
     await testAccessRules();
     await testResponseLimits();
     await testMissingSenderFailsClosed();
     await testFetchTimeoutPath();
-    console.log('background fetch guard checks passed');
+    await testViceBlocklistsStayEnabled();
+    await testBlocklistParserNormalization();
+    console.log('background and blocklist guard checks passed');
 })().catch(error => {
     console.error(error);
     process.exit(1);

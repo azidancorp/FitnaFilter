@@ -380,18 +380,22 @@
         const variants = ['a', 'b', 'c'];
         // spice = likelihood of being flagged (higher = flagged sooner)
         const spices = [9, 2, 7, 4, 8, 1, 6, 3, 5];
+        const tileFrag = document.createDocumentFragment();
         const tiles = spices.map((spice, i) => {
-            const t = document.createElement('div');
+            const t = document.createElement('button');
+            t.type = 'button';
             t.className = 'pgtile pgtile--' + variants[i % 3];
             t.dataset.spice = spice;
+            t.setAttribute('aria-pressed', 'false');
             t.innerHTML =
                 '<div class="pgtile__img"></div>' +
                 '<span class="pgtile__bar"></span>' +
                 '<span class="pgtile__tag">flagged</span>' +
                 '<div class="pgtile__cover"></div>';
-            grid.appendChild(t);
+            tileFrag.appendChild(t);
             return t;
         });
+        grid.appendChild(tileFrag);
 
         const sensVal = document.getElementById('pgSens');
         const sensLabel = document.getElementById('pgSensVal');
@@ -401,18 +405,35 @@
         const ranked = [...tiles].sort((a, b) => b.dataset.spice - a.dataset.spice);
         let flaggedCount = 0;
 
+        const updateTileState = (tile) => {
+            const isProtected = grid.classList.contains('is-protected');
+            const isFlagged = tile.classList.contains('pgtile--flag');
+            const isRevealed = tile.classList.contains('is-revealed');
+
+            tile.disabled = !(isProtected && isFlagged);
+            tile.setAttribute('aria-pressed', isRevealed ? 'true' : 'false');
+            tile.setAttribute('aria-label', isFlagged
+                ? (isRevealed ? 'Reapply filter to flagged image' : 'Reveal flagged image')
+                : 'Image not flagged');
+        };
+        const updateTileStates = () => {
+            tiles.forEach(updateTileState);
+        };
+
         const applySensitivity = (level) => {
             flaggedCount = flaggedByLevel[level];
             tiles.forEach((t) => { t.classList.remove('pgtile--flag', 'is-revealed'); });
             ranked.slice(0, flaggedCount).forEach((t) => t.classList.add('pgtile--flag'));
-            grid.className = 'pg__grid level-' + level + (grid.classList.contains('is-protected') ? ' is-protected' : '');
+            grid.className = 'pg__grid level-' + level +
+                (grid.classList.contains('is-protected') ? ' is-protected' : '');
             if (sensLabel) sensLabel.textContent = labels[level];
             updateHint();
+            updateTileStates();
         };
         const updateHint = () => {
             const on = grid.classList.contains('is-protected');
             if (hint) hint.textContent = on
-                ? flaggedCount + ' of 9 images flagged · click a covered tile to reveal'
+                ? flaggedCount + ' of 9 images flagged · reveal a covered tile'
                 : 'protection off · all images shown raw';
         };
 
@@ -434,6 +455,7 @@
                 grid.classList.toggle('is-protected', on);
                 tiles.forEach((t) => t.classList.remove('is-revealed'));
                 updateHint();
+                updateTileStates();
             });
         }
 
@@ -456,6 +478,7 @@
             if (!tile || !tile.classList.contains('pgtile--flag')) return;
             if (!grid.classList.contains('is-protected')) return;
             tile.classList.toggle('is-revealed');
+            updateTileState(tile);
         });
     }
 })();

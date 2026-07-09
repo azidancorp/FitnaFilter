@@ -185,12 +185,12 @@ function handleListeners(domElement, listeners, add, flag) {
  */
 function handleStyleClasses(domElement, classNames, add, flag) {
     if (add && !domElement[flag]) {
-        classNames.map(className => {
+        classNames.forEach(className => {
             addClassToStyle(domElement, className);
         });
         domElement[flag] = true;
     } else if (!add && domElement[flag]) {
-        classNames.map(className => {
+        classNames.forEach(className => {
             removeClassFromStyle(domElement, className);
         });
         domElement[flag] = false;
@@ -646,6 +646,7 @@ function handleErrorEventListener(domElement, callback, toggle) {
 async function processDomImage(domElement, canvas) {
     const uuid = domElement.getAttribute(ATTR_UUID);
     const sourceUrl = getImageProcessingSourceUrl(domElement);
+    domElement[ATTR_PROCESSING_SOURCE] = sourceUrl;
 
     try {
         if (sourceUrl.indexOf("=eyJ") != -1) {
@@ -653,13 +654,19 @@ async function processDomImage(domElement, canvas) {
             //They need to be fetched first
             throw new Error("Fetch with token");
         }
-        await filterImageElement(domElement, uuid, canvas);
+        await filterImageElement(domElement, uuid, canvas, sourceUrl);
     } catch (err) {
         try {
+            if (domElement[ATTR_PROCESSING_SOURCE] !== sourceUrl) {
+                return;
+            }
             const image = await fetchAndReadImage(sourceUrl);
-            await filterImageElement(image, uuid, canvas);
+            await filterImageElement(image, uuid, canvas, sourceUrl);
         } catch (proxyError) {
             console.error('FitnaFilter: failed to process image', proxyError);
+            if (domElement[ATTR_PROCESSING_SOURCE] !== sourceUrl) {
+                return;
+            }
             hideElement(domElement, false);
             handleSourceOfImage(domElement, false);
         }
@@ -689,6 +696,7 @@ async function processDomImage(domElement, canvas) {
  */
 async function processBackgroundImage(domElement, url, suffix, canvas) {
     const uuid = domElement.getAttribute(ATTR_UUID);
+    domElement[ATTR_BACKGROUND_PROCESSING_SOURCE] = url;
 
     if (!url) {
         restoreOriginalBackgroundImage(domElement);
@@ -699,9 +707,15 @@ async function processBackgroundImage(domElement, url, suffix, canvas) {
 
     try {
         const image = await fetchAndReadImage(url);
-        await filterImageElementAsBackground(image, uuid, canvas, suffix);
+        if (domElement[ATTR_BACKGROUND_PROCESSING_SOURCE] !== url) {
+            return;
+        }
+        await filterImageElementAsBackground(image, uuid, canvas, suffix, url);
     } catch (error) {
         console.error('FitnaFilter: failed to process background image', error);
+        if (domElement[ATTR_BACKGROUND_PROCESSING_SOURCE] !== url) {
+            return;
+        }
         restoreOriginalBackgroundImage(domElement);
         handleBackgroundForElement(domElement, false);
         hideElement(domElement, false);
@@ -757,12 +771,12 @@ async function fetchAndReadImage(url) {
  *
  * filterImageElementAsBackground(element, uuid, canvas);
  */
-async function filterImageElementAsBackground(imgElement, uuid, canvas, suffix) {
+async function filterImageElementAsBackground(imgElement, uuid, canvas, suffix, expectedUrl) {
     const base64Img = await applyImageFilters(imgElement, uuid, canvas);
     const newBackgroundImgUrl = "url('" + base64Img + "')";
-    const actualElement = findElementByUuid(document, uuid);
+    const actualElement = findElementByUuid(getProcessingDocument(canvas, imgElement), uuid);
 
-    if (actualElement) {
+    if (actualElement && (!expectedUrl || actualElement[ATTR_BACKGROUND_PROCESSING_SOURCE] === expectedUrl)) {
         const previousBackgroundObjectUrl = actualElement[ATTR_BACKGROUND_OBJECT_URL];
         actualElement[ATTR_BACKGROUND_OBJECT_URL] = base64Img;
         actualElement[IS_PROCESSED] = true;
@@ -778,13 +792,7 @@ async function filterImageElementAsBackground(imgElement, uuid, canvas, suffix) 
         }
     } else {
         // Element was removed before filtering completed - revoke orphaned blob URL
-        if (base64Img && typeof base64Img === 'string' && base64Img.startsWith('blob:')) {
-            try {
-                URL.revokeObjectURL(base64Img);
-            } catch (error) {
-                console.warn('FitnaFilter: failed to revoke orphaned background blob URL', error);
-            }
-        }
+        revokeBlobUrl(base64Img, 'background');
     }
 }
 /**
@@ -803,22 +811,41 @@ async function filterImageElementAsBackground(imgElement, uuid, canvas, suffix) 
  *
  * filterImageElement(element, uuid, canvas);
  */
-async function filterImageElement(imgElement, uuid, canvas) {
+async function filterImageElement(imgElement, uuid, canvas, expectedSourceUrl) {
     const urlData = await applyImageFilters(imgElement, uuid, canvas);
-    const actualElement = findElementByUuid(document, uuid);
+    const actualElement = findElementByUuid(getProcessingDocument(canvas, imgElement), uuid);
 
-    if (actualElement) {
+    if (actualElement && (!expectedSourceUrl || actualElement[ATTR_PROCESSING_SOURCE] === expectedSourceUrl)) {
         const previousObjectUrl = actualElement[ATTR_OBJECT_URL];
+        if (typeof actualElement[ATTR_FILTERED_IMAGE_LISTENER_CLEANUP] === 'function') {
+            actualElement[ATTR_FILTERED_IMAGE_LISTENER_CLEANUP]();
+        }
         actualElement[ATTR_OBJECT_URL] = urlData;
         let didFinish = false;
         const isCurrentFilteredImage = () => actualElement[ATTR_OBJECT_URL] === urlData &&
+            (!expectedSourceUrl || actualElement[ATTR_PROCESSING_SOURCE] === expectedSourceUrl) &&
             (actualElement.src === urlData || actualElement.currentSrc === urlData);
         const cleanupFilteredImageListeners = () => {
             actualElement.removeEventListener('load', handleFilteredImageLoad);
             actualElement.removeEventListener('error', handleFilteredImageError);
+            if (actualElement[ATTR_FILTERED_IMAGE_LISTENER_CLEANUP] === cleanupFilteredImageListeners) {
+                actualElement[ATTR_FILTERED_IMAGE_LISTENER_CLEANUP] = null;
+            }
+        };
+        const finishStaleFilter = () => {
+            didFinish = true;
+            cleanupFilteredImageListeners();
+            if (actualElement[ATTR_OBJECT_URL] === urlData) {
+                actualElement[ATTR_OBJECT_URL] = null;
+            }
+            revokeBlobUrl(urlData, 'image');
         };
         const handleFilteredImageLoad = () => {
-            if (didFinish || !isCurrentFilteredImage()) {
+            if (didFinish) {
+                return;
+            }
+            if (!isCurrentFilteredImage()) {
+                finishStaleFilter();
                 return;
             }
             didFinish = true;
@@ -829,7 +856,11 @@ async function filterImageElement(imgElement, uuid, canvas) {
             handleBackgroundForElement(actualElement, true);
         };
         const handleFilteredImageError = () => {
-            if (didFinish || !isCurrentFilteredImage()) {
+            if (didFinish) {
+                return;
+            }
+            if (!isCurrentFilteredImage()) {
+                finishStaleFilter();
                 return;
             }
             didFinish = true;
@@ -846,6 +877,7 @@ async function filterImageElement(imgElement, uuid, canvas) {
         };
         actualElement.addEventListener('load', handleFilteredImageLoad);
         actualElement.addEventListener('error', handleFilteredImageError);
+        actualElement[ATTR_FILTERED_IMAGE_LISTENER_CLEANUP] = cleanupFilteredImageListeners;
         withManagedSourceMutation(actualElement, () => {
             handleSourceOfImage(actualElement, true);
             handlePictureSourcesOfImage(actualElement, true);
@@ -861,13 +893,7 @@ async function filterImageElement(imgElement, uuid, canvas) {
         }
     } else {
         // Element was removed before filtering completed - revoke orphaned blob URL
-        if (urlData && typeof urlData === 'string' && urlData.startsWith('blob:')) {
-            try {
-                URL.revokeObjectURL(urlData);
-            } catch (error) {
-                console.warn('FitnaFilter: failed to revoke orphaned image blob URL', error);
-            }
-        }
+        revokeBlobUrl(urlData, 'image');
     }
 }
 /**
@@ -889,6 +915,12 @@ function findElementByUuid(doc, uuid) {
 
     const escapedUuid = typeof CSS !== 'undefined' && CSS.escape ? CSS.escape(uuid) : uuid.replace(/["\\]/g, '\\$&');
     return doc.querySelector('[' + ATTR_UUID + '="' + escapedUuid + '"]');
+}
+
+function getProcessingDocument(canvas, fallbackElement) {
+    return (canvas && canvas.ownerDocument) ||
+        (fallbackElement && fallbackElement.ownerDocument) ||
+        document;
 }
 
 /**
@@ -919,6 +951,9 @@ function releaseFilteredResources(domElement) {
         return;
     }
 
+    if (typeof domElement[ATTR_FILTERED_IMAGE_LISTENER_CLEANUP] === 'function') {
+        domElement[ATTR_FILTERED_IMAGE_LISTENER_CLEANUP]();
+    }
     if (domElement[ATTR_OBJECT_URL] && typeof domElement[ATTR_OBJECT_URL] === 'string' &&
         domElement[ATTR_OBJECT_URL].startsWith('blob:')) {
         URL.revokeObjectURL(domElement[ATTR_OBJECT_URL]);
@@ -930,6 +965,17 @@ function releaseFilteredResources(domElement) {
 
     domElement[ATTR_OBJECT_URL] = null;
     domElement[ATTR_BACKGROUND_OBJECT_URL] = null;
+    domElement[ATTR_FILTERED_IMAGE_LISTENER_CLEANUP] = null;
+}
+
+function revokeBlobUrl(url, label) {
+    if (url && typeof url === 'string' && url.startsWith('blob:')) {
+        try {
+            URL.revokeObjectURL(url);
+        } catch (error) {
+            console.warn('FitnaFilter: failed to revoke orphaned ' + label + ' blob URL', error);
+        }
+    }
 }
 /**
  * Generate an uuid.

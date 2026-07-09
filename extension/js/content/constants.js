@@ -41,6 +41,21 @@ const ATTR_ORIGINAL_SRC = 'skf-original-src';
 const ATTR_ORIGINAL_SRCSET = 'skf-original-srcset';
 
 /**
+ * Property that stores the image source currently being filtered.
+ */
+const ATTR_PROCESSING_SOURCE = 'skf-processing-source';
+
+/**
+ * Property that stores the background-image URL currently being filtered.
+ */
+const ATTR_BACKGROUND_PROCESSING_SOURCE = 'skf-background-processing-source';
+
+/**
+ * Property that stores cleanup for transient filtered image listeners.
+ */
+const ATTR_FILTERED_IMAGE_LISTENER_CLEANUP = 'skf-filtered-image-listener-cleanup';
+
+/**
  * Property that stores the active placeholder overlay for an image.
  */
 const ATTR_PLACEHOLDER_ELEMENT = 'skf-placeholder-element';

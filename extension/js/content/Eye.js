@@ -11,7 +11,6 @@ function Eye(doc) {
     let mCurrentMode = 'reveal'; // 'reveal' or 'undo'
     let mRevealCallback = null;
     let mFilterCallback = null;
-    let mTargetElement = null;
 
     /**
      * Create the eye that is positioned accordingly in elements with filtered images
@@ -85,7 +84,6 @@ function Eye(doc) {
      * @param {string} undoCSSUrl - CSS URL for undo icon
      */
     function setAnchor(domElement, revealCallback, filterCallback, eyeCSSUrl, undoCSSUrl) {
-        mTargetElement = domElement;
         mRevealCallback = revealCallback;
         mFilterCallback = filterCallback;
 

@@ -111,7 +111,8 @@ chrome.runtime.sendMessage({
 }, (s) => {
     settings = s;
     // If it is active, do the stuff
-    if (settings && !settings.isExcluded && !settings.isExcludedForTab && !settings.isPaused && !settings.isPausedForTab) {
+    if (settings && !settings.isExcluded && !settings.isExcludedForTab &&
+        !settings.isPaused && !settings.isPausedForTab) {
 
         chrome.runtime.sendMessage({
             r: 'setColorIcon',
@@ -139,7 +140,7 @@ chrome.runtime.onMessage.addListener(request => {
                 ProcessWin(window, contentLoaded);
             }
         }
-    } else if (request.r === 'refreshFiltering') {
+    } else if (request.r === 'refreshFiltering' || request.r === 'imageDisplayModesModified') {
         refreshCurrentWindowProcessing();
     }
 });
@@ -165,8 +166,10 @@ function ProcessWin(win, winContentLoaded) {
     let mDoc = mWin.document;
     let mHeadStyles = {};
     let mObserver = null;
+    let mStylePollIntervalId = null;
     let mMouseIntervalId = null;
     let mRectIntervalId = null;
+    let mRectTimeoutIds = [];
     // This flag is used to check if the iteration over the
     // structure to find the elements and process the images has
     // started.
@@ -201,12 +204,13 @@ function ProcessWin(win, winContentLoaded) {
         // short interval. At this point we do not know if the DOM tree is
         // ready for manipulation. The variable doc.head is check to see
         // if the styles can be added.
-        const pollID = setInterval(function() {
+        mStylePollIntervalId = setInterval(function() {
             // Nothing to add. All images will be shown. Stop the
             // iteration.
             if (displayer.isShowAll()) {
 
-                clearInterval(pollID);
+                clearInterval(mStylePollIntervalId);
+                mStylePollIntervalId = null;
 
             } else if (mDoc.head) {
                 // If process has not started. Make the webpage
@@ -227,7 +231,8 @@ function ProcessWin(win, winContentLoaded) {
                         'box-shadow: inset 0 0 0 1px rgba(255, 255, 255, 0.14) !important;}'
                 );
 
-                clearInterval(pollID);
+                clearInterval(mStylePollIntervalId);
+                mStylePollIntervalId = null;
             }
         }, STYLE_POLL_INTERVAL_MS);
 
@@ -254,6 +259,20 @@ function ProcessWin(win, winContentLoaded) {
             for (let s in mHeadStyles) {
                 removeHeadStyle(mDoc, mHeadStyles, s);
             }
+            if (mStylePollIntervalId !== null) {
+                clearInterval(mStylePollIntervalId);
+                mStylePollIntervalId = null;
+            }
+            if (mMouseIntervalId !== null) {
+                clearInterval(mMouseIntervalId);
+                mMouseIntervalId = null;
+            }
+            if (mRectIntervalId !== null) {
+                clearInterval(mRectIntervalId);
+                mRectIntervalId = null;
+            }
+            mRectTimeoutIds.forEach(timeoutId => clearTimeout(timeoutId));
+            mRectTimeoutIds = [];
 
             if (mMouseController.hasElement()) {
                 toggleHover(mMouseController.getElement(), false);
@@ -351,7 +370,7 @@ function ProcessWin(win, winContentLoaded) {
         const MutationObserverConstructor = mWin.MutationObserver || mWin.WebKitMutationObserver;
         if (MutationObserverConstructor) {
             mObserver = new MutationObserverConstructor((mutations, observer) => {
-                mutations.map(m => {
+                mutations.forEach(m => {
                     // This is for changes in the nodes already in the DOM tree.
                     if (m.type == 'attributes') {
 
@@ -392,7 +411,9 @@ function ProcessWin(win, winContentLoaded) {
                             }
 
                             let oldBgImg, oldBgImgMatch;
-                            if (m.oldValue == null || !(oldBgImgMatch = /background(?:-image)?:[^;]*url\(['"]?(.+?)['"]?\)/.exec(m.oldValue))) {
+                            if (m.oldValue == null ||
+                                !(oldBgImgMatch =
+                                    /background(?:-image)?:[^;]*url\(['"]?(.+?)['"]?\)/.exec(m.oldValue))) {
                                 oldBgImg = '';
                             } else {
                                 oldBgImg = oldBgImgMatch[1];
@@ -446,15 +467,16 @@ function ProcessWin(win, winContentLoaded) {
         // This is likely to be set based on an average time for a web page to be loaded.
         // TODO: Improve this
         for (let i = 1; i <= RECT_TIMEOUT_REPEAT_COUNT; i++) {
-            setTimeout(() => {
+            const rectTimeoutId = setTimeout(() => {
                 mSuspects.updateSuspectsRectangles()
             }, i * RECT_TIMEOUT_BASE_MS);
+            mRectTimeoutIds.push(rectTimeoutId);
         }
 
         // At this point, the frame elements are already in the DOM
         // tree, but their content may not have been loaded.
         const iframes = mDoc.getElementsByTagName('iframe');
-        Array.from(iframes).map(iframe => {
+        Array.from(iframes).forEach(iframe => {
             doIframe(iframe);
         });
 
@@ -716,12 +738,15 @@ function ProcessWin(win, winContentLoaded) {
             const compStyle = getComputedStyle(this),
                 bgImg = compStyle['background-image'],
                 width = parseInt(compStyle['width']) || this.clientWidth,
-                height = parseInt(compStyle['height']) || this.clientHeight; //as per https://developer.mozilla.org/en/docs/Web/API/window.getComputedStyle, getComputedStyle will return the 'used values' for width and height, which is always in px. We also use clientXXX, since sometimes compStyle returns NaN.
+                // getComputedStyle returns used px values; clientXXX covers occasional NaN values.
+                height = parseInt(compStyle['height']) || this.clientHeight;
 
             // Image greater than the dimensions in the settings needs
             // to be filtered. We need to catch 0 too, as sometimes
             // images start off as zero.
-            if (bgImg != 'none' && (width == 0 || width > settings.maxSafe) && (height == 0 || height > settings.maxSafe) &&
+            if (bgImg != 'none' &&
+                (width == 0 || width > settings.maxSafe) &&
+                (height == 0 || height > settings.maxSafe) &&
                 bgImg.indexOf('url(') != -1 &&
                 !bgImg.startsWith(urlExtensionUrl) && bgImg != urlBlankImg &&
                 !this[IS_PROCESSED]
@@ -1048,6 +1073,12 @@ function ProcessWin(win, winContentLoaded) {
             clearInterval(mRectIntervalId);
             mRectIntervalId = null;
         }
+        if (mStylePollIntervalId !== null) {
+            clearInterval(mStylePollIntervalId);
+            mStylePollIntervalId = null;
+        }
+        mRectTimeoutIds.forEach(timeoutId => clearTimeout(timeoutId));
+        mRectTimeoutIds = [];
 
         mMouseController.unwatchDocument(mDoc);
         mDoc.removeEventListener('keydown', docKeyDown);

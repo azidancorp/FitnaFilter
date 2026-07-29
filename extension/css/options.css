@@ -199,7 +199,6 @@ body::before {
     border-color: var(--purple-primary);
     background: linear-gradient(135deg, var(--purple-dark) 0%, var(--purple-primary) 100%);
     box-shadow: var(--shadow-glow-strong);
-    transform: translateY(-2px);
 }
 
 .header a:hover::before {
@@ -389,7 +388,6 @@ body::before {
 .settings-group:hover {
     border-color: var(--border-medium);
     box-shadow: var(--shadow-md), 0 0 30px var(--purple-glow-soft);
-    transform: translateY(-2px);
 }
 
 .settings-group:hover::before {
@@ -639,7 +637,6 @@ input[type="submit"]:hover::before {
 input[type="submit"]:hover {
     background: linear-gradient(135deg, var(--purple-primary) 0%, var(--purple-light) 100%);
     box-shadow: var(--shadow-glow-strong);
-    transform: translateY(-2px);
 }
 
 input[type="submit"]:active {

@@ -15,7 +15,6 @@ const elements = {
     customUrlInput: document.getElementById('customUrlInput'),
     addUrlBtn: document.getElementById('addUrlBtn'),
     grabUrlBtn: document.getElementById('grabUrlBtn'),
-    statusIndicator: document.getElementById('statusIndicator'),
     extensionVersion: document.getElementById('extensionVersion')
 };
 
@@ -35,29 +34,6 @@ function updateExtensionVersion() {
         }
     } catch (error) {
         console.warn('Failed to read extension manifest version:', error);
-    }
-}
-
-/**
- * Updates the status indicator in the footer
- * @param {boolean} isPaused - Whether filtering is paused
- */
-function updateStatusIndicator(isPaused) {
-    if (!elements.statusIndicator) return;
-    
-    const dot = elements.statusIndicator.querySelector('.status-dot');
-    const text = elements.statusIndicator.querySelector('.status-text');
-    
-    if (isPaused) {
-        elements.statusIndicator.classList.add('paused');
-        dot.style.background = '#ff4757';
-        dot.style.boxShadow = '0 0 8px #ff4757';
-        text.textContent = 'Paused';
-    } else {
-        elements.statusIndicator.classList.remove('paused');
-        dot.style.background = '#00d9a5';
-        dot.style.boxShadow = '0 0 8px #00d9a5';
-        text.textContent = 'Active';
     }
 }
 
@@ -238,10 +214,6 @@ function initializePopup(activeTab) {
         applyDomainExclusionUI(settings);
         elements.excludeForTab.checked = settings.isExcludedForTab;
         
-        // Update status indicator
-        const isPaused = settings.isPaused || settings.isPausedForTab;
-        updateStatusIndicator(isPaused);
-        
         // Set active filter color button
         const filterColor = settings.filterColor || 'grey'; // Default to grey if not set
         setFilterColor(filterColor, activeTab.id, { broadcast: false, force: true });
@@ -318,7 +290,6 @@ chrome.tabs.query({ active: true, currentWindow: true }, function (tabs) {
                 } else {
                     refreshFiltering(activeTab.id);
                 }
-                updateStatusIndicator(this.checked || elements.pauseForTab.checked);
             })
             .catch(err => console.error('Error toggling pause:', err));
     });
@@ -330,7 +301,6 @@ chrome.tabs.query({ active: true, currentWindow: true }, function (tabs) {
                 } else {
                     refreshFiltering(activeTab.id);
                 }
-                updateStatusIndicator(elements.pauseChk.checked || this.checked);
             })
             .catch(err => console.error('Error toggling tab pause:', err));
     });

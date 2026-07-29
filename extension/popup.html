@@ -21,12 +21,15 @@
                         <div class="subtitle">Purified Browsing</div>
                     </div>
                 </div>
+                <div class="header-meta">
+                    <span class="version" id="extensionVersion"></span>
+                </div>
                 <div class="header-glow"></div>
             </div>
         </div>
 
         <!-- Quick Links -->
-        <div class="section">
+        <div class="section section-links">
             <div class="links-row">
                 <a id="options" href="options.html" target="_blank" class="btn">
                     <svg class="icon" viewBox="0 0 24 24" fill="currentColor">
@@ -44,7 +47,7 @@
         </div>
 
         <!-- Quick Actions -->
-        <div class="section">
+        <div class="section section-actions">
             <div class="section-title">Quick Actions</div>
             <div class="quick-actions">
                 <button type="button" id="showImages" class="btn btn-primary">
@@ -62,39 +65,8 @@
             </div>
         </div>
 
-        <!-- Filter Color -->
-        <div class="filter-color-section">
-            <span class="filter-color-label">Filter Color</span>
-            <div class="color-buttons">
-                <button
-                    type="button"
-                    id="whiteFilter"
-                    class="color-button white-filter"
-                    title="White Filter"
-                    aria-label="Set filter color to white"
-                    aria-pressed="false"
-                ></button>
-                <button
-                    type="button"
-                    id="blackFilter"
-                    class="color-button black-filter"
-                    title="Black Filter"
-                    aria-label="Set filter color to black"
-                    aria-pressed="false"
-                ></button>
-                <button
-                    type="button"
-                    id="greyFilter"
-                    class="color-button grey-filter"
-                    title="Grey Filter"
-                    aria-label="Set filter color to grey"
-                    aria-pressed="false"
-                ></button>
-            </div>
-        </div>
-
         <!-- Image Loading -->
-        <div class="section">
+        <div class="section section-loading">
             <div class="section-title">Image Loading</div>
             <div class="mode-row">
                 <label for="siteImageDisplayMode" id="siteImageDisplayLabel">Current Site</label>
@@ -108,7 +80,7 @@
         </div>
 
         <!-- Exclusions -->
-        <div class="section">
+        <div class="section section-exclusions">
             <div class="section-title">Exclusions</div>
             <div class="toggle-group">
                 <label for="excludeDomain" class="toggle-label" id="exclude-domain-label">Exclude Domain</label>
@@ -127,7 +99,7 @@
         </div>
 
         <!-- Pause Controls -->
-        <div class="section">
+        <div class="section section-pause">
             <div class="section-title">Pause Filtering</div>
             <div class="toggle-group">
                 <label for="pauseChk" class="toggle-label">Pause Globally</label>
@@ -173,14 +145,37 @@
             </div>
         </div>
 
-        <!-- Footer -->
-        <div class="popup-footer">
-            <div class="status-indicator" id="statusIndicator">
-                <span class="status-dot"></span>
-                <span class="status-text">Active</span>
+        <!-- Filter Color -->
+        <div class="filter-color-section">
+            <span class="filter-color-label">Filter Color</span>
+            <div class="color-buttons">
+                <button
+                    type="button"
+                    id="whiteFilter"
+                    class="color-button white-filter"
+                    title="White Filter"
+                    aria-label="Set filter color to white"
+                    aria-pressed="false"
+                ></button>
+                <button
+                    type="button"
+                    id="blackFilter"
+                    class="color-button black-filter"
+                    title="Black Filter"
+                    aria-label="Set filter color to black"
+                    aria-pressed="false"
+                ></button>
+                <button
+                    type="button"
+                    id="greyFilter"
+                    class="color-button grey-filter"
+                    title="Grey Filter"
+                    aria-label="Set filter color to grey"
+                    aria-pressed="false"
+                ></button>
             </div>
-            <span class="version" id="extensionVersion"></span>
         </div>
+
     </div>
     <script src="./js/popup.js" type="text/javascript"></script>
 </body>

@@ -93,12 +93,20 @@
         });
     }
 
-    /* ---- Hero parallax (subtle) ---- */
+    /* ---- Hero parallax (subtle) ----
+       PERF: sleeps entirely once the hero has scrolled out of view. */
     const heroImg = document.getElementById('heroImg');
     if (heroImg && allowPointerEffects) {
         let raf = null;
+        let heroVisible = true;
+        const heroSection = document.getElementById('hero');
+        if (heroSection && 'IntersectionObserver' in window) {
+            new IntersectionObserver((entries) => {
+                heroVisible = entries[0].isIntersecting;
+            }).observe(heroSection);
+        }
         window.addEventListener('mousemove', (ev) => {
-            if (raf) return;
+            if (!heroVisible || raf) return;
             raf = requestAnimationFrame(() => {
                 const dx = (ev.clientX / window.innerWidth - 0.5) * 12;
                 const dy = (ev.clientY / window.innerHeight - 0.5) * 8;
@@ -108,15 +116,28 @@
         }, { passive: true });
     }
 
-    /* ---- Card spotlight follow ---- */
+    /* ---- Card spotlight follow ----
+       PERF: one delegated, rAF-throttled listener instead of a mousemove
+       handler per card; style writes happen at most once per frame. */
     if (allowPointerEffects) {
-        document.querySelectorAll('.card').forEach((card) => {
-            card.addEventListener('mousemove', (e) => {
-                const r = card.getBoundingClientRect();
-                card.style.setProperty('--mx', `${e.clientX - r.left}px`);
-                card.style.setProperty('--my', `${e.clientY - r.top}px`);
+        let spotRaf = null;
+        let spotCard = null;
+        let spotX = 0;
+        let spotY = 0;
+        document.addEventListener('mousemove', (e) => {
+            const card = e.target && e.target.closest ? e.target.closest('.card') : null;
+            if (!card) return;
+            spotCard = card;
+            spotX = e.clientX;
+            spotY = e.clientY;
+            if (spotRaf) return;
+            spotRaf = requestAnimationFrame(() => {
+                spotRaf = null;
+                const r = spotCard.getBoundingClientRect();
+                spotCard.style.setProperty('--mx', (spotX - r.left) + 'px');
+                spotCard.style.setProperty('--my', (spotY - r.top) + 'px');
             });
-        });
+        }, { passive: true });
     }
 
     /* ---- Before / After slider ---- */
@@ -244,6 +265,25 @@
         io.observe(el);
     };
 
+    /* PERF: pause purely decorative infinite animations whenever their
+       section is offscreen (gate arrows, privacy pulses, hero indicators).
+       Unlike keepMotionNearViewport, these still animate on mobile when
+       visible — only offscreen waste is removed. */
+    const pauseWhenHidden = (el) => {
+        if (!el || !('IntersectionObserver' in window)) return;
+        const io = new IntersectionObserver((entries) => {
+            entries.forEach((entry) => {
+                el.classList.toggle('is-motion-paused', !entry.isIntersecting);
+            });
+        }, { rootMargin: '160px 0px', threshold: 0.01 });
+        io.observe(el);
+    };
+    if (!reduceMotion) {
+        ['#hero', '.engine', '.privacy__inner'].forEach((sel) => {
+            pauseWhenHidden(document.querySelector(sel));
+        });
+    }
+
     /* ---- Scroll progress bar ---- */
     const bar = document.getElementById('scrollbar');
     if (bar) {
@@ -291,6 +331,7 @@
     const pOut = document.getElementById('portalOut');
     const spawnChips = (host, count, categories = []) => {
         if (!host || reduceMotion) return;
+        const frag = document.createDocumentFragment();
         for (let i = 0; i < count; i++) {
             const c = document.createElement('span');
             const category = categories[i % categories.length];
@@ -299,8 +340,9 @@
             const dur = 3.4 + Math.random() * 2.6;
             c.style.animationDuration = dur + 's';
             c.style.animationDelay = (-Math.random() * dur) + 's';
-            host.appendChild(c);
+            frag.appendChild(c);
         }
+        host.appendChild(frag);
     };
     const portal = document.querySelector('.portal');
     let portalReady = false;
@@ -491,7 +533,8 @@
     if (!canvas) return;
 
     const reduceMotion = window.matchMedia('(prefers-reduced-motion: reduce)').matches;
-    const allowCanvas = !reduceMotion && window.matchMedia('(hover: hover) and (pointer: fine) and (min-width: 761px)').matches;
+    const allowCanvas = !reduceMotion &&
+        window.matchMedia('(hover: hover) and (pointer: fine) and (min-width: 761px)').matches;
     if (!allowCanvas) {
         canvas.width = 0;
         canvas.height = 0;
@@ -508,6 +551,53 @@
     const mouse = { x: -9999, y: -9999 };
     const segmentCache = new Map();
 
+    /* PERF caches: pre-built colour strings (no per-frame string garbage)
+       and a pre-rendered glow sprite (replaces per-dot shadowBlur, which is
+       one of the most expensive canvas operations on weak GPUs). */
+    const baseStroke = `rgba(${baseRgb[0]},${baseRgb[1]},${baseRgb[2]},0.28)`;
+    const glowStyleCache = [];
+    const glowStyle = (glow) => {
+        const k = (glow * 100) | 0;
+        let s = glowStyleCache[k];
+        if (!s) {
+            const t = k / 100;
+            const cr = (baseRgb[0] + (hotRgb[0] - baseRgb[0]) * t) | 0;
+            const cg = (baseRgb[1] + (hotRgb[1] - baseRgb[1]) * t) | 0;
+            const cb = (baseRgb[2] + (hotRgb[2] - baseRgb[2]) * t) | 0;
+            s = glowStyleCache[k] = `rgba(${cr},${cg},${cb},${(0.28 + 0.5 * t).toFixed(3)})`;
+        }
+        return s;
+    };
+    const trailStyleCache = [];
+    const trailStyle = (alpha) => {
+        const k = (alpha * 100) | 0;
+        return trailStyleCache[k] ||
+            (trailStyleCache[k] = `rgba(${dotRgb[0]},${dotRgb[1]},${dotRgb[2]},${k / 100})`);
+    };
+
+    const SPRITE_SIZE = 24;
+    const SPRITE_HALF = SPRITE_SIZE / 2;
+    const MAX_TRAIL_POINTS = 24;
+    let dotSprite = null;
+
+    function buildSprite() {
+        const px = Math.ceil(SPRITE_SIZE * dpr);
+        dotSprite = document.createElement('canvas');
+        dotSprite.width = px;
+        dotSprite.height = px;
+        const sctx = dotSprite.getContext('2d');
+        if (!sctx) { dotSprite = null; return; }
+        const half = px / 2;
+        const c = dotRgb[0] + ',' + dotRgb[1] + ',' + dotRgb[2];
+        const g = sctx.createRadialGradient(half, half, 0, half, half, half);
+        g.addColorStop(0, `rgba(${c},0.95)`);
+        g.addColorStop(0.14, `rgba(${c},0.9)`);
+        g.addColorStop(0.42, `rgba(${c},0.3)`);
+        g.addColorStop(1, `rgba(${c},0)`);
+        sctx.fillStyle = g;
+        sctx.fillRect(0, 0, px, px);
+    }
+
     let w = 0;
     let h = 0;
     let dpr = 1;
@@ -518,6 +608,8 @@
     let edgeA = new Int32Array();
     let edgeB = new Int32Array();
     let edgeLen = new Float32Array();
+    let edgeMX = new Float32Array(); // PERF: precomputed edge midpoints
+    let edgeMY = new Float32Array();
     let nodeEdges = [];
     let dots = [];
     let last = performance.now();
@@ -622,6 +714,8 @@
         edgeA = Int32Array.from(ea);
         edgeB = Int32Array.from(eb);
         edgeLen = new Float32Array(ea.length);
+        edgeMX = new Float32Array(ea.length);
+        edgeMY = new Float32Array(ea.length);
         nodeEdges = Array.from({ length: xs.length }, () => []);
         basePath = new Path2D();
 
@@ -629,6 +723,8 @@
             const a = ea[e];
             const b = eb[e];
             edgeLen[e] = Math.hypot(nodeX[a] - nodeX[b], nodeY[a] - nodeY[b]) || 1;
+            edgeMX[e] = (nodeX[a] + nodeX[b]) * 0.5;
+            edgeMY[e] = (nodeY[a] + nodeY[b]) * 0.5;
             nodeEdges[a].push(e);
             nodeEdges[b].push(e);
             basePath.moveTo(nodeX[a], nodeY[a]);
@@ -704,32 +800,27 @@
         if (!basePath) return;
 
         ctx.lineWidth = 1;
-        ctx.strokeStyle = `rgba(${baseRgb[0]},${baseRgb[1]},${baseRgb[2]},0.28)`;
+        ctx.strokeStyle = baseStroke;
         ctx.stroke(basePath);
 
         if (!reduceMotion) {
             const mouseRadius = 190;
             if (mouseActive) {
                 ctx.lineCap = 'round';
+                const mx0 = mouse.x;
+                const my0 = mouse.y;
                 for (let e = 0; e < edgeA.length; e++) {
-                    const a = edgeA[e];
-                    const b = edgeB[e];
-                    const mx = (nodeX[a] + nodeX[b]) * 0.5;
-                    const my = (nodeY[a] + nodeY[b]) * 0.5;
-                    if (Math.abs(mx - mouse.x) > mouseRadius || Math.abs(my - mouse.y) > mouseRadius) continue;
+                    if (Math.abs(edgeMX[e] - mx0) > mouseRadius || Math.abs(edgeMY[e] - my0) > mouseRadius) continue;
 
-                    const dist = distToEdge(e, mouse.x, mouse.y);
+                    const dist = distToEdge(e, mx0, my0);
                     if (dist > mouseRadius) continue;
 
                     const glow = Math.pow(1 - dist / mouseRadius, 2);
-                    const cr = baseRgb[0] + (hotRgb[0] - baseRgb[0]) * glow;
-                    const cg = baseRgb[1] + (hotRgb[1] - baseRgb[1]) * glow;
-                    const cb = baseRgb[2] + (hotRgb[2] - baseRgb[2]) * glow;
-                    ctx.strokeStyle = `rgba(${cr | 0},${cg | 0},${cb | 0},${0.28 + 0.5 * glow})`;
+                    ctx.strokeStyle = glowStyle(glow);
                     ctx.lineWidth = 1 + 1.2 * glow;
                     ctx.beginPath();
-                    ctx.moveTo(nodeX[a], nodeY[a]);
-                    ctx.lineTo(nodeX[b], nodeY[b]);
+                    ctx.moveTo(nodeX[edgeA[e]], nodeY[edgeA[e]]);
+                    ctx.lineTo(nodeX[edgeB[e]], nodeY[edgeB[e]]);
                     ctx.stroke();
                 }
             }
@@ -763,6 +854,8 @@
         const hist = dot.hist;
 
         hist.push(x, y);
+        // PERF: hard cap so slow dots can't accumulate unbounded trail points
+        if (hist.length > MAX_TRAIL_POINTS * 2) hist.splice(0, hist.length - MAX_TRAIL_POINTS * 2);
         let total = 0;
         for (let i = hist.length - 2; i >= 2; i -= 2) {
             total += Math.hypot(hist[i] - hist[i - 2], hist[i + 1] - hist[i - 1]);
@@ -785,7 +878,7 @@
                 const mx = i < n - 1 ? (cx + hist[(i + 1) * 2]) * 0.5 : x;
                 const my = i < n - 1 ? (cy + hist[(i + 1) * 2 + 1]) * 0.5 : y;
                 const fade = i / (n - 1);
-                ctx.strokeStyle = `rgba(${dotRgb[0]},${dotRgb[1]},${dotRgb[2]},${(0.58 * fade * fade).toFixed(3)})`;
+                ctx.strokeStyle = trailStyle(0.58 * fade * fade);
                 ctx.lineWidth = 0.5 + 1.3 * fade;
                 ctx.beginPath();
                 ctx.moveTo(prevMx, prevMy);
@@ -796,13 +889,15 @@
             }
         }
 
-        ctx.shadowBlur = 9;
-        ctx.shadowColor = `rgba(${dotRgb[0]},${dotRgb[1]},${dotRgb[2]},0.92)`;
-        ctx.fillStyle = `rgba(${dotRgb[0]},${dotRgb[1]},${dotRgb[2]},0.92)`;
-        ctx.beginPath();
-        ctx.arc(x, y, 1.55, 0, Math.PI * 2);
-        ctx.fill();
-        ctx.shadowBlur = 0;
+        // PERF: cached glow sprite instead of shadowBlur (same look, ~10x cheaper)
+        if (dotSprite) {
+            ctx.drawImage(dotSprite, x - SPRITE_HALF, y - SPRITE_HALF, SPRITE_SIZE, SPRITE_SIZE);
+        } else {
+            ctx.fillStyle = trailStyle(0.92);
+            ctx.beginPath();
+            ctx.arc(x, y, 1.55, 0, Math.PI * 2);
+            ctx.fill();
+        }
     }
 
     function resize() {
@@ -812,11 +907,18 @@
         tile = w < 700 ? 88 : 112;
         canvas.width = Math.round(w * dpr);
         canvas.height = Math.round(h * dpr);
+        buildSprite();
         buildGraph();
         if (reduceMotion) draw(performance.now());
     }
 
-    window.addEventListener('resize', resize);
+    // PERF: debounce resize — rebuilding the full graph on every resize
+    // event made window-dragging stutter badly on slow machines.
+    let resizeTimer = 0;
+    window.addEventListener('resize', () => {
+        clearTimeout(resizeTimer);
+        resizeTimer = setTimeout(resize, 150);
+    });
     window.addEventListener('pointermove', (e) => {
         mouse.x = e.clientX;
         mouse.y = e.clientY;
